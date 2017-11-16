@@ -3,9 +3,9 @@ package main
 import (
 	"github.com/NeuronFramework/log"
 	"github.com/NeuronFramework/restful"
-	"github.com/NeuronGroup/Accounts/api/private/gen/restapi"
-	"github.com/NeuronGroup/Accounts/api/private/gen/restapi/operations"
-	"github.com/NeuronGroup/Accounts/cmd/accounts-private-api/handler"
+	"github.com/NeuronGroup/Account/api/private/gen/restapi"
+	"github.com/NeuronGroup/Account/api/private/gen/restapi/operations"
+	"github.com/NeuronGroup/Account/cmd/accounts-private-api/handler"
 	"github.com/go-openapi/loads"
 	"github.com/go-openapi/runtime/middleware"
 	"github.com/rs/cors"

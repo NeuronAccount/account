@@ -3,7 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
-	"github.com/NeuronGroup/Accounts/storages/account"
+	"github.com/NeuronGroup/Account/storages/account"
 	"time"
 )
 

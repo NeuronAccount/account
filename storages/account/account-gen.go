@@ -92,8 +92,6 @@ type Account struct {
 	OauthAccountId string //size=128
 	CreateTime     time.Time
 	UpdateTime     time.Time
-
-	GROUP_BY_COUNT int64
 }
 
 type AccountQuery struct {
@@ -547,8 +545,6 @@ var ACCOUNT_OPERATION_ALL_FIELDS = []string{
 type AccountOperation struct {
 	Id         int64 //size=20
 	CreateTime time.Time
-
-	GROUP_BY_COUNT int64
 }
 
 type AccountOperationQuery struct {
@@ -891,8 +887,6 @@ type LoginHistory struct {
 	Id         int64  //size=20
 	AccountId  string //size=128
 	CreateTime time.Time
-
-	GROUP_BY_COUNT int64
 }
 
 type LoginHistoryQuery struct {
@@ -1259,8 +1253,6 @@ type SmsCode struct {
 	PhoneNumber string //size=32
 	SmsCode     string //size=32
 	CreateTime  time.Time
-
-	GROUP_BY_COUNT int64
 }
 
 type SmsCodeQuery struct {

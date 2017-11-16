@@ -2,10 +2,9 @@ package services
 
 import (
 	"context"
-	"database/sql"
 	"github.com/NeuronFramework/errors"
-	"github.com/NeuronGroup/Accounts/models"
-	"github.com/NeuronGroup/Accounts/storages/account"
+	"github.com/NeuronGroup/Account/models"
+	"github.com/NeuronGroup/Account/storages/account"
 	"time"
 )
 
@@ -30,7 +29,7 @@ func (s *AccountService) SmsLogin(phone string, smsCode string, scope string) (j
 
 	//是否新建帐号
 	if dbAccount == nil {
-		tx, err := s.db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelReadCommitted, ReadOnly: false})
+		tx, err := s.db.BeginReadCommittedTx(context.Background(), false)
 		if err != nil {
 			return "", err
 		}

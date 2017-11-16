@@ -2,14 +2,13 @@ package services
 
 import (
 	"context"
-	"database/sql"
 	"github.com/NeuronFramework/errors"
-	"github.com/NeuronGroup/Accounts/models"
-	"github.com/NeuronGroup/Accounts/storages/account"
+	"github.com/NeuronGroup/Account/models"
+	"github.com/NeuronGroup/Account/storages/account"
 	"time"
 )
 
-func (s *AccountService) SmsSignup(phone string, smsCode string) ( err error) {
+func (s *AccountService) SmsSignup(phone string, smsCode string) (err error) {
 	dbSmsCode, err := s.db.SmsCode.GetQuery().
 		SceneType_Equal(models.SCENE_TYPE_SMS_SIGNUP).And().PhoneNumber_Equal(phone).
 		OrderBy(account.SMS_CODE_FIELD_CREATE_TIME, false).QueryOne(context.Background(), nil)
@@ -21,7 +20,7 @@ func (s *AccountService) SmsSignup(phone string, smsCode string) ( err error) {
 		return errors.BadRequest("InvalidSmsCode", "验证码错误")
 	}
 
-	tx, err := s.db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelReadCommitted, ReadOnly: false})
+	tx, err := s.db.BeginReadCommittedTx(context.Background(), false)
 	if err != nil {
 		return err
 	}

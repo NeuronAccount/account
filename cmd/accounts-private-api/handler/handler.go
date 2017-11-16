@@ -3,9 +3,9 @@ package handler
 import (
 	"github.com/NeuronFramework/log"
 	"github.com/NeuronFramework/restful"
-	"github.com/NeuronGroup/Accounts/api/private/gen/models"
-	"github.com/NeuronGroup/Accounts/api/private/gen/restapi/operations"
-	"github.com/NeuronGroup/Accounts/services"
+	"github.com/NeuronGroup/Account/api/private/gen/models"
+	"github.com/NeuronGroup/Account/api/private/gen/restapi/operations"
+	"github.com/NeuronGroup/Account/services"
 	"github.com/go-openapi/runtime/middleware"
 	"go.uber.org/zap"
 )

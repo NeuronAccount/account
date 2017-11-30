@@ -14,6 +14,8 @@ import (
 	"github.com/go-openapi/validate"
 
 	strfmt "github.com/go-openapi/strfmt"
+
+	"github.com/NeuronGroup/Account/api/private/gen/models"
 )
 
 // NewSmsLoginParams creates a new SmsLoginParams object
@@ -33,15 +35,14 @@ type SmsLoginParams struct {
 	HTTPRequest *http.Request
 
 	/*
-	  Required: true
-	  In: query
+	  In: body
 	*/
-	Phone string
+	Oauth2AuthorizeParams *models.OAuth2AuthorizeParams
 	/*
 	  Required: true
 	  In: query
 	*/
-	Scope string
+	Phone string
 	/*
 	  Required: true
 	  In: query
@@ -57,13 +58,25 @@ func (o *SmsLoginParams) BindRequest(r *http.Request, route *middleware.MatchedR
 
 	qs := runtime.Values(r.URL.Query())
 
-	qPhone, qhkPhone, _ := qs.GetOK("phone")
-	if err := o.bindPhone(qPhone, qhkPhone, route.Formats); err != nil {
-		res = append(res, err)
+	if runtime.HasBody(r) {
+		defer r.Body.Close()
+		var body models.OAuth2AuthorizeParams
+		if err := route.Consumer.Consume(r.Body, &body); err != nil {
+			res = append(res, errors.NewParseError("oauth2AuthorizeParams", "body", "", err))
+		} else {
+			if err := body.Validate(route.Formats); err != nil {
+				res = append(res, err)
+			}
+
+			if len(res) == 0 {
+				o.Oauth2AuthorizeParams = &body
+			}
+		}
+
 	}
 
-	qScope, qhkScope, _ := qs.GetOK("scope")
-	if err := o.bindScope(qScope, qhkScope, route.Formats); err != nil {
+	qPhone, qhkPhone, _ := qs.GetOK("phone")
+	if err := o.bindPhone(qPhone, qhkPhone, route.Formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -91,23 +104,6 @@ func (o *SmsLoginParams) bindPhone(rawData []string, hasKey bool, formats strfmt
 	}
 
 	o.Phone = raw
-
-	return nil
-}
-
-func (o *SmsLoginParams) bindScope(rawData []string, hasKey bool, formats strfmt.Registry) error {
-	if !hasKey {
-		return errors.Required("scope", "query")
-	}
-	var raw string
-	if len(rawData) > 0 {
-		raw = rawData[len(rawData)-1]
-	}
-	if err := validate.RequiredString("scope", "query", raw); err != nil {
-		return err
-	}
-
-	o.Scope = raw
 
 	return nil
 }

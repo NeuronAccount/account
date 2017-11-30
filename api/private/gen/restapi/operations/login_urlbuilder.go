@@ -15,7 +15,6 @@ import (
 type LoginURL struct {
 	Name     string
 	Password string
-	Scope    string
 
 	_basePath string
 	// avoid unkeyed usage
@@ -45,7 +44,7 @@ func (o *LoginURL) Build() (*url.URL, error) {
 
 	_basePath := o._basePath
 	if _basePath == "" {
-		_basePath = "/api/v1/accounts"
+		_basePath = "/private-api/v1/accounts"
 	}
 	result.Path = golangswaggerpaths.Join(_basePath, _path)
 
@@ -59,11 +58,6 @@ func (o *LoginURL) Build() (*url.URL, error) {
 	password := o.Password
 	if password != "" {
 		qs.Set("password", password)
-	}
-
-	scope := o.Scope
-	if scope != "" {
-		qs.Set("scope", scope)
 	}
 
 	result.RawQuery = qs.Encode()

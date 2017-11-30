@@ -16,6 +16,8 @@ import (
 	cr "github.com/go-openapi/runtime/client"
 
 	strfmt "github.com/go-openapi/strfmt"
+
+	"github.com/NeuronGroup/Account/api/private/gen/models"
 )
 
 // NewSmsLoginParams creates a new SmsLoginParams object
@@ -62,10 +64,10 @@ for the sms login operation typically these are written to a http.Request
 */
 type SmsLoginParams struct {
 
+	/*Oauth2AuthorizeParams*/
+	Oauth2AuthorizeParams *models.OAuth2AuthorizeParams
 	/*Phone*/
 	Phone string
-	/*Scope*/
-	Scope string
 	/*SmsCode*/
 	SmsCode string
 
@@ -107,6 +109,17 @@ func (o *SmsLoginParams) SetHTTPClient(client *http.Client) {
 	o.HTTPClient = client
 }
 
+// WithOauth2AuthorizeParams adds the oauth2AuthorizeParams to the sms login params
+func (o *SmsLoginParams) WithOauth2AuthorizeParams(oauth2AuthorizeParams *models.OAuth2AuthorizeParams) *SmsLoginParams {
+	o.SetOauth2AuthorizeParams(oauth2AuthorizeParams)
+	return o
+}
+
+// SetOauth2AuthorizeParams adds the oauth2AuthorizeParams to the sms login params
+func (o *SmsLoginParams) SetOauth2AuthorizeParams(oauth2AuthorizeParams *models.OAuth2AuthorizeParams) {
+	o.Oauth2AuthorizeParams = oauth2AuthorizeParams
+}
+
 // WithPhone adds the phone to the sms login params
 func (o *SmsLoginParams) WithPhone(phone string) *SmsLoginParams {
 	o.SetPhone(phone)
@@ -116,17 +129,6 @@ func (o *SmsLoginParams) WithPhone(phone string) *SmsLoginParams {
 // SetPhone adds the phone to the sms login params
 func (o *SmsLoginParams) SetPhone(phone string) {
 	o.Phone = phone
-}
-
-// WithScope adds the scope to the sms login params
-func (o *SmsLoginParams) WithScope(scope string) *SmsLoginParams {
-	o.SetScope(scope)
-	return o
-}
-
-// SetScope adds the scope to the sms login params
-func (o *SmsLoginParams) SetScope(scope string) {
-	o.Scope = scope
 }
 
 // WithSmsCode adds the smsCode to the sms login params
@@ -148,20 +150,17 @@ func (o *SmsLoginParams) WriteToRequest(r runtime.ClientRequest, reg strfmt.Regi
 	}
 	var res []error
 
+	if o.Oauth2AuthorizeParams != nil {
+		if err := r.SetBodyParam(o.Oauth2AuthorizeParams); err != nil {
+			return err
+		}
+	}
+
 	// query param phone
 	qrPhone := o.Phone
 	qPhone := qrPhone
 	if qPhone != "" {
 		if err := r.SetQueryParam("phone", qPhone); err != nil {
-			return err
-		}
-	}
-
-	// query param scope
-	qrScope := o.Scope
-	qScope := qrScope
-	if qScope != "" {
-		if err := r.SetQueryParam("scope", qScope); err != nil {
 			return err
 		}
 	}

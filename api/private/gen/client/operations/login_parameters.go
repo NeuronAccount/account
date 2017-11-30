@@ -16,6 +16,8 @@ import (
 	cr "github.com/go-openapi/runtime/client"
 
 	strfmt "github.com/go-openapi/strfmt"
+
+	"github.com/NeuronGroup/Account/api/private/gen/models"
 )
 
 // NewLoginParams creates a new LoginParams object
@@ -64,10 +66,10 @@ type LoginParams struct {
 
 	/*Name*/
 	Name string
+	/*Oauth2AuthorizeParams*/
+	Oauth2AuthorizeParams *models.OAuth2AuthorizeParams
 	/*Password*/
 	Password string
-	/*Scope*/
-	Scope string
 
 	timeout    time.Duration
 	Context    context.Context
@@ -118,6 +120,17 @@ func (o *LoginParams) SetName(name string) {
 	o.Name = name
 }
 
+// WithOauth2AuthorizeParams adds the oauth2AuthorizeParams to the login params
+func (o *LoginParams) WithOauth2AuthorizeParams(oauth2AuthorizeParams *models.OAuth2AuthorizeParams) *LoginParams {
+	o.SetOauth2AuthorizeParams(oauth2AuthorizeParams)
+	return o
+}
+
+// SetOauth2AuthorizeParams adds the oauth2AuthorizeParams to the login params
+func (o *LoginParams) SetOauth2AuthorizeParams(oauth2AuthorizeParams *models.OAuth2AuthorizeParams) {
+	o.Oauth2AuthorizeParams = oauth2AuthorizeParams
+}
+
 // WithPassword adds the password to the login params
 func (o *LoginParams) WithPassword(password string) *LoginParams {
 	o.SetPassword(password)
@@ -127,17 +140,6 @@ func (o *LoginParams) WithPassword(password string) *LoginParams {
 // SetPassword adds the password to the login params
 func (o *LoginParams) SetPassword(password string) {
 	o.Password = password
-}
-
-// WithScope adds the scope to the login params
-func (o *LoginParams) WithScope(scope string) *LoginParams {
-	o.SetScope(scope)
-	return o
-}
-
-// SetScope adds the scope to the login params
-func (o *LoginParams) SetScope(scope string) {
-	o.Scope = scope
 }
 
 // WriteToRequest writes these params to a swagger request
@@ -157,20 +159,17 @@ func (o *LoginParams) WriteToRequest(r runtime.ClientRequest, reg strfmt.Registr
 		}
 	}
 
+	if o.Oauth2AuthorizeParams != nil {
+		if err := r.SetBodyParam(o.Oauth2AuthorizeParams); err != nil {
+			return err
+		}
+	}
+
 	// query param password
 	qrPassword := o.Password
 	qPassword := qrPassword
 	if qPassword != "" {
 		if err := r.SetQueryParam("password", qPassword); err != nil {
-			return err
-		}
-	}
-
-	// query param scope
-	qrScope := o.Scope
-	qScope := qrScope
-	if qScope != "" {
-		if err := r.SetQueryParam("scope", qScope); err != nil {
 			return err
 		}
 	}

@@ -16,6 +16,8 @@ import (
 	cr "github.com/go-openapi/runtime/client"
 
 	strfmt "github.com/go-openapi/strfmt"
+
+	"github.com/NeuronGroup/Account/api/private/gen/models"
 )
 
 // NewSmsSignupParams creates a new SmsSignupParams object
@@ -62,6 +64,10 @@ for the sms signup operation typically these are written to a http.Request
 */
 type SmsSignupParams struct {
 
+	/*Oauth2AuthorizeParams*/
+	Oauth2AuthorizeParams *models.OAuth2AuthorizeParams
+	/*Password*/
+	Password string
 	/*Phone*/
 	Phone string
 	/*SmsCode*/
@@ -105,6 +111,28 @@ func (o *SmsSignupParams) SetHTTPClient(client *http.Client) {
 	o.HTTPClient = client
 }
 
+// WithOauth2AuthorizeParams adds the oauth2AuthorizeParams to the sms signup params
+func (o *SmsSignupParams) WithOauth2AuthorizeParams(oauth2AuthorizeParams *models.OAuth2AuthorizeParams) *SmsSignupParams {
+	o.SetOauth2AuthorizeParams(oauth2AuthorizeParams)
+	return o
+}
+
+// SetOauth2AuthorizeParams adds the oauth2AuthorizeParams to the sms signup params
+func (o *SmsSignupParams) SetOauth2AuthorizeParams(oauth2AuthorizeParams *models.OAuth2AuthorizeParams) {
+	o.Oauth2AuthorizeParams = oauth2AuthorizeParams
+}
+
+// WithPassword adds the password to the sms signup params
+func (o *SmsSignupParams) WithPassword(password string) *SmsSignupParams {
+	o.SetPassword(password)
+	return o
+}
+
+// SetPassword adds the password to the sms signup params
+func (o *SmsSignupParams) SetPassword(password string) {
+	o.Password = password
+}
+
 // WithPhone adds the phone to the sms signup params
 func (o *SmsSignupParams) WithPhone(phone string) *SmsSignupParams {
 	o.SetPhone(phone)
@@ -134,6 +162,21 @@ func (o *SmsSignupParams) WriteToRequest(r runtime.ClientRequest, reg strfmt.Reg
 		return err
 	}
 	var res []error
+
+	if o.Oauth2AuthorizeParams != nil {
+		if err := r.SetBodyParam(o.Oauth2AuthorizeParams); err != nil {
+			return err
+		}
+	}
+
+	// query param password
+	qrPassword := o.Password
+	qPassword := qrPassword
+	if qPassword != "" {
+		if err := r.SetQueryParam("password", qPassword); err != nil {
+			return err
+		}
+	}
 
 	// query param phone
 	qrPhone := o.Phone

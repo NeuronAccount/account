@@ -14,6 +14,8 @@ import (
 	"github.com/go-openapi/validate"
 
 	strfmt "github.com/go-openapi/strfmt"
+
+	"github.com/NeuronGroup/Account/api/private/gen/models"
 )
 
 // NewSmsSignupParams creates a new SmsSignupParams object
@@ -32,6 +34,15 @@ type SmsSignupParams struct {
 	// HTTP Request Object
 	HTTPRequest *http.Request
 
+	/*
+	  In: body
+	*/
+	Oauth2AuthorizeParams *models.OAuth2AuthorizeParams
+	/*
+	  Required: true
+	  In: query
+	*/
+	Password string
 	/*
 	  Required: true
 	  In: query
@@ -52,6 +63,28 @@ func (o *SmsSignupParams) BindRequest(r *http.Request, route *middleware.Matched
 
 	qs := runtime.Values(r.URL.Query())
 
+	if runtime.HasBody(r) {
+		defer r.Body.Close()
+		var body models.OAuth2AuthorizeParams
+		if err := route.Consumer.Consume(r.Body, &body); err != nil {
+			res = append(res, errors.NewParseError("oauth2AuthorizeParams", "body", "", err))
+		} else {
+			if err := body.Validate(route.Formats); err != nil {
+				res = append(res, err)
+			}
+
+			if len(res) == 0 {
+				o.Oauth2AuthorizeParams = &body
+			}
+		}
+
+	}
+
+	qPassword, qhkPassword, _ := qs.GetOK("password")
+	if err := o.bindPassword(qPassword, qhkPassword, route.Formats); err != nil {
+		res = append(res, err)
+	}
+
 	qPhone, qhkPhone, _ := qs.GetOK("phone")
 	if err := o.bindPhone(qPhone, qhkPhone, route.Formats); err != nil {
 		res = append(res, err)
@@ -65,6 +98,23 @@ func (o *SmsSignupParams) BindRequest(r *http.Request, route *middleware.Matched
 	if len(res) > 0 {
 		return errors.CompositeValidationError(res...)
 	}
+	return nil
+}
+
+func (o *SmsSignupParams) bindPassword(rawData []string, hasKey bool, formats strfmt.Registry) error {
+	if !hasKey {
+		return errors.Required("password", "query")
+	}
+	var raw string
+	if len(rawData) > 0 {
+		raw = rawData[len(rawData)-1]
+	}
+	if err := validate.RequiredString("password", "query", raw); err != nil {
+		return err
+	}
+
+	o.Password = raw
+
 	return nil
 }
 

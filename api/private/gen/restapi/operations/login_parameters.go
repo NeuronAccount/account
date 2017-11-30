@@ -14,6 +14,8 @@ import (
 	"github.com/go-openapi/validate"
 
 	strfmt "github.com/go-openapi/strfmt"
+
+	"github.com/NeuronGroup/Account/api/private/gen/models"
 )
 
 // NewLoginParams creates a new LoginParams object
@@ -38,15 +40,14 @@ type LoginParams struct {
 	*/
 	Name string
 	/*
-	  Required: true
-	  In: query
+	  In: body
 	*/
-	Password string
+	Oauth2AuthorizeParams *models.OAuth2AuthorizeParams
 	/*
 	  Required: true
 	  In: query
 	*/
-	Scope string
+	Password string
 }
 
 // BindRequest both binds and validates a request, it assumes that complex things implement a Validatable(strfmt.Registry) error interface
@@ -62,13 +63,25 @@ func (o *LoginParams) BindRequest(r *http.Request, route *middleware.MatchedRout
 		res = append(res, err)
 	}
 
-	qPassword, qhkPassword, _ := qs.GetOK("password")
-	if err := o.bindPassword(qPassword, qhkPassword, route.Formats); err != nil {
-		res = append(res, err)
+	if runtime.HasBody(r) {
+		defer r.Body.Close()
+		var body models.OAuth2AuthorizeParams
+		if err := route.Consumer.Consume(r.Body, &body); err != nil {
+			res = append(res, errors.NewParseError("oauth2AuthorizeParams", "body", "", err))
+		} else {
+			if err := body.Validate(route.Formats); err != nil {
+				res = append(res, err)
+			}
+
+			if len(res) == 0 {
+				o.Oauth2AuthorizeParams = &body
+			}
+		}
+
 	}
 
-	qScope, qhkScope, _ := qs.GetOK("scope")
-	if err := o.bindScope(qScope, qhkScope, route.Formats); err != nil {
+	qPassword, qhkPassword, _ := qs.GetOK("password")
+	if err := o.bindPassword(qPassword, qhkPassword, route.Formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -108,23 +121,6 @@ func (o *LoginParams) bindPassword(rawData []string, hasKey bool, formats strfmt
 	}
 
 	o.Password = raw
-
-	return nil
-}
-
-func (o *LoginParams) bindScope(rawData []string, hasKey bool, formats strfmt.Registry) error {
-	if !hasKey {
-		return errors.Required("scope", "query")
-	}
-	var raw string
-	if len(rawData) > 0 {
-		raw = rawData[len(rawData)-1]
-	}
-	if err := validate.RequiredString("scope", "query", raw); err != nil {
-		return err
-	}
-
-	o.Scope = raw
 
 	return nil
 }

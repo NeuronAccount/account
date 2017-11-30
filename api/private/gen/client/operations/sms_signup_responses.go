@@ -54,13 +54,21 @@ func NewSmsSignupOK() *SmsSignupOK {
 ok
 */
 type SmsSignupOK struct {
+	Payload *models.LoginResponse
 }
 
 func (o *SmsSignupOK) Error() string {
-	return fmt.Sprintf("[POST /smsSignup][%d] smsSignupOK ", 200)
+	return fmt.Sprintf("[POST /smsSignup][%d] smsSignupOK  %+v", 200, o.Payload)
 }
 
 func (o *SmsSignupOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
+
+	o.Payload = new(models.LoginResponse)
+
+	// response payload
+	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
+		return err
+	}
 
 	return nil
 }

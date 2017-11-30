@@ -14,7 +14,6 @@ import (
 // SmsLoginURL generates an URL for the sms login operation
 type SmsLoginURL struct {
 	Phone   string
-	Scope   string
 	SmsCode string
 
 	_basePath string
@@ -45,7 +44,7 @@ func (o *SmsLoginURL) Build() (*url.URL, error) {
 
 	_basePath := o._basePath
 	if _basePath == "" {
-		_basePath = "/api/v1/accounts"
+		_basePath = "/private-api/v1/accounts"
 	}
 	result.Path = golangswaggerpaths.Join(_basePath, _path)
 
@@ -54,11 +53,6 @@ func (o *SmsLoginURL) Build() (*url.URL, error) {
 	phone := o.Phone
 	if phone != "" {
 		qs.Set("phone", phone)
-	}
-
-	scope := o.Scope
-	if scope != "" {
-		qs.Set("scope", scope)
 	}
 
 	smsCode := o.SmsCode

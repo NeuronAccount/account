@@ -8,7 +8,7 @@
     },
     "version": "v1"
   },
-  "basePath": "/api/v1/accounts",
+  "basePath": "/private-api/v1/accounts",
   "schemes": [
     "http",
     "https"
@@ -127,11 +127,28 @@
             "name": "smsCode",
             "type": "string",
             "required": true
+          },
+          {
+            "in": "query",
+            "name": "password",
+            "type": "string",
+            "required": true
+          },
+          {
+            "in": "body",
+            "name": "oauth2AuthorizeParams",
+            "schema": {
+              "$ref": "#/definitions/OAuth2AuthorizeParams"
+            },
+            "required": false
           }
         ],
         "responses": {
           "200": {
-            "description": "ok"
+            "description": "ok",
+            "schema": {
+              "$ref": "#/definitions/LoginResponse"
+            }
           },
           "default": {
             "$ref": "#/responses/ErrorResponse"
@@ -157,10 +174,12 @@
             "required": true
           },
           {
-            "in": "query",
-            "name": "scope",
-            "type": "string",
-            "required": true
+            "in": "body",
+            "name": "oauth2AuthorizeParams",
+            "schema": {
+              "$ref": "#/definitions/OAuth2AuthorizeParams"
+            },
+            "required": false
           }
         ],
         "responses": {
@@ -191,10 +210,12 @@
             "required": true
           },
           {
-            "in": "query",
-            "name": "scope",
-            "type": "string",
-            "required": true
+            "in": "body",
+            "name": "oauth2AuthorizeParams",
+            "schema": {
+              "$ref": "#/definitions/OAuth2AuthorizeParams"
+            },
+            "required": false
           }
         ],
         "responses": {
@@ -234,6 +255,26 @@
     }
   },
   "definitions": {
+    "OAuth2AuthorizeParams": {
+      "type": "object",
+      "properties": {
+        "response_type":{
+          "type": "string"
+        },
+        "client_id":{
+          "type": "string"
+        },
+        "scope":{
+          "type": "string"
+        },
+        "redirect_uri":{
+          "type": "string"
+        },
+        "state":{
+          "type": "string"
+        }
+      }
+    },
     "LoginResponse": {
       "type": "object",
       "properties": {

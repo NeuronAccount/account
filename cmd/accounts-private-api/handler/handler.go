@@ -12,6 +12,7 @@ import (
 
 type AccountHandlerOptions struct {
 	AccountStorageConnectionString string
+	OAuthConnectionString          string
 }
 
 type AccountHandler struct {
@@ -26,6 +27,7 @@ func NewAccountHandler(options *AccountHandlerOptions) (h *AccountHandler, err e
 	h.options = options
 	h.service, err = services.NewAccountService(&services.AccountServiceOptions{
 		AccountStorageConnectionString: options.AccountStorageConnectionString,
+		OAuthConnectionString:          options.OAuthConnectionString,
 	})
 	if err != nil {
 		return nil, err
@@ -54,16 +56,16 @@ func (h AccountHandler) SmsCode(p operations.SmsCodeParams) middleware.Responder
 }
 
 func (h AccountHandler) SmsSignup(p operations.SmsSignupParams) middleware.Responder {
-	err := h.service.SmsSignup(p.Phone, p.SmsCode)
+	jwt, err := h.service.SmsSignup(p.Phone, p.SmsCode, p.Password, toOAuth2Param(p.Oauth2AuthorizeParams))
 	if err != nil {
 		return restful.Responder(err)
 	}
 
-	return operations.NewSmsSignupOK()
+	return operations.NewSmsSignupOK().WithPayload(&models.LoginResponse{Jwt: jwt})
 }
 
 func (h AccountHandler) SmsLogin(p operations.SmsLoginParams) middleware.Responder {
-	jwt, err := h.service.SmsLogin(p.Phone, p.SmsCode,p.Scope)
+	jwt, err := h.service.SmsLogin(p.Phone, p.SmsCode, toOAuth2Param(p.Oauth2AuthorizeParams))
 	if err != nil {
 		return restful.Responder(err)
 	}
@@ -72,7 +74,7 @@ func (h AccountHandler) SmsLogin(p operations.SmsLoginParams) middleware.Respond
 }
 
 func (h AccountHandler) Login(p operations.LoginParams) middleware.Responder {
-	jwt, err := h.service.Login(p.Name, p.Password,p.Scope)
+	jwt, err := h.service.Login(p.Name, p.Password, toOAuth2Param(p.Oauth2AuthorizeParams))
 	if err != nil {
 		return restful.Responder(err)
 	}

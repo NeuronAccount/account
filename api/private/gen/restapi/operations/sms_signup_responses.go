@@ -21,6 +21,11 @@ const SmsSignupOKCode int = 200
 swagger:response smsSignupOK
 */
 type SmsSignupOK struct {
+
+	/*
+	  In: Body
+	*/
+	Payload *models.LoginResponse `json:"body,omitempty"`
 }
 
 // NewSmsSignupOK creates SmsSignupOK with default headers values
@@ -28,10 +33,27 @@ func NewSmsSignupOK() *SmsSignupOK {
 	return &SmsSignupOK{}
 }
 
+// WithPayload adds the payload to the sms signup o k response
+func (o *SmsSignupOK) WithPayload(payload *models.LoginResponse) *SmsSignupOK {
+	o.Payload = payload
+	return o
+}
+
+// SetPayload sets the payload to the sms signup o k response
+func (o *SmsSignupOK) SetPayload(payload *models.LoginResponse) {
+	o.Payload = payload
+}
+
 // WriteResponse to the client
 func (o *SmsSignupOK) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
 
 	rw.WriteHeader(200)
+	if o.Payload != nil {
+		payload := o.Payload
+		if err := producer.Produce(rw, payload); err != nil {
+			panic(err) // let the recovery middleware deal with this
+		}
+	}
 }
 
 /*SmsSignupDefault Error response

@@ -7,7 +7,7 @@ Package restapi Accounts
       http
       https
     Host: localhost
-    BasePath: /api/v1/accounts
+    BasePath: /private-api/v1/accounts
     Version: v1
     Contact: mars
 

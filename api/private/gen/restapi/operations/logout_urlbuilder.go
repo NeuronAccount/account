@@ -43,7 +43,7 @@ func (o *LogoutURL) Build() (*url.URL, error) {
 
 	_basePath := o._basePath
 	if _basePath == "" {
-		_basePath = "/api/v1/accounts"
+		_basePath = "/private-api/v1/accounts"
 	}
 	result.Path = golangswaggerpaths.Join(_basePath, _path)
 

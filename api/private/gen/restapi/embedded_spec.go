@@ -32,7 +32,7 @@ func init() {
     },
     "version": "v1"
   },
-  "basePath": "/api/v1/accounts",
+  "basePath": "/private-api/v1/accounts",
   "paths": {
     "/login": {
       "post": {
@@ -51,10 +51,11 @@ func init() {
             "required": true
           },
           {
-            "type": "string",
-            "name": "scope",
-            "in": "query",
-            "required": true
+            "name": "oauth2AuthorizeParams",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/OAuth2AuthorizeParams"
+            }
           }
         ],
         "responses": {
@@ -155,10 +156,11 @@ func init() {
             "required": true
           },
           {
-            "type": "string",
-            "name": "scope",
-            "in": "query",
-            "required": true
+            "name": "oauth2AuthorizeParams",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/OAuth2AuthorizeParams"
+            }
           }
         ],
         "responses": {
@@ -186,11 +188,27 @@ func init() {
             "name": "smsCode",
             "in": "query",
             "required": true
+          },
+          {
+            "type": "string",
+            "name": "password",
+            "in": "query",
+            "required": true
+          },
+          {
+            "name": "oauth2AuthorizeParams",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/OAuth2AuthorizeParams"
+            }
           }
         ],
         "responses": {
           "200": {
-            "description": "ok"
+            "description": "ok",
+            "schema": {
+              "$ref": "#/definitions/LoginResponse"
+            }
           },
           "default": {
             "description": "Error response",
@@ -207,6 +225,26 @@ func init() {
       "type": "object",
       "properties": {
         "jwt": {
+          "type": "string"
+        }
+      }
+    },
+    "OAuth2AuthorizeParams": {
+      "type": "object",
+      "properties": {
+        "client_id": {
+          "type": "string"
+        },
+        "redirect_uri": {
+          "type": "string"
+        },
+        "response_type": {
+          "type": "string"
+        },
+        "scope": {
+          "type": "string"
+        },
+        "state": {
           "type": "string"
         }
       }

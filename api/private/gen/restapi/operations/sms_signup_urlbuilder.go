@@ -13,8 +13,9 @@ import (
 
 // SmsSignupURL generates an URL for the sms signup operation
 type SmsSignupURL struct {
-	Phone   string
-	SmsCode string
+	Password string
+	Phone    string
+	SmsCode  string
 
 	_basePath string
 	// avoid unkeyed usage
@@ -44,11 +45,16 @@ func (o *SmsSignupURL) Build() (*url.URL, error) {
 
 	_basePath := o._basePath
 	if _basePath == "" {
-		_basePath = "/api/v1/accounts"
+		_basePath = "/private-api/v1/accounts"
 	}
 	result.Path = golangswaggerpaths.Join(_basePath, _path)
 
 	qs := make(url.Values)
+
+	password := o.Password
+	if password != "" {
+		qs.Set("password", password)
+	}
 
 	phone := o.Phone
 	if phone != "" {

@@ -23,11 +23,14 @@ func main() {
 
 	var bind_addr string
 	var storageConnectionString = ""
+	var oauthConn = ""
 
 	cmd := cobra.Command{}
 	cmd.PersistentFlags().StringVar(&bind_addr, "bind-addr", ":8083", "api server bind addr")
-	cmd.PersistentFlags().StringVar(&storageConnectionString, "mysql-connection-string",
+	cmd.PersistentFlags().StringVar(&storageConnectionString, "account-conn",
 		"root:123456@tcp(127.0.0.1:3307)/account?parseTime=true", "mysql connection string")
+	cmd.PersistentFlags().StringVar(&oauthConn, "oauth-conn",
+		"root:123456@tcp(127.0.0.1:3307)/account-oauth?parseTime=true", "mysql connection string")
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		swaggerSpec, err := loads.Analyzed(restapi.SwaggerJSON, "")
 		if err != nil {
@@ -36,7 +39,8 @@ func main() {
 		api := operations.NewAccountsAPI(swaggerSpec)
 
 		h, err := handler.NewAccountHandler(&handler.AccountHandlerOptions{
-			AccountStorageConnectionString: storageConnectionString})
+			AccountStorageConnectionString: storageConnectionString,
+			OAuthConnectionString:          oauthConn})
 		if err != nil {
 			return err
 		}

@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func (s *AccountService) SmsLogin(phone string, smsCode string, scope string) (jwt string, err error) {
+func (s *AccountService) SmsLogin(phone string, smsCode string, oAuth2Params *models.OAuth2AuthorizeParams) (jwt string, err error) {
 	//验证码
 	dbSmsCode, err := s.db.SmsCode.GetQuery().
 		SceneType_Equal(models.SCENE_TYPE_SMS_LOGIN).And().PhoneNumber_Equal(phone).
@@ -63,7 +63,7 @@ func (s *AccountService) SmsLogin(phone string, smsCode string, scope string) (j
 	}
 
 	//生成Token
-	jwt, err = generateJwt(dbAccount.AccountId, scope)
+	jwt, err = generateJwt(dbAccount.AccountId, oAuth2Params)
 	if err != nil {
 		return "", err
 	}

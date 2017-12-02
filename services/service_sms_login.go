@@ -2,9 +2,9 @@ package services
 
 import (
 	"context"
+	"github.com/NeuronAccount/account/models"
+	"github.com/NeuronAccount/account/storages/account"
 	"github.com/NeuronFramework/errors"
-	"github.com/NeuronGroup/account/models"
-	"github.com/NeuronGroup/account/storages/account"
 	"time"
 )
 

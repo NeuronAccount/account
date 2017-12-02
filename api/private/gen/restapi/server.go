@@ -20,7 +20,7 @@ import (
 	flags "github.com/jessevdk/go-flags"
 	graceful "github.com/tylerb/graceful"
 
-	"github.com/NeuronGroup/account/api/private/gen/restapi/operations"
+	"github.com/NeuronAccount/account/api/private/gen/restapi/operations"
 )
 
 const (

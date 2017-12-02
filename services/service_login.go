@@ -3,7 +3,7 @@ package services
 import (
 	"context"
 	"github.com/NeuronFramework/errors"
-	"github.com/NeuronGroup/account/storages/account"
+	"github.com/NeuronAccount/account/storages/account"
 	"strings"
 )
 

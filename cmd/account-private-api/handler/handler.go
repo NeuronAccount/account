@@ -1,10 +1,10 @@
 package handler
 
 import (
+	"github.com/NeuronAccount/account/api/private/gen/restapi/operations"
+	"github.com/NeuronAccount/account/services"
 	"github.com/NeuronFramework/log"
 	"github.com/NeuronFramework/restful"
-	"github.com/NeuronGroup/account/api/private/gen/restapi/operations"
-	"github.com/NeuronGroup/account/services"
 	"github.com/go-openapi/runtime/middleware"
 	"go.uber.org/zap"
 )

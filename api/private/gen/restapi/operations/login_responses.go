@@ -10,7 +10,7 @@ import (
 
 	"github.com/go-openapi/runtime"
 
-	"github.com/NeuronGroup/account/api/private/gen/models"
+	"github.com/NeuronAccount/account/api/private/gen/models"
 )
 
 // LoginOKCode is the HTTP code returned for type LoginOK

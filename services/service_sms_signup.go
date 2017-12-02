@@ -4,8 +4,8 @@ import (
 	"context"
 	"github.com/NeuronFramework/errors"
 	"github.com/NeuronFramework/rand"
-	"github.com/NeuronGroup/account/models"
-	"github.com/NeuronGroup/account/storages/account"
+	"github.com/NeuronAccount/account/models"
+	"github.com/NeuronAccount/account/storages/account"
 )
 
 func (s *AccountService) SmsSignup(phone string, smsCode string, password string) (jwt string, err error) {

@@ -10,7 +10,7 @@ import (
 
 	"github.com/go-openapi/runtime"
 
-	"github.com/NeuronGroup/Account/api/private/gen/models"
+	"github.com/NeuronGroup/account/api/private/gen/models"
 )
 
 // SmsCodeOKCode is the HTTP code returned for type SmsCodeOK

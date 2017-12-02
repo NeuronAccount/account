@@ -10,7 +10,7 @@ import (
 
 	"github.com/go-openapi/runtime"
 
-	"github.com/NeuronGroup/Account/api/private/gen/models"
+	"github.com/NeuronGroup/account/api/private/gen/models"
 )
 
 // SmsSignupOKCode is the HTTP code returned for type SmsSignupOK
@@ -25,7 +25,7 @@ type SmsSignupOK struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.LoginResponse `json:"body,omitempty"`
+	Payload string `json:"body,omitempty"`
 }
 
 // NewSmsSignupOK creates SmsSignupOK with default headers values
@@ -34,13 +34,13 @@ func NewSmsSignupOK() *SmsSignupOK {
 }
 
 // WithPayload adds the payload to the sms signup o k response
-func (o *SmsSignupOK) WithPayload(payload *models.LoginResponse) *SmsSignupOK {
+func (o *SmsSignupOK) WithPayload(payload string) *SmsSignupOK {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the sms signup o k response
-func (o *SmsSignupOK) SetPayload(payload *models.LoginResponse) {
+func (o *SmsSignupOK) SetPayload(payload string) {
 	o.Payload = payload
 }
 
@@ -48,12 +48,11 @@ func (o *SmsSignupOK) SetPayload(payload *models.LoginResponse) {
 func (o *SmsSignupOK) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
 
 	rw.WriteHeader(200)
-	if o.Payload != nil {
-		payload := o.Payload
-		if err := producer.Produce(rw, payload); err != nil {
-			panic(err) // let the recovery middleware deal with this
-		}
+	payload := o.Payload
+	if err := producer.Produce(rw, payload); err != nil {
+		panic(err) // let the recovery middleware deal with this
 	}
+
 }
 
 /*SmsSignupDefault Error response

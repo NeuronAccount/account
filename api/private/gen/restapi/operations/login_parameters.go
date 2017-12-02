@@ -14,8 +14,6 @@ import (
 	"github.com/go-openapi/validate"
 
 	strfmt "github.com/go-openapi/strfmt"
-
-	"github.com/NeuronGroup/Account/api/private/gen/models"
 )
 
 // NewLoginParams creates a new LoginParams object
@@ -40,10 +38,6 @@ type LoginParams struct {
 	*/
 	Name string
 	/*
-	  In: body
-	*/
-	Oauth2AuthorizeParams *models.OAuth2AuthorizeParams
-	/*
 	  Required: true
 	  In: query
 	*/
@@ -61,23 +55,6 @@ func (o *LoginParams) BindRequest(r *http.Request, route *middleware.MatchedRout
 	qName, qhkName, _ := qs.GetOK("name")
 	if err := o.bindName(qName, qhkName, route.Formats); err != nil {
 		res = append(res, err)
-	}
-
-	if runtime.HasBody(r) {
-		defer r.Body.Close()
-		var body models.OAuth2AuthorizeParams
-		if err := route.Consumer.Consume(r.Body, &body); err != nil {
-			res = append(res, errors.NewParseError("oauth2AuthorizeParams", "body", "", err))
-		} else {
-			if err := body.Validate(route.Formats); err != nil {
-				res = append(res, err)
-			}
-
-			if len(res) == 0 {
-				o.Oauth2AuthorizeParams = &body
-			}
-		}
-
 	}
 
 	qPassword, qhkPassword, _ := qs.GetOK("password")

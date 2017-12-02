@@ -3,16 +3,13 @@ package handler
 import (
 	"github.com/NeuronFramework/log"
 	"github.com/NeuronFramework/restful"
-	"github.com/NeuronGroup/Account/api/private/gen/models"
-	"github.com/NeuronGroup/Account/api/private/gen/restapi/operations"
-	"github.com/NeuronGroup/Account/services"
+	"github.com/NeuronGroup/account/api/private/gen/restapi/operations"
+	"github.com/NeuronGroup/account/services"
 	"github.com/go-openapi/runtime/middleware"
 	"go.uber.org/zap"
 )
 
 type AccountHandlerOptions struct {
-	AccountStorageConnectionString string
-	OAuthConnectionString          string
 }
 
 type AccountHandler struct {
@@ -25,10 +22,7 @@ func NewAccountHandler(options *AccountHandlerOptions) (h *AccountHandler, err e
 	h = &AccountHandler{}
 	h.logger = log.TypedLogger(h)
 	h.options = options
-	h.service, err = services.NewAccountService(&services.AccountServiceOptions{
-		AccountStorageConnectionString: options.AccountStorageConnectionString,
-		OAuthConnectionString:          options.OAuthConnectionString,
-	})
+	h.service, err = services.NewAccountService(&services.AccountServiceOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -56,30 +50,30 @@ func (h AccountHandler) SmsCode(p operations.SmsCodeParams) middleware.Responder
 }
 
 func (h AccountHandler) SmsSignup(p operations.SmsSignupParams) middleware.Responder {
-	jwt, err := h.service.SmsSignup(p.Phone, p.SmsCode, p.Password, toOAuth2Param(p.Oauth2AuthorizeParams))
+	jwt, err := h.service.SmsSignup(p.Phone, p.SmsCode, p.Password)
 	if err != nil {
 		return restful.Responder(err)
 	}
 
-	return operations.NewSmsSignupOK().WithPayload(&models.LoginResponse{Jwt: jwt})
+	return operations.NewSmsSignupOK().WithPayload(jwt)
 }
 
 func (h AccountHandler) SmsLogin(p operations.SmsLoginParams) middleware.Responder {
-	jwt, err := h.service.SmsLogin(p.Phone, p.SmsCode, toOAuth2Param(p.Oauth2AuthorizeParams))
+	jwt, err := h.service.SmsLogin(p.Phone, p.SmsCode)
 	if err != nil {
 		return restful.Responder(err)
 	}
 
-	return operations.NewSmsLoginOK().WithPayload(&models.LoginResponse{Jwt: jwt})
+	return operations.NewSmsLoginOK().WithPayload(jwt)
 }
 
 func (h AccountHandler) Login(p operations.LoginParams) middleware.Responder {
-	jwt, err := h.service.Login(p.Name, p.Password, toOAuth2Param(p.Oauth2AuthorizeParams))
+	jwt, err := h.service.Login(p.Name, p.Password)
 	if err != nil {
 		return restful.Responder(err)
 	}
 
-	return operations.NewLoginOK().WithPayload(&models.LoginResponse{Jwt: jwt})
+	return operations.NewLoginOK().WithPayload(jwt)
 }
 
 func (h AccountHandler) Logout(p operations.LogoutParams) middleware.Responder {

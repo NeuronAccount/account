@@ -3,12 +3,12 @@ package services
 import (
 	"context"
 	"github.com/NeuronFramework/errors"
-	"github.com/NeuronGroup/Account/models"
-	"github.com/NeuronGroup/Account/storages/account"
+	"github.com/NeuronGroup/account/models"
+	"github.com/NeuronGroup/account/storages/account"
 	"time"
 )
 
-func (s *AccountService) SmsLogin(phone string, smsCode string, oAuth2Params *models.OAuth2AuthorizeParams) (jwt string, err error) {
+func (s *AccountService) SmsLogin(phone string, smsCode string) (jwt string, err error) {
 	//验证码
 	dbSmsCode, err := s.db.SmsCode.GetQuery().
 		SceneType_Equal(models.SCENE_TYPE_SMS_LOGIN).And().PhoneNumber_Equal(phone).
@@ -63,7 +63,7 @@ func (s *AccountService) SmsLogin(phone string, smsCode string, oAuth2Params *mo
 	}
 
 	//生成Token
-	jwt, err = generateJwt(dbAccount.AccountId, oAuth2Params)
+	jwt, err = generateJwt(dbAccount.AccountId)
 	if err != nil {
 		return "", err
 	}

@@ -10,7 +10,7 @@ import (
 
 	"github.com/go-openapi/runtime"
 
-	"github.com/NeuronGroup/Account/api/private/gen/models"
+	"github.com/NeuronGroup/account/api/private/gen/models"
 )
 
 // LoginOKCode is the HTTP code returned for type LoginOK
@@ -25,7 +25,7 @@ type LoginOK struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.LoginResponse `json:"body,omitempty"`
+	Payload string `json:"body,omitempty"`
 }
 
 // NewLoginOK creates LoginOK with default headers values
@@ -34,13 +34,13 @@ func NewLoginOK() *LoginOK {
 }
 
 // WithPayload adds the payload to the login o k response
-func (o *LoginOK) WithPayload(payload *models.LoginResponse) *LoginOK {
+func (o *LoginOK) WithPayload(payload string) *LoginOK {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the login o k response
-func (o *LoginOK) SetPayload(payload *models.LoginResponse) {
+func (o *LoginOK) SetPayload(payload string) {
 	o.Payload = payload
 }
 
@@ -48,12 +48,11 @@ func (o *LoginOK) SetPayload(payload *models.LoginResponse) {
 func (o *LoginOK) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
 
 	rw.WriteHeader(200)
-	if o.Payload != nil {
-		payload := o.Payload
-		if err := producer.Produce(rw, payload); err != nil {
-			panic(err) // let the recovery middleware deal with this
-		}
+	payload := o.Payload
+	if err := producer.Produce(rw, payload); err != nil {
+		panic(err) // let the recovery middleware deal with this
 	}
+
 }
 
 /*LoginDefault Error response

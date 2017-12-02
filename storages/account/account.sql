@@ -38,21 +38,7 @@ CREATE TABLE `account` (
   KEY `idx_email` (`email_address`),
   KEY `idx_update_time` (`update_time`),
   KEY `idx_oauth` (`oauth_provider`,`oauth_account_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `account_id_gen`
---
-
-DROP TABLE IF EXISTS `account_id_gen`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `account_id_gen` (
-  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-  `max_id` bigint(20) unsigned NOT NULL,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -100,7 +86,26 @@ CREATE TABLE `sms_code` (
   PRIMARY KEY (`id`),
   KEY `idx_scene_phone` (`scene_type`,`phone_number`),
   KEY `idx_create_time` (`create_time`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=27 DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `sms_scene`
+--
+
+DROP TABLE IF EXISTS `sms_scene`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `sms_scene` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `scene_type` varchar(32) NOT NULL,
+  `scene_desc` varchar(32) NOT NULL,
+  `create_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_scene_type` (`scene_type`),
+  KEY `idx_update_time` (`update_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
@@ -112,4 +117,4 @@ CREATE TABLE `sms_code` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2017-11-24 20:05:45
+-- Dump completed on 2017-12-02 16:03:59

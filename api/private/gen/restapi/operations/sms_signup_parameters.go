@@ -14,8 +14,6 @@ import (
 	"github.com/go-openapi/validate"
 
 	strfmt "github.com/go-openapi/strfmt"
-
-	"github.com/NeuronGroup/Account/api/private/gen/models"
 )
 
 // NewSmsSignupParams creates a new SmsSignupParams object
@@ -34,10 +32,6 @@ type SmsSignupParams struct {
 	// HTTP Request Object
 	HTTPRequest *http.Request
 
-	/*
-	  In: body
-	*/
-	Oauth2AuthorizeParams *models.OAuth2AuthorizeParams
 	/*
 	  Required: true
 	  In: query
@@ -62,23 +56,6 @@ func (o *SmsSignupParams) BindRequest(r *http.Request, route *middleware.Matched
 	o.HTTPRequest = r
 
 	qs := runtime.Values(r.URL.Query())
-
-	if runtime.HasBody(r) {
-		defer r.Body.Close()
-		var body models.OAuth2AuthorizeParams
-		if err := route.Consumer.Consume(r.Body, &body); err != nil {
-			res = append(res, errors.NewParseError("oauth2AuthorizeParams", "body", "", err))
-		} else {
-			if err := body.Validate(route.Formats); err != nil {
-				res = append(res, err)
-			}
-
-			if len(res) == 0 {
-				o.Oauth2AuthorizeParams = &body
-			}
-		}
-
-	}
 
 	qPassword, qhkPassword, _ := qs.GetOK("password")
 	if err := o.bindPassword(qPassword, qhkPassword, route.Formats); err != nil {

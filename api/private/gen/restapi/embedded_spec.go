@@ -26,7 +26,7 @@ func init() {
   ],
   "swagger": "2.0",
   "info": {
-    "title": "Accounts",
+    "title": "Account Private API",
     "contact": {
       "name": "mars"
     },
@@ -49,20 +49,13 @@ func init() {
             "name": "password",
             "in": "query",
             "required": true
-          },
-          {
-            "name": "oauth2AuthorizeParams",
-            "in": "body",
-            "schema": {
-              "$ref": "#/definitions/OAuth2AuthorizeParams"
-            }
           }
         ],
         "responses": {
           "200": {
             "description": "ok",
             "schema": {
-              "$ref": "#/definitions/LoginResponse"
+              "type": "string"
             }
           },
           "default": {
@@ -154,19 +147,12 @@ func init() {
             "name": "smsCode",
             "in": "query",
             "required": true
-          },
-          {
-            "name": "oauth2AuthorizeParams",
-            "in": "body",
-            "schema": {
-              "$ref": "#/definitions/OAuth2AuthorizeParams"
-            }
           }
         ],
         "responses": {
           "200": {
             "schema": {
-              "$ref": "#/definitions/LoginResponse"
+              "type": "string"
             }
           }
         }
@@ -194,20 +180,13 @@ func init() {
             "name": "password",
             "in": "query",
             "required": true
-          },
-          {
-            "name": "oauth2AuthorizeParams",
-            "in": "body",
-            "schema": {
-              "$ref": "#/definitions/OAuth2AuthorizeParams"
-            }
           }
         ],
         "responses": {
           "200": {
             "description": "ok",
             "schema": {
-              "$ref": "#/definitions/LoginResponse"
+              "type": "string"
             }
           },
           "default": {
@@ -221,34 +200,6 @@ func init() {
     }
   },
   "definitions": {
-    "LoginResponse": {
-      "type": "object",
-      "properties": {
-        "jwt": {
-          "type": "string"
-        }
-      }
-    },
-    "OAuth2AuthorizeParams": {
-      "type": "object",
-      "properties": {
-        "client_id": {
-          "type": "string"
-        },
-        "redirect_uri": {
-          "type": "string"
-        },
-        "response_type": {
-          "type": "string"
-        },
-        "scope": {
-          "type": "string"
-        },
-        "state": {
-          "type": "string"
-        }
-      }
-    },
     "loginDefaultBody": {
       "type": "object",
       "properties": {

@@ -2,10 +2,10 @@ package services
 
 import (
 	"context"
-	"github.com/NeuronFramework/errors"
-	"github.com/NeuronFramework/rand"
 	"github.com/NeuronAccount/account/models"
 	"github.com/NeuronAccount/account/storages/account"
+	"github.com/NeuronFramework/errors"
+	"github.com/NeuronFramework/rand"
 )
 
 func (s *AccountService) SmsSignup(phone string, smsCode string, password string) (jwt string, err error) {
@@ -27,7 +27,8 @@ func (s *AccountService) SmsSignup(phone string, smsCode string, password string
 	defer tx.Rollback()
 
 	dbAccount, err := s.db.Account.GetQuery().ForUpdate().
-		PhoneNumber_Equal(phone).QueryOne(context.Background(), tx)
+		PhoneNumber_Equal(phone).
+		QueryOne(context.Background(), tx)
 	if err != nil {
 		return "", err
 	}

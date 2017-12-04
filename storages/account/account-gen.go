@@ -374,12 +374,12 @@ func (dao *AccountDao) init() (err error) {
 	return nil
 }
 func (dao *AccountDao) prepareInsertStmt() (err error) {
-	dao.insertStmt, err = dao.db.Prepare(context.Background(), "INSERT INTO account (account_id,phone_number,email_address,password_hash,oauth_provider,oauth_account_id,create_time,update_time) VALUES (?,?,?,?,?,?,?,?)")
+	dao.insertStmt, err = dao.db.Prepare(context.Background(), "INSERT INTO account (account_id,phone_number,email_address,password_hash,oauth_provider,oauth_account_id) VALUES (?,?,?,?,?,?)")
 	return err
 }
 
 func (dao *AccountDao) prepareUpdateStmt() (err error) {
-	dao.updateStmt, err = dao.db.Prepare(context.Background(), "UPDATE account SET account_id=?,phone_number=?,email_address=?,password_hash=?,oauth_provider=?,oauth_account_id=?,create_time=?,update_time=? WHERE id=?")
+	dao.updateStmt, err = dao.db.Prepare(context.Background(), "UPDATE account SET account_id=?,phone_number=?,email_address=?,password_hash=?,oauth_provider=?,oauth_account_id=? WHERE id=?")
 	return err
 }
 
@@ -394,7 +394,7 @@ func (dao *AccountDao) Insert(ctx context.Context, tx *wrap.Tx, e *Account) (id 
 		stmt = tx.Stmt(ctx, stmt)
 	}
 
-	result, err := stmt.Exec(ctx, e.AccountId, e.PhoneNumber, e.EmailAddress, e.PasswordHash, e.OauthProvider, e.OauthAccountId, e.CreateTime, e.UpdateTime)
+	result, err := stmt.Exec(ctx, e.AccountId, e.PhoneNumber, e.EmailAddress, e.PasswordHash, e.OauthProvider, e.OauthAccountId)
 	if err != nil {
 		return 0, err
 	}
@@ -413,7 +413,7 @@ func (dao *AccountDao) Update(ctx context.Context, tx *wrap.Tx, e *Account) (err
 		stmt = tx.Stmt(ctx, stmt)
 	}
 
-	_, err = stmt.Exec(ctx, e.AccountId, e.PhoneNumber, e.EmailAddress, e.PasswordHash, e.OauthProvider, e.OauthAccountId, e.CreateTime, e.UpdateTime, e.Id)
+	_, err = stmt.Exec(ctx, e.AccountId, e.PhoneNumber, e.EmailAddress, e.PasswordHash, e.OauthProvider, e.OauthAccountId, e.Id)
 	if err != nil {
 		return err
 	}
@@ -533,18 +533,21 @@ const ACCOUNT_OPERATION_TABLE_NAME = "account_operation"
 type ACCOUNT_OPERATION_FIELD string
 
 const ACCOUNT_OPERATION_FIELD_ID = ACCOUNT_OPERATION_FIELD("id")
+const ACCOUNT_OPERATION_FIELD_OPERATION_DATA = ACCOUNT_OPERATION_FIELD("operation_data")
 const ACCOUNT_OPERATION_FIELD_CREATE_TIME = ACCOUNT_OPERATION_FIELD("create_time")
 
-const ACCOUNT_OPERATION_ALL_FIELDS_STRING = "id,create_time"
+const ACCOUNT_OPERATION_ALL_FIELDS_STRING = "id,operation_data,create_time"
 
 var ACCOUNT_OPERATION_ALL_FIELDS = []string{
 	"id",
+	"operation_data",
 	"create_time",
 }
 
 type AccountOperation struct {
-	Id         int64 //size=20
-	CreateTime time.Time
+	Id            int64  //size=20
+	OperationData string //size=256
+	CreateTime    time.Time
 }
 
 type AccountOperationQuery struct {
@@ -655,6 +658,24 @@ func (q *AccountOperationQuery) Id_Greater(v int64) *AccountOperationQuery {
 func (q *AccountOperationQuery) Id_GreaterEqual(v int64) *AccountOperationQuery {
 	return q.w("id>='" + fmt.Sprint(v) + "'")
 }
+func (q *AccountOperationQuery) OperationData_Equal(v string) *AccountOperationQuery {
+	return q.w("operation_data='" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) OperationData_NotEqual(v string) *AccountOperationQuery {
+	return q.w("operation_data<>'" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) OperationData_Less(v string) *AccountOperationQuery {
+	return q.w("operation_data<'" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) OperationData_LessEqual(v string) *AccountOperationQuery {
+	return q.w("operation_data<='" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) OperationData_Greater(v string) *AccountOperationQuery {
+	return q.w("operation_data>'" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) OperationData_GreaterEqual(v string) *AccountOperationQuery {
+	return q.w("operation_data>='" + fmt.Sprint(v) + "'")
+}
 func (q *AccountOperationQuery) CreateTime_Equal(v time.Time) *AccountOperationQuery {
 	return q.w("create_time='" + fmt.Sprint(v) + "'")
 }
@@ -713,12 +734,12 @@ func (dao *AccountOperationDao) init() (err error) {
 	return nil
 }
 func (dao *AccountOperationDao) prepareInsertStmt() (err error) {
-	dao.insertStmt, err = dao.db.Prepare(context.Background(), "INSERT INTO account_operation (create_time) VALUES (?)")
+	dao.insertStmt, err = dao.db.Prepare(context.Background(), "INSERT INTO account_operation (operation_data) VALUES (?)")
 	return err
 }
 
 func (dao *AccountOperationDao) prepareUpdateStmt() (err error) {
-	dao.updateStmt, err = dao.db.Prepare(context.Background(), "UPDATE account_operation SET create_time=? WHERE id=?")
+	dao.updateStmt, err = dao.db.Prepare(context.Background(), "UPDATE account_operation SET operation_data=? WHERE id=?")
 	return err
 }
 
@@ -733,7 +754,7 @@ func (dao *AccountOperationDao) Insert(ctx context.Context, tx *wrap.Tx, e *Acco
 		stmt = tx.Stmt(ctx, stmt)
 	}
 
-	result, err := stmt.Exec(ctx, e.CreateTime)
+	result, err := stmt.Exec(ctx, e.OperationData)
 	if err != nil {
 		return 0, err
 	}
@@ -752,7 +773,7 @@ func (dao *AccountOperationDao) Update(ctx context.Context, tx *wrap.Tx, e *Acco
 		stmt = tx.Stmt(ctx, stmt)
 	}
 
-	_, err = stmt.Exec(ctx, e.CreateTime, e.Id)
+	_, err = stmt.Exec(ctx, e.OperationData, e.Id)
 	if err != nil {
 		return err
 	}
@@ -776,7 +797,7 @@ func (dao *AccountOperationDao) Delete(ctx context.Context, tx *wrap.Tx, id int6
 
 func (dao *AccountOperationDao) scanRow(row *wrap.Row) (*AccountOperation, error) {
 	e := &AccountOperation{}
-	err := row.Scan(&e.Id, &e.CreateTime)
+	err := row.Scan(&e.Id, &e.OperationData, &e.CreateTime)
 	if err != nil {
 		if err == wrap.ErrNoRows {
 			return nil, nil
@@ -792,7 +813,7 @@ func (dao *AccountOperationDao) scanRows(rows *wrap.Rows) (list []*AccountOperat
 	list = make([]*AccountOperation, 0)
 	for rows.Next() {
 		e := AccountOperation{}
-		err = rows.Scan(&e.Id, &e.CreateTime)
+		err = rows.Scan(&e.Id, &e.OperationData, &e.CreateTime)
 		if err != nil {
 			return nil, err
 		}
@@ -1073,12 +1094,12 @@ func (dao *LoginHistoryDao) init() (err error) {
 	return nil
 }
 func (dao *LoginHistoryDao) prepareInsertStmt() (err error) {
-	dao.insertStmt, err = dao.db.Prepare(context.Background(), "INSERT INTO login_history (account_id,create_time) VALUES (?,?)")
+	dao.insertStmt, err = dao.db.Prepare(context.Background(), "INSERT INTO login_history (account_id) VALUES (?)")
 	return err
 }
 
 func (dao *LoginHistoryDao) prepareUpdateStmt() (err error) {
-	dao.updateStmt, err = dao.db.Prepare(context.Background(), "UPDATE login_history SET account_id=?,create_time=? WHERE id=?")
+	dao.updateStmt, err = dao.db.Prepare(context.Background(), "UPDATE login_history SET account_id=? WHERE id=?")
 	return err
 }
 
@@ -1093,7 +1114,7 @@ func (dao *LoginHistoryDao) Insert(ctx context.Context, tx *wrap.Tx, e *LoginHis
 		stmt = tx.Stmt(ctx, stmt)
 	}
 
-	result, err := stmt.Exec(ctx, e.AccountId, e.CreateTime)
+	result, err := stmt.Exec(ctx, e.AccountId)
 	if err != nil {
 		return 0, err
 	}
@@ -1112,7 +1133,7 @@ func (dao *LoginHistoryDao) Update(ctx context.Context, tx *wrap.Tx, e *LoginHis
 		stmt = tx.Stmt(ctx, stmt)
 	}
 
-	_, err = stmt.Exec(ctx, e.AccountId, e.CreateTime, e.Id)
+	_, err = stmt.Exec(ctx, e.AccountId, e.Id)
 	if err != nil {
 		return err
 	}
@@ -1463,12 +1484,12 @@ func (dao *SmsCodeDao) init() (err error) {
 	return nil
 }
 func (dao *SmsCodeDao) prepareInsertStmt() (err error) {
-	dao.insertStmt, err = dao.db.Prepare(context.Background(), "INSERT INTO sms_code (scene_type,phone_number,sms_code,create_time) VALUES (?,?,?,?)")
+	dao.insertStmt, err = dao.db.Prepare(context.Background(), "INSERT INTO sms_code (scene_type,phone_number,sms_code) VALUES (?,?,?)")
 	return err
 }
 
 func (dao *SmsCodeDao) prepareUpdateStmt() (err error) {
-	dao.updateStmt, err = dao.db.Prepare(context.Background(), "UPDATE sms_code SET scene_type=?,phone_number=?,sms_code=?,create_time=? WHERE id=?")
+	dao.updateStmt, err = dao.db.Prepare(context.Background(), "UPDATE sms_code SET scene_type=?,phone_number=?,sms_code=? WHERE id=?")
 	return err
 }
 
@@ -1483,7 +1504,7 @@ func (dao *SmsCodeDao) Insert(ctx context.Context, tx *wrap.Tx, e *SmsCode) (id 
 		stmt = tx.Stmt(ctx, stmt)
 	}
 
-	result, err := stmt.Exec(ctx, e.SceneType, e.PhoneNumber, e.SmsCode, e.CreateTime)
+	result, err := stmt.Exec(ctx, e.SceneType, e.PhoneNumber, e.SmsCode)
 	if err != nil {
 		return 0, err
 	}
@@ -1502,7 +1523,7 @@ func (dao *SmsCodeDao) Update(ctx context.Context, tx *wrap.Tx, e *SmsCode) (err
 		stmt = tx.Stmt(ctx, stmt)
 	}
 
-	_, err = stmt.Exec(ctx, e.SceneType, e.PhoneNumber, e.SmsCode, e.CreateTime, e.Id)
+	_, err = stmt.Exec(ctx, e.SceneType, e.PhoneNumber, e.SmsCode, e.Id)
 	if err != nil {
 		return err
 	}
@@ -1617,12 +1638,405 @@ func (dao *SmsCodeDao) GetQuery() *SmsCodeQuery {
 	return NewSmsCodeQuery(dao)
 }
 
+const SMS_SCENE_TABLE_NAME = "sms_scene"
+
+type SMS_SCENE_FIELD string
+
+const SMS_SCENE_FIELD_ID = SMS_SCENE_FIELD("id")
+const SMS_SCENE_FIELD_SCENE_TYPE = SMS_SCENE_FIELD("scene_type")
+const SMS_SCENE_FIELD_SCENE_DESC = SMS_SCENE_FIELD("scene_desc")
+const SMS_SCENE_FIELD_CREATE_TIME = SMS_SCENE_FIELD("create_time")
+const SMS_SCENE_FIELD_UPDATE_TIME = SMS_SCENE_FIELD("update_time")
+
+const SMS_SCENE_ALL_FIELDS_STRING = "id,scene_type,scene_desc,create_time,update_time"
+
+var SMS_SCENE_ALL_FIELDS = []string{
+	"id",
+	"scene_type",
+	"scene_desc",
+	"create_time",
+	"update_time",
+}
+
+type SmsScene struct {
+	Id         int64  //size=20
+	SceneType  string //size=32
+	SceneDesc  string //size=32
+	CreateTime time.Time
+	UpdateTime time.Time
+}
+
+type SmsSceneQuery struct {
+	BaseQuery
+	dao *SmsSceneDao
+}
+
+func NewSmsSceneQuery(dao *SmsSceneDao) *SmsSceneQuery {
+	q := &SmsSceneQuery{}
+	q.dao = dao
+
+	return q
+}
+
+func (q *SmsSceneQuery) QueryOne(ctx context.Context, tx *wrap.Tx) (*SmsScene, error) {
+	return q.dao.QueryOne(ctx, tx, q.buildQueryString())
+}
+
+func (q *SmsSceneQuery) QueryList(ctx context.Context, tx *wrap.Tx) (list []*SmsScene, err error) {
+	return q.dao.QueryList(ctx, tx, q.buildQueryString())
+}
+
+func (q *SmsSceneQuery) QueryCount(ctx context.Context, tx *wrap.Tx) (count int64, err error) {
+	return q.dao.QueryCount(ctx, tx, q.buildQueryString())
+}
+
+func (q *SmsSceneQuery) QueryGroupBy(ctx context.Context, tx *wrap.Tx) (rows *wrap.Rows, err error) {
+	return q.dao.QueryGroupBy(ctx, tx, q.groupByFields, q.buildQueryString())
+}
+
+func (q *SmsSceneQuery) ForUpdate() *SmsSceneQuery {
+	q.forUpdate = true
+	return q
+}
+
+func (q *SmsSceneQuery) ForShare() *SmsSceneQuery {
+	q.forShare = true
+	return q
+}
+
+func (q *SmsSceneQuery) GroupBy(fields ...SMS_SCENE_FIELD) *SmsSceneQuery {
+	q.groupByFields = make([]string, len(fields))
+	for i, v := range fields {
+		q.groupByFields[i] = string(v)
+	}
+	return q
+}
+
+func (q *SmsSceneQuery) Limit(startIncluded int64, count int64) *SmsSceneQuery {
+	q.limit = fmt.Sprintf(" limit %d,%d", startIncluded, count)
+	return q
+}
+
+func (q *SmsSceneQuery) OrderBy(fieldName SMS_SCENE_FIELD, asc bool) *SmsSceneQuery {
+	if q.order != "" {
+		q.order += ","
+	}
+	q.order += string(fieldName) + " "
+	if asc {
+		q.order += "asc"
+	} else {
+		q.order += "desc"
+	}
+
+	return q
+}
+
+func (q *SmsSceneQuery) OrderByGroupCount(asc bool) *SmsSceneQuery {
+	if q.order != "" {
+		q.order += ","
+	}
+	q.order += "count(1) "
+	if asc {
+		q.order += "asc"
+	} else {
+		q.order += "desc"
+	}
+
+	return q
+}
+
+func (q *SmsSceneQuery) w(format string, a ...interface{}) *SmsSceneQuery {
+	q.where += fmt.Sprintf(format, a...)
+	return q
+}
+
+func (q *SmsSceneQuery) Left() *SmsSceneQuery  { return q.w(" ( ") }
+func (q *SmsSceneQuery) Right() *SmsSceneQuery { return q.w(" ) ") }
+func (q *SmsSceneQuery) And() *SmsSceneQuery   { return q.w(" AND ") }
+func (q *SmsSceneQuery) Or() *SmsSceneQuery    { return q.w(" OR ") }
+func (q *SmsSceneQuery) Not() *SmsSceneQuery   { return q.w(" NOT ") }
+
+func (q *SmsSceneQuery) Id_Equal(v int64) *SmsSceneQuery     { return q.w("id='" + fmt.Sprint(v) + "'") }
+func (q *SmsSceneQuery) Id_NotEqual(v int64) *SmsSceneQuery  { return q.w("id<>'" + fmt.Sprint(v) + "'") }
+func (q *SmsSceneQuery) Id_Less(v int64) *SmsSceneQuery      { return q.w("id<'" + fmt.Sprint(v) + "'") }
+func (q *SmsSceneQuery) Id_LessEqual(v int64) *SmsSceneQuery { return q.w("id<='" + fmt.Sprint(v) + "'") }
+func (q *SmsSceneQuery) Id_Greater(v int64) *SmsSceneQuery   { return q.w("id>'" + fmt.Sprint(v) + "'") }
+func (q *SmsSceneQuery) Id_GreaterEqual(v int64) *SmsSceneQuery {
+	return q.w("id>='" + fmt.Sprint(v) + "'")
+}
+func (q *SmsSceneQuery) SceneType_Equal(v string) *SmsSceneQuery {
+	return q.w("scene_type='" + fmt.Sprint(v) + "'")
+}
+func (q *SmsSceneQuery) SceneType_NotEqual(v string) *SmsSceneQuery {
+	return q.w("scene_type<>'" + fmt.Sprint(v) + "'")
+}
+func (q *SmsSceneQuery) SceneType_Less(v string) *SmsSceneQuery {
+	return q.w("scene_type<'" + fmt.Sprint(v) + "'")
+}
+func (q *SmsSceneQuery) SceneType_LessEqual(v string) *SmsSceneQuery {
+	return q.w("scene_type<='" + fmt.Sprint(v) + "'")
+}
+func (q *SmsSceneQuery) SceneType_Greater(v string) *SmsSceneQuery {
+	return q.w("scene_type>'" + fmt.Sprint(v) + "'")
+}
+func (q *SmsSceneQuery) SceneType_GreaterEqual(v string) *SmsSceneQuery {
+	return q.w("scene_type>='" + fmt.Sprint(v) + "'")
+}
+func (q *SmsSceneQuery) SceneDesc_Equal(v string) *SmsSceneQuery {
+	return q.w("scene_desc='" + fmt.Sprint(v) + "'")
+}
+func (q *SmsSceneQuery) SceneDesc_NotEqual(v string) *SmsSceneQuery {
+	return q.w("scene_desc<>'" + fmt.Sprint(v) + "'")
+}
+func (q *SmsSceneQuery) SceneDesc_Less(v string) *SmsSceneQuery {
+	return q.w("scene_desc<'" + fmt.Sprint(v) + "'")
+}
+func (q *SmsSceneQuery) SceneDesc_LessEqual(v string) *SmsSceneQuery {
+	return q.w("scene_desc<='" + fmt.Sprint(v) + "'")
+}
+func (q *SmsSceneQuery) SceneDesc_Greater(v string) *SmsSceneQuery {
+	return q.w("scene_desc>'" + fmt.Sprint(v) + "'")
+}
+func (q *SmsSceneQuery) SceneDesc_GreaterEqual(v string) *SmsSceneQuery {
+	return q.w("scene_desc>='" + fmt.Sprint(v) + "'")
+}
+func (q *SmsSceneQuery) CreateTime_Equal(v time.Time) *SmsSceneQuery {
+	return q.w("create_time='" + fmt.Sprint(v) + "'")
+}
+func (q *SmsSceneQuery) CreateTime_NotEqual(v time.Time) *SmsSceneQuery {
+	return q.w("create_time<>'" + fmt.Sprint(v) + "'")
+}
+func (q *SmsSceneQuery) CreateTime_Less(v time.Time) *SmsSceneQuery {
+	return q.w("create_time<'" + fmt.Sprint(v) + "'")
+}
+func (q *SmsSceneQuery) CreateTime_LessEqual(v time.Time) *SmsSceneQuery {
+	return q.w("create_time<='" + fmt.Sprint(v) + "'")
+}
+func (q *SmsSceneQuery) CreateTime_Greater(v time.Time) *SmsSceneQuery {
+	return q.w("create_time>'" + fmt.Sprint(v) + "'")
+}
+func (q *SmsSceneQuery) CreateTime_GreaterEqual(v time.Time) *SmsSceneQuery {
+	return q.w("create_time>='" + fmt.Sprint(v) + "'")
+}
+func (q *SmsSceneQuery) UpdateTime_Equal(v time.Time) *SmsSceneQuery {
+	return q.w("update_time='" + fmt.Sprint(v) + "'")
+}
+func (q *SmsSceneQuery) UpdateTime_NotEqual(v time.Time) *SmsSceneQuery {
+	return q.w("update_time<>'" + fmt.Sprint(v) + "'")
+}
+func (q *SmsSceneQuery) UpdateTime_Less(v time.Time) *SmsSceneQuery {
+	return q.w("update_time<'" + fmt.Sprint(v) + "'")
+}
+func (q *SmsSceneQuery) UpdateTime_LessEqual(v time.Time) *SmsSceneQuery {
+	return q.w("update_time<='" + fmt.Sprint(v) + "'")
+}
+func (q *SmsSceneQuery) UpdateTime_Greater(v time.Time) *SmsSceneQuery {
+	return q.w("update_time>'" + fmt.Sprint(v) + "'")
+}
+func (q *SmsSceneQuery) UpdateTime_GreaterEqual(v time.Time) *SmsSceneQuery {
+	return q.w("update_time>='" + fmt.Sprint(v) + "'")
+}
+
+type SmsSceneDao struct {
+	logger     *zap.Logger
+	db         *DB
+	insertStmt *wrap.Stmt
+	updateStmt *wrap.Stmt
+	deleteStmt *wrap.Stmt
+}
+
+func NewSmsSceneDao(db *DB) (t *SmsSceneDao, err error) {
+	t = &SmsSceneDao{}
+	t.logger = log.TypedLogger(t)
+	t.db = db
+	err = t.init()
+	if err != nil {
+		return nil, err
+	}
+
+	return t, nil
+}
+
+func (dao *SmsSceneDao) init() (err error) {
+	err = dao.prepareInsertStmt()
+	if err != nil {
+		return err
+	}
+
+	err = dao.prepareUpdateStmt()
+	if err != nil {
+		return err
+	}
+
+	err = dao.prepareDeleteStmt()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+func (dao *SmsSceneDao) prepareInsertStmt() (err error) {
+	dao.insertStmt, err = dao.db.Prepare(context.Background(), "INSERT INTO sms_scene (scene_type,scene_desc) VALUES (?,?)")
+	return err
+}
+
+func (dao *SmsSceneDao) prepareUpdateStmt() (err error) {
+	dao.updateStmt, err = dao.db.Prepare(context.Background(), "UPDATE sms_scene SET scene_type=?,scene_desc=? WHERE id=?")
+	return err
+}
+
+func (dao *SmsSceneDao) prepareDeleteStmt() (err error) {
+	dao.deleteStmt, err = dao.db.Prepare(context.Background(), "DELETE FROM sms_scene WHERE id=?")
+	return err
+}
+
+func (dao *SmsSceneDao) Insert(ctx context.Context, tx *wrap.Tx, e *SmsScene) (id int64, err error) {
+	stmt := dao.insertStmt
+	if tx != nil {
+		stmt = tx.Stmt(ctx, stmt)
+	}
+
+	result, err := stmt.Exec(ctx, e.SceneType, e.SceneDesc)
+	if err != nil {
+		return 0, err
+	}
+
+	id, err = result.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+
+	return id, nil
+}
+
+func (dao *SmsSceneDao) Update(ctx context.Context, tx *wrap.Tx, e *SmsScene) (err error) {
+	stmt := dao.updateStmt
+	if tx != nil {
+		stmt = tx.Stmt(ctx, stmt)
+	}
+
+	_, err = stmt.Exec(ctx, e.SceneType, e.SceneDesc, e.Id)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (dao *SmsSceneDao) Delete(ctx context.Context, tx *wrap.Tx, id int64) (err error) {
+	stmt := dao.deleteStmt
+	if tx != nil {
+		stmt = tx.Stmt(ctx, stmt)
+	}
+
+	_, err = stmt.Exec(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (dao *SmsSceneDao) scanRow(row *wrap.Row) (*SmsScene, error) {
+	e := &SmsScene{}
+	err := row.Scan(&e.Id, &e.SceneType, &e.SceneDesc, &e.CreateTime, &e.UpdateTime)
+	if err != nil {
+		if err == wrap.ErrNoRows {
+			return nil, nil
+		} else {
+			return nil, err
+		}
+	}
+
+	return e, nil
+}
+
+func (dao *SmsSceneDao) scanRows(rows *wrap.Rows) (list []*SmsScene, err error) {
+	list = make([]*SmsScene, 0)
+	for rows.Next() {
+		e := SmsScene{}
+		err = rows.Scan(&e.Id, &e.SceneType, &e.SceneDesc, &e.CreateTime, &e.UpdateTime)
+		if err != nil {
+			return nil, err
+		}
+		list = append(list, &e)
+	}
+	if rows.Err() != nil {
+		err = rows.Err()
+		return nil, err
+	}
+
+	return list, nil
+}
+
+func (dao *SmsSceneDao) QueryOne(ctx context.Context, tx *wrap.Tx, query string) (*SmsScene, error) {
+	querySql := "SELECT " + SMS_SCENE_ALL_FIELDS_STRING + " FROM sms_scene " + query
+	var row *wrap.Row
+	if tx == nil {
+		row = dao.db.QueryRow(ctx, querySql)
+	} else {
+		row = tx.QueryRow(ctx, querySql)
+	}
+	return dao.scanRow(row)
+}
+
+func (dao *SmsSceneDao) QueryList(ctx context.Context, tx *wrap.Tx, query string) (list []*SmsScene, err error) {
+	querySql := "SELECT " + SMS_SCENE_ALL_FIELDS_STRING + " FROM sms_scene " + query
+	var rows *wrap.Rows
+	if tx == nil {
+		rows, err = dao.db.Query(ctx, querySql)
+	} else {
+		rows, err = tx.Query(ctx, querySql)
+	}
+	if err != nil {
+		dao.logger.Error("sqlDriver", zap.Error(err))
+		return nil, err
+	}
+
+	return dao.scanRows(rows)
+}
+
+func (dao *SmsSceneDao) QueryCount(ctx context.Context, tx *wrap.Tx, query string) (count int64, err error) {
+	querySql := "SELECT COUNT(1) FROM sms_scene " + query
+	var row *wrap.Row
+	if tx == nil {
+		row = dao.db.QueryRow(ctx, querySql)
+	} else {
+		row = tx.QueryRow(ctx, querySql)
+	}
+	if err != nil {
+		dao.logger.Error("sqlDriver", zap.Error(err))
+		return 0, err
+	}
+
+	err = row.Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+
+	return count, nil
+}
+
+func (dao *SmsSceneDao) QueryGroupBy(ctx context.Context, tx *wrap.Tx, groupByFields []string, query string) (rows *wrap.Rows, err error) {
+	querySql := "SELECT " + strings.Join(groupByFields, ",") + ",count(1) FROM sms_scene " + query
+	if tx == nil {
+		return dao.db.Query(ctx, querySql)
+	} else {
+		return tx.Query(ctx, querySql)
+	}
+}
+
+func (dao *SmsSceneDao) GetQuery() *SmsSceneQuery {
+	return NewSmsSceneQuery(dao)
+}
+
 type DB struct {
 	wrap.DB
 	Account          *AccountDao
 	AccountOperation *AccountOperationDao
 	LoginHistory     *LoginHistoryDao
 	SmsCode          *SmsCodeDao
+	SmsScene         *SmsSceneDao
 }
 
 func NewDB(connectionString string) (d *DB, err error) {
@@ -1659,6 +2073,11 @@ func NewDB(connectionString string) (d *DB, err error) {
 	}
 
 	d.SmsCode, err = NewSmsCodeDao(d)
+	if err != nil {
+		return nil, err
+	}
+
+	d.SmsScene, err = NewSmsSceneDao(d)
 	if err != nil {
 		return nil, err
 	}

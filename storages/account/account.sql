@@ -50,6 +50,7 @@ DROP TABLE IF EXISTS `account_operation`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `account_operation` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `operation_data` varchar(256) NOT NULL,
   `create_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
@@ -86,7 +87,7 @@ CREATE TABLE `sms_code` (
   PRIMARY KEY (`id`),
   KEY `idx_scene_phone` (`scene_type`,`phone_number`),
   KEY `idx_create_time` (`create_time`)
-) ENGINE=InnoDB AUTO_INCREMENT=27 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=28 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -117,4 +118,4 @@ CREATE TABLE `sms_scene` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2017-12-02 16:03:59
+-- Dump completed on 2017-12-04 13:21:16

@@ -3,15 +3,16 @@ package services
 import (
 	"context"
 	"github.com/NeuronAccount/account/models"
-	"github.com/NeuronAccount/account/storages/account"
+	"github.com/NeuronAccount/account/storages/account_db"
 	"github.com/NeuronFramework/errors"
 	"github.com/NeuronFramework/rand"
+	"github.com/NeuronFramework/sql/wrap"
 )
 
-func (s *AccountService) SmsSignup(phone string, smsCode string, password string) (jwt string, err error) {
-	dbSmsCode, err := s.db.SmsCode.GetQuery().
+func (s *AccountService) SmsSignup(ctx context.Context, phone string, smsCode string, password string) (jwt string, err error) {
+	dbSmsCode, err := s.accountDB.SmsCode.GetQuery().
 		SceneType_Equal(models.SCENE_TYPE_SMS_SIGNUP).And().PhoneNumber_Equal(phone).
-		OrderBy(account.SMS_CODE_FIELD_CREATE_TIME, false).QueryOne(context.Background(), nil)
+		OrderBy(account_db.SMS_CODE_FIELD_CREATE_TIME, false).QueryOne(ctx, nil)
 	if err != nil {
 		return "", err
 	}
@@ -20,43 +21,38 @@ func (s *AccountService) SmsSignup(phone string, smsCode string, password string
 		return "", errors.BadRequest("InvalidSmsCode", "验证码错误")
 	}
 
-	tx, err := s.db.BeginReadCommittedTx(context.Background(), false)
-	if err != nil {
-		return "", err
-	}
-	defer tx.Rollback()
+	accountId := rand.NextHex(16)
 
-	dbAccount, err := s.db.Account.GetQuery().ForUpdate().
-		PhoneNumber_Equal(phone).
-		QueryOne(context.Background(), tx)
-	if err != nil {
-		return "", err
-	}
+	err = s.accountDB.TransactionReadCommitted(ctx, func(tx *wrap.Tx) (err error) {
+		dbAccount, err := s.accountDB.Account.GetQuery().ForUpdate().
+			PhoneNumber_Equal(phone).
+			QueryOne(ctx, tx)
+		if err != nil {
+			return err
+		}
 
-	if dbAccount != nil {
-		return "", errors.AlreadyExists("帐号已存在")
-	}
+		if dbAccount != nil {
+			return errors.AlreadyExists("帐号已存在")
+		}
 
-	dbAccount = &account.Account{}
-	dbAccount.AccountId = rand.NextBase64(16)
-	dbAccount.PhoneNumber = phone
-	dbAccount.EmailAddress = ""
-	dbAccount.PasswordHash = s.calcPasswordHash(password)
-	dbAccount.OauthProvider = ""
-	dbAccount.OauthAccountId = ""
+		dbAccount = &account_db.Account{}
+		dbAccount.AccountId = accountId
+		dbAccount.PhoneNumber = phone
+		dbAccount.EmailAddress = ""
+		dbAccount.PasswordHash = s.calcPasswordHash(password)
+		dbAccount.OauthProvider = ""
+		dbAccount.OauthAccountId = ""
 
-	_, err = s.db.Account.Insert(context.Background(), tx, dbAccount)
-	if err != nil {
-		return "", err
-	}
+		_, err = s.accountDB.Account.Insert(ctx, tx, dbAccount)
+		if err != nil {
+			return err
+		}
 
-	err = tx.Commit()
-	if err != nil {
-		return "", err
-	}
+		return nil
+	})
 
 	//生成Token
-	jwt, err = generateJwt(dbAccount.AccountId)
+	jwt, err = generateJwt(accountId)
 	if err != nil {
 		return "", err
 	}

@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"github.com/NeuronAccount/account/api/private/gen/restapi/operations"
+	"github.com/NeuronAccount/account/api-private/gen/restapi/operations"
 	"github.com/NeuronAccount/account/services"
 	"github.com/NeuronFramework/log"
 	"github.com/NeuronFramework/restful"
@@ -41,7 +41,7 @@ func (h AccountHandler) SmsCode(p operations.SmsCodeParams) middleware.Responder
 		captchaCode = *p.CaptchaCode
 	}
 
-	err := h.service.SmsCode(p.Scene, p.Phone, captchaId, captchaCode)
+	err := h.service.SmsCode(p.HTTPRequest.Context(), p.Scene, p.Phone, captchaId, captchaCode)
 	if err != nil {
 		return restful.Responder(err)
 	}
@@ -50,7 +50,7 @@ func (h AccountHandler) SmsCode(p operations.SmsCodeParams) middleware.Responder
 }
 
 func (h AccountHandler) SmsSignup(p operations.SmsSignupParams) middleware.Responder {
-	jwt, err := h.service.SmsSignup(p.Phone, p.SmsCode, p.Password)
+	jwt, err := h.service.SmsSignup(p.HTTPRequest.Context(), p.Phone, p.SmsCode, p.Password)
 	if err != nil {
 		return restful.Responder(err)
 	}
@@ -59,7 +59,7 @@ func (h AccountHandler) SmsSignup(p operations.SmsSignupParams) middleware.Respo
 }
 
 func (h AccountHandler) SmsLogin(p operations.SmsLoginParams) middleware.Responder {
-	jwt, err := h.service.SmsLogin(p.Phone, p.SmsCode)
+	jwt, err := h.service.SmsLogin(p.HTTPRequest.Context(), p.Phone, p.SmsCode)
 	if err != nil {
 		return restful.Responder(err)
 	}
@@ -68,7 +68,7 @@ func (h AccountHandler) SmsLogin(p operations.SmsLoginParams) middleware.Respond
 }
 
 func (h AccountHandler) Login(p operations.LoginParams) middleware.Responder {
-	jwt, err := h.service.Login(p.Name, p.Password)
+	jwt, err := h.service.Login(p.HTTPRequest.Context(), p.Name, p.Password)
 	if err != nil {
 		return restful.Responder(err)
 	}
@@ -77,7 +77,7 @@ func (h AccountHandler) Login(p operations.LoginParams) middleware.Responder {
 }
 
 func (h AccountHandler) Logout(p operations.LogoutParams) middleware.Responder {
-	err := h.service.Logout(p.Jwt)
+	err := h.service.Logout(p.HTTPRequest.Context(), p.Jwt)
 	if err != nil {
 		return restful.Responder(err)
 	}

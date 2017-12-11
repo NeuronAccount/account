@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/NeuronAccount/account/api/private/gen/restapi"
-	"github.com/NeuronAccount/account/api/private/gen/restapi/operations"
+	"github.com/NeuronAccount/account/api-private/gen/restapi"
+	"github.com/NeuronAccount/account/api-private/gen/restapi/operations"
 	"github.com/NeuronAccount/account/cmd/account-private-api/handler"
 	"github.com/NeuronFramework/log"
 	"github.com/NeuronFramework/restful"
@@ -21,10 +21,10 @@ func main() {
 
 	logger := zap.L().Named("main")
 
-	var bind_addr string
+	var bindAddr string
 
 	cmd := cobra.Command{}
-	cmd.PersistentFlags().StringVar(&bind_addr, "bind-addr", ":8083", "api server bind addr")
+	cmd.PersistentFlags().StringVar(&bindAddr, "bind-addr", ":8083", "api server bind addr")
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		swaggerSpec, err := loads.Analyzed(restapi.SwaggerJSON, "")
 		if err != nil {
@@ -43,8 +43,8 @@ func main() {
 		api.LoginHandler = operations.LoginHandlerFunc(h.Login)
 		api.LogoutHandler = operations.LogoutHandlerFunc(h.Logout)
 
-		logger.Info("Start server", zap.String("addr", bind_addr))
-		err = http.ListenAndServe(bind_addr,
+		logger.Info("Start server", zap.String("addr", bindAddr))
+		err = http.ListenAndServe(bindAddr,
 			restful.Recovery(cors.AllowAll().Handler(api.Serve(nil))))
 		if err != nil {
 			return err

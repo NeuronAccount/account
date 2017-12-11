@@ -2,8 +2,8 @@ package services
 
 import (
 	"context"
+	"github.com/NeuronAccount/account/storages/account_db"
 	"github.com/NeuronFramework/errors"
-	"github.com/NeuronAccount/account/storages/account"
 	"strings"
 )
 
@@ -11,12 +11,12 @@ func (s *AccountService) calcPasswordHash(password string) (passwordHash string)
 	return password
 }
 
-func (s *AccountService) Login(name string, password string) (jwt string, err error) {
-	var dbAccount *account.Account
+func (s *AccountService) Login(ctx context.Context, name string, password string) (jwt string, err error) {
+	var dbAccount *account_db.Account
 	if strings.Contains(name, "@") { //email
-		dbAccount, err = s.db.Account.GetQuery().EmailAddress_Equal(name).QueryOne(context.Background(), nil)
+		dbAccount, err = s.accountDB.Account.GetQuery().EmailAddress_Equal(name).QueryOne(ctx, nil)
 	} else { //phone
-		dbAccount, err = s.db.Account.GetQuery().PhoneNumber_Equal(name).QueryOne(context.Background(), nil)
+		dbAccount, err = s.accountDB.Account.GetQuery().PhoneNumber_Equal(name).QueryOne(ctx, nil)
 	}
 
 	if err != nil {

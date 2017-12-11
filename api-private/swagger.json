@@ -1,0 +1,235 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "description": "",
+    "title": "Account Private API",
+    "contact": {
+      "name": "mars"
+    },
+    "version": "v1"
+  },
+  "basePath": "/api-private/v1/accounts",
+  "schemes": [
+    "http",
+    "https"
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "securityDefinitions": {
+    "Bearer": {
+      "type": "apiKey",
+      "name": "Authorization",
+      "in": "header"
+    }
+  },
+  "parameters": {
+  },
+  "responses": {
+    "ErrorResponse": {
+      "description": "Error response",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "default": "Http status",
+            "type": "string",
+            "format": "int32"
+          },
+          "code": {
+            "description": "Error code",
+            "type": "string"
+          },
+          "message": {
+            "description": "Error message",
+            "type": "string"
+          },
+          "errors": {
+            "description": "Errors",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "field": {
+                  "description": "field name",
+                  "type": "string"
+                },
+                "code": {
+                  "description": "error code",
+                  "type": "string"
+                },
+                "message": {
+                  "description": "error message",
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/smsCode": {
+      "post": {
+        "summary": "",
+        "operationId": "SmsCode",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "scene",
+            "type": "string",
+            "required": true
+          },
+          {
+            "in": "query",
+            "name": "phone",
+            "type": "string",
+            "required": true
+          },
+          {
+            "in": "query",
+            "name": "captchaId",
+            "type": "string"
+          },
+          {
+            "in": "query",
+            "name": "captchaCode",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ok"
+          },
+          "default": {
+            "$ref": "#/responses/ErrorResponse"
+          }
+        }
+      }
+    },
+    "/smsSignup": {
+      "post": {
+        "summary": "sms signup",
+        "operationId": "SmsSignup",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "phone",
+            "type": "string",
+            "required": true
+          },
+          {
+            "in": "query",
+            "name": "smsCode",
+            "type": "string",
+            "required": true
+          },
+          {
+            "in": "query",
+            "name": "password",
+            "type": "string",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ok",
+            "schema": {
+              "type": "string"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/ErrorResponse"
+          }
+        }
+      }
+    },
+    "/smsLogin": {
+      "post": {
+        "summary": "sms login",
+        "operationId": "SmsLogin",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "phone",
+            "type": "string",
+            "required": true
+          },
+          {
+            "in": "query",
+            "name": "smsCode",
+            "type": "string",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "/login": {
+      "post": {
+        "summary": "",
+        "operationId": "Login",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "name",
+            "type": "string",
+            "required": true
+          },
+          {
+            "in": "query",
+            "name": "password",
+            "type": "string",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ok",
+            "schema": {
+              "type": "string"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/ErrorResponse"
+          }
+        }
+      }
+    },
+    "/logout": {
+      "post": {
+        "summary": "",
+        "operationId": "Logout",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "jwt",
+            "type": "string",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ok"
+          },
+          "default": {
+            "$ref": "#/responses/ErrorResponse"
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+  }
+}

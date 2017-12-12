@@ -39,7 +39,7 @@ func (h AccountHandler) SmsCode(p operations.SmsCodeParams) middleware.Responder
 
 	err := h.service.SmsCode(context.Background(), p.Scene, p.Phone, captchaId, captchaCode)
 	if err != nil {
-		return restful.Responder(err)
+		return restful.ErrorResponse(err)
 	}
 
 	return operations.NewSmsCodeOK()
@@ -48,7 +48,7 @@ func (h AccountHandler) SmsCode(p operations.SmsCodeParams) middleware.Responder
 func (h AccountHandler) SmsSignup(p operations.SmsSignupParams) middleware.Responder {
 	jwt, err := h.service.SmsSignup(context.Background(), p.Phone, p.SmsCode, p.Password)
 	if err != nil {
-		return restful.Responder(err)
+		return restful.ErrorResponse(err)
 	}
 
 	return operations.NewSmsSignupOK().WithPayload(jwt)
@@ -57,7 +57,7 @@ func (h AccountHandler) SmsSignup(p operations.SmsSignupParams) middleware.Respo
 func (h AccountHandler) SmsLogin(p operations.SmsLoginParams) middleware.Responder {
 	jwt, err := h.service.SmsLogin(context.Background(), p.Phone, p.SmsCode)
 	if err != nil {
-		return restful.Responder(err)
+		return restful.ErrorResponse(err)
 	}
 
 	return operations.NewSmsLoginOK().WithPayload(jwt)
@@ -66,7 +66,7 @@ func (h AccountHandler) SmsLogin(p operations.SmsLoginParams) middleware.Respond
 func (h AccountHandler) Login(p operations.LoginParams) middleware.Responder {
 	jwt, err := h.service.Login(context.Background(), p.Name, p.Password)
 	if err != nil {
-		return restful.Responder(err)
+		return restful.ErrorResponse(err)
 	}
 
 	return operations.NewLoginOK().WithPayload(jwt)
@@ -75,7 +75,7 @@ func (h AccountHandler) Login(p operations.LoginParams) middleware.Responder {
 func (h AccountHandler) Logout(p operations.LogoutParams) middleware.Responder {
 	err := h.service.Logout(context.Background(), p.Jwt)
 	if err != nil {
-		return restful.Responder(err)
+		return restful.ErrorResponse(err)
 	}
 
 	return operations.NewLogoutOK()

@@ -32,7 +32,7 @@ func main() {
 		}
 		api := operations.NewAccountPrivateAPI(swaggerSpec)
 
-		h, err := handler.NewAccountHandler(&handler.AccountHandlerOptions{})
+		h, err := handler.NewAccountHandler()
 		if err != nil {
 			return err
 		}

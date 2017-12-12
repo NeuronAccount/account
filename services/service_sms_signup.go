@@ -50,6 +50,9 @@ func (s *AccountService) SmsSignup(ctx context.Context, phone string, smsCode st
 
 		return nil
 	})
+	if err != nil {
+		return "", err
+	}
 
 	//生成Token
 	jwt, err = generateJwt(accountId)

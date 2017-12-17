@@ -9,8 +9,6 @@ import (
 	"net/http"
 
 	"github.com/go-openapi/runtime"
-
-	"github.com/NeuronAccount/account/api-private/gen/models"
 )
 
 // LogoutOKCode is the HTTP code returned for type LogoutOK
@@ -34,62 +32,4 @@ func (o *LogoutOK) WriteResponse(rw http.ResponseWriter, producer runtime.Produc
 	rw.Header().Del(runtime.HeaderContentType) //Remove Content-Type on empty responses
 
 	rw.WriteHeader(200)
-}
-
-/*LogoutDefault Error response
-
-swagger:response logoutDefault
-*/
-type LogoutDefault struct {
-	_statusCode int
-
-	/*
-	  In: Body
-	*/
-	Payload *models.LogoutDefaultBody `json:"body,omitempty"`
-}
-
-// NewLogoutDefault creates LogoutDefault with default headers values
-func NewLogoutDefault(code int) *LogoutDefault {
-	if code <= 0 {
-		code = 500
-	}
-
-	return &LogoutDefault{
-		_statusCode: code,
-	}
-}
-
-// WithStatusCode adds the status to the logout default response
-func (o *LogoutDefault) WithStatusCode(code int) *LogoutDefault {
-	o._statusCode = code
-	return o
-}
-
-// SetStatusCode sets the status to the logout default response
-func (o *LogoutDefault) SetStatusCode(code int) {
-	o._statusCode = code
-}
-
-// WithPayload adds the payload to the logout default response
-func (o *LogoutDefault) WithPayload(payload *models.LogoutDefaultBody) *LogoutDefault {
-	o.Payload = payload
-	return o
-}
-
-// SetPayload sets the payload to the logout default response
-func (o *LogoutDefault) SetPayload(payload *models.LogoutDefaultBody) {
-	o.Payload = payload
-}
-
-// WriteResponse to the client
-func (o *LogoutDefault) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
-
-	rw.WriteHeader(o._statusCode)
-	if o.Payload != nil {
-		payload := o.Payload
-		if err := producer.Produce(rw, payload); err != nil {
-			panic(err) // let the recovery middleware deal with this
-		}
-	}
 }

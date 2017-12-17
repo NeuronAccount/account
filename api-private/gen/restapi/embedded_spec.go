@@ -57,9 +57,6 @@ func init() {
             "schema": {
               "type": "string"
             }
-          },
-          "default": {
-            "$ref": "#/responses/ErrorResponse"
           }
         }
       }
@@ -78,9 +75,6 @@ func init() {
         "responses": {
           "200": {
             "description": "ok"
-          },
-          "default": {
-            "$ref": "#/responses/ErrorResponse"
           }
         }
       }
@@ -115,9 +109,6 @@ func init() {
         "responses": {
           "200": {
             "description": "ok"
-          },
-          "default": {
-            "$ref": "#/responses/ErrorResponse"
           }
         }
       }
@@ -179,53 +170,6 @@ func init() {
             "schema": {
               "type": "string"
             }
-          },
-          "default": {
-            "$ref": "#/responses/ErrorResponse"
-          }
-        }
-      }
-    }
-  },
-  "responses": {
-    "ErrorResponse": {
-      "description": "Error response",
-      "schema": {
-        "type": "object",
-        "properties": {
-          "code": {
-            "description": "Error code",
-            "type": "string"
-          },
-          "errors": {
-            "description": "Errors",
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "code": {
-                  "description": "error code",
-                  "type": "string"
-                },
-                "field": {
-                  "description": "field name",
-                  "type": "string"
-                },
-                "message": {
-                  "description": "error message",
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "message": {
-            "description": "Error message",
-            "type": "string"
-          },
-          "status": {
-            "type": "string",
-            "format": "int32",
-            "default": "Http status"
           }
         }
       }
@@ -283,12 +227,6 @@ func init() {
             "schema": {
               "type": "string"
             }
-          },
-          "default": {
-            "description": "Error response",
-            "schema": {
-              "$ref": "#/definitions/loginDefaultBody"
-            }
           }
         }
       }
@@ -307,12 +245,6 @@ func init() {
         "responses": {
           "200": {
             "description": "ok"
-          },
-          "default": {
-            "description": "Error response",
-            "schema": {
-              "$ref": "#/definitions/logoutDefaultBody"
-            }
           }
         }
       }
@@ -347,12 +279,6 @@ func init() {
         "responses": {
           "200": {
             "description": "ok"
-          },
-          "default": {
-            "description": "Error response",
-            "schema": {
-              "$ref": "#/definitions/smsCodeDefaultBody"
-            }
           }
         }
       }
@@ -414,250 +340,6 @@ func init() {
             "schema": {
               "type": "string"
             }
-          },
-          "default": {
-            "description": "Error response",
-            "schema": {
-              "$ref": "#/definitions/smsSignupDefaultBody"
-            }
-          }
-        }
-      }
-    }
-  },
-  "definitions": {
-    "loginDefaultBody": {
-      "type": "object",
-      "properties": {
-        "code": {
-          "description": "Error code",
-          "type": "string"
-        },
-        "errors": {
-          "$ref": "#/definitions/loginDefaultBodyErrors"
-        },
-        "message": {
-          "description": "Error message",
-          "type": "string"
-        },
-        "status": {
-          "type": "string",
-          "format": "int32",
-          "default": "Http status"
-        }
-      },
-      "x-go-gen-location": "operations"
-    },
-    "loginDefaultBodyErrors": {
-      "description": "Errors",
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/loginDefaultBodyErrorsItems"
-      },
-      "x-go-gen-location": "operations"
-    },
-    "loginDefaultBodyErrorsItems": {
-      "type": "object",
-      "properties": {
-        "code": {
-          "description": "error code",
-          "type": "string"
-        },
-        "field": {
-          "description": "field name",
-          "type": "string"
-        },
-        "message": {
-          "description": "error message",
-          "type": "string"
-        }
-      },
-      "x-go-gen-location": "operations"
-    },
-    "logoutDefaultBody": {
-      "type": "object",
-      "properties": {
-        "code": {
-          "description": "Error code",
-          "type": "string"
-        },
-        "errors": {
-          "$ref": "#/definitions/logoutDefaultBodyErrors"
-        },
-        "message": {
-          "description": "Error message",
-          "type": "string"
-        },
-        "status": {
-          "type": "string",
-          "format": "int32",
-          "default": "Http status"
-        }
-      },
-      "x-go-gen-location": "operations"
-    },
-    "logoutDefaultBodyErrors": {
-      "description": "Errors",
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/logoutDefaultBodyErrorsItems"
-      },
-      "x-go-gen-location": "operations"
-    },
-    "logoutDefaultBodyErrorsItems": {
-      "type": "object",
-      "properties": {
-        "code": {
-          "description": "error code",
-          "type": "string"
-        },
-        "field": {
-          "description": "field name",
-          "type": "string"
-        },
-        "message": {
-          "description": "error message",
-          "type": "string"
-        }
-      },
-      "x-go-gen-location": "operations"
-    },
-    "smsCodeDefaultBody": {
-      "type": "object",
-      "properties": {
-        "code": {
-          "description": "Error code",
-          "type": "string"
-        },
-        "errors": {
-          "$ref": "#/definitions/smsCodeDefaultBodyErrors"
-        },
-        "message": {
-          "description": "Error message",
-          "type": "string"
-        },
-        "status": {
-          "type": "string",
-          "format": "int32",
-          "default": "Http status"
-        }
-      },
-      "x-go-gen-location": "operations"
-    },
-    "smsCodeDefaultBodyErrors": {
-      "description": "Errors",
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/smsCodeDefaultBodyErrorsItems"
-      },
-      "x-go-gen-location": "operations"
-    },
-    "smsCodeDefaultBodyErrorsItems": {
-      "type": "object",
-      "properties": {
-        "code": {
-          "description": "error code",
-          "type": "string"
-        },
-        "field": {
-          "description": "field name",
-          "type": "string"
-        },
-        "message": {
-          "description": "error message",
-          "type": "string"
-        }
-      },
-      "x-go-gen-location": "operations"
-    },
-    "smsSignupDefaultBody": {
-      "type": "object",
-      "properties": {
-        "code": {
-          "description": "Error code",
-          "type": "string"
-        },
-        "errors": {
-          "$ref": "#/definitions/smsSignupDefaultBodyErrors"
-        },
-        "message": {
-          "description": "Error message",
-          "type": "string"
-        },
-        "status": {
-          "type": "string",
-          "format": "int32",
-          "default": "Http status"
-        }
-      },
-      "x-go-gen-location": "operations"
-    },
-    "smsSignupDefaultBodyErrors": {
-      "description": "Errors",
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/smsSignupDefaultBodyErrorsItems"
-      },
-      "x-go-gen-location": "operations"
-    },
-    "smsSignupDefaultBodyErrorsItems": {
-      "type": "object",
-      "properties": {
-        "code": {
-          "description": "error code",
-          "type": "string"
-        },
-        "field": {
-          "description": "field name",
-          "type": "string"
-        },
-        "message": {
-          "description": "error message",
-          "type": "string"
-        }
-      },
-      "x-go-gen-location": "operations"
-    }
-  },
-  "responses": {
-    "ErrorResponse": {
-      "description": "Error response",
-      "schema": {
-        "type": "object",
-        "properties": {
-          "code": {
-            "description": "Error code",
-            "type": "string"
-          },
-          "errors": {
-            "description": "Errors",
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "code": {
-                  "description": "error code",
-                  "type": "string"
-                },
-                "field": {
-                  "description": "field name",
-                  "type": "string"
-                },
-                "message": {
-                  "description": "error message",
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "message": {
-            "description": "Error message",
-            "type": "string"
-          },
-          "status": {
-            "type": "string",
-            "format": "int32",
-            "default": "Http status"
           }
         }
       }

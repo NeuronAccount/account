@@ -56,7 +56,7 @@ func (o *Logout) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 
 	res := o.Handler.Handle(Params) // actually handle the request
 
-	zap.L().Named("api").Info("Logout", zap.Any("response", &res))
+	zap.L().Named("api").Info("Logout", zap.Any("response", res))
 
 	o.Context.Respond(rw, r, route.Produces, route, res)
 

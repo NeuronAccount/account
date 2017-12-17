@@ -16,7 +16,7 @@ import (
 
 // This file is safe to edit. Once it exists it will not be overwritten
 
-//go:generate swagger generate server --target ../gen --name  --spec ../swagger.json
+//go:generate swagger generate server --target ../gen --name  --spec ../swagger.json --template-dir /Users/god/work/neuron/src/github.com/NeuronFramework/restful/go_template/
 
 func configureFlags(api *operations.AccountPrivateAPI) {
 	// api.CommandLineOptionsGroups = []swag.CommandLineOptionsGroup{ ... }

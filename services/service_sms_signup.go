@@ -23,7 +23,7 @@ func (s *AccountService) SmsSignup(ctx context.Context, phone string, smsCode st
 
 	accountId := rand.NextHex(16)
 
-	err = s.accountDB.TransactionReadCommitted(ctx, func(tx *wrap.Tx) (err error) {
+	err = s.accountDB.TransactionReadCommitted(ctx, false, func(tx *wrap.Tx) (err error) {
 		dbAccount, err := s.accountDB.Account.GetQuery().ForUpdate().
 			PhoneNumber_Equal(phone).
 			QueryOne(ctx, tx)

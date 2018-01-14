@@ -1,4 +1,4 @@
 package models
 
-const SCENE_TYPE_SMS_SIGNUP = "SMS_SIGNUP"
-const SCENE_TYPE_SMS_LOGIN = "SMS_LOGIN"
+const SceneTypeSmsSignup = "SMS_SIGNUP"
+const SceneTypeSmsLogin = "SMS_LOGIN"

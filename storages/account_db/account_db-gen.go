@@ -3,14 +3,18 @@ package account_db
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"fmt"
 	"github.com/NeuronFramework/log"
 	"github.com/NeuronFramework/sql/wrap"
-	_ "github.com/go-sql-driver/mysql"
+	"github.com/go-sql-driver/mysql"
 	"go.uber.org/zap"
 	"strings"
 	"time"
 )
+
+var _ = sql.ErrNoRows
+var _ = mysql.ErrOldProtocol
 
 type BaseQuery struct {
 	forUpdate     bool
@@ -67,8 +71,9 @@ const ACCOUNT_FIELD_OAUTH_PROVIDER = ACCOUNT_FIELD("oauth_provider")
 const ACCOUNT_FIELD_OAUTH_ACCOUNT_ID = ACCOUNT_FIELD("oauth_account_id")
 const ACCOUNT_FIELD_CREATE_TIME = ACCOUNT_FIELD("create_time")
 const ACCOUNT_FIELD_UPDATE_TIME = ACCOUNT_FIELD("update_time")
+const ACCOUNT_FIELD_UPDATE_VERSION = ACCOUNT_FIELD("update_version")
 
-const ACCOUNT_ALL_FIELDS_STRING = "id,account_id,phone_number,email_address,password_hash,oauth_provider,oauth_account_id,create_time,update_time"
+const ACCOUNT_ALL_FIELDS_STRING = "id,account_id,phone_number,email_address,password_hash,oauth_provider,oauth_account_id,create_time,update_time,update_version"
 
 var ACCOUNT_ALL_FIELDS = []string{
 	"id",
@@ -80,18 +85,20 @@ var ACCOUNT_ALL_FIELDS = []string{
 	"oauth_account_id",
 	"create_time",
 	"update_time",
+	"update_version",
 }
 
 type Account struct {
-	Id             int64  //size=20
-	AccountId      string //size=128
-	PhoneNumber    string //size=32
-	EmailAddress   string //size=128
-	PasswordHash   string //size=128
-	OauthProvider  string //size=128
-	OauthAccountId string //size=128
+	Id             uint64         //size=20
+	AccountId      string         //size=128
+	PhoneNumber    sql.NullString //size=32
+	EmailAddress   sql.NullString //size=128
+	PasswordHash   string         //size=128
+	OauthProvider  sql.NullString //size=128
+	OauthAccountId sql.NullString //size=128
 	CreateTime     time.Time
 	UpdateTime     time.Time
+	UpdateVersion  uint64 //size=20
 }
 
 type AccountQuery struct {
@@ -184,12 +191,14 @@ func (q *AccountQuery) And() *AccountQuery   { return q.w(" AND ") }
 func (q *AccountQuery) Or() *AccountQuery    { return q.w(" OR ") }
 func (q *AccountQuery) Not() *AccountQuery   { return q.w(" NOT ") }
 
-func (q *AccountQuery) Id_Equal(v int64) *AccountQuery        { return q.w("id='" + fmt.Sprint(v) + "'") }
-func (q *AccountQuery) Id_NotEqual(v int64) *AccountQuery     { return q.w("id<>'" + fmt.Sprint(v) + "'") }
-func (q *AccountQuery) Id_Less(v int64) *AccountQuery         { return q.w("id<'" + fmt.Sprint(v) + "'") }
-func (q *AccountQuery) Id_LessEqual(v int64) *AccountQuery    { return q.w("id<='" + fmt.Sprint(v) + "'") }
-func (q *AccountQuery) Id_Greater(v int64) *AccountQuery      { return q.w("id>'" + fmt.Sprint(v) + "'") }
-func (q *AccountQuery) Id_GreaterEqual(v int64) *AccountQuery { return q.w("id>='" + fmt.Sprint(v) + "'") }
+func (q *AccountQuery) Id_Equal(v uint64) *AccountQuery     { return q.w("id='" + fmt.Sprint(v) + "'") }
+func (q *AccountQuery) Id_NotEqual(v uint64) *AccountQuery  { return q.w("id<>'" + fmt.Sprint(v) + "'") }
+func (q *AccountQuery) Id_Less(v uint64) *AccountQuery      { return q.w("id<'" + fmt.Sprint(v) + "'") }
+func (q *AccountQuery) Id_LessEqual(v uint64) *AccountQuery { return q.w("id<='" + fmt.Sprint(v) + "'") }
+func (q *AccountQuery) Id_Greater(v uint64) *AccountQuery   { return q.w("id>'" + fmt.Sprint(v) + "'") }
+func (q *AccountQuery) Id_GreaterEqual(v uint64) *AccountQuery {
+	return q.w("id>='" + fmt.Sprint(v) + "'")
+}
 func (q *AccountQuery) AccountId_Equal(v string) *AccountQuery {
 	return q.w("account_id='" + fmt.Sprint(v) + "'")
 }
@@ -334,6 +343,24 @@ func (q *AccountQuery) UpdateTime_Greater(v time.Time) *AccountQuery {
 func (q *AccountQuery) UpdateTime_GreaterEqual(v time.Time) *AccountQuery {
 	return q.w("update_time>='" + fmt.Sprint(v) + "'")
 }
+func (q *AccountQuery) UpdateVersion_Equal(v uint64) *AccountQuery {
+	return q.w("update_version='" + fmt.Sprint(v) + "'")
+}
+func (q *AccountQuery) UpdateVersion_NotEqual(v uint64) *AccountQuery {
+	return q.w("update_version<>'" + fmt.Sprint(v) + "'")
+}
+func (q *AccountQuery) UpdateVersion_Less(v uint64) *AccountQuery {
+	return q.w("update_version<'" + fmt.Sprint(v) + "'")
+}
+func (q *AccountQuery) UpdateVersion_LessEqual(v uint64) *AccountQuery {
+	return q.w("update_version<='" + fmt.Sprint(v) + "'")
+}
+func (q *AccountQuery) UpdateVersion_Greater(v uint64) *AccountQuery {
+	return q.w("update_version>'" + fmt.Sprint(v) + "'")
+}
+func (q *AccountQuery) UpdateVersion_GreaterEqual(v uint64) *AccountQuery {
+	return q.w("update_version>='" + fmt.Sprint(v) + "'")
+}
 
 type AccountDao struct {
 	logger     *zap.Logger
@@ -374,12 +401,12 @@ func (dao *AccountDao) init() (err error) {
 	return nil
 }
 func (dao *AccountDao) prepareInsertStmt() (err error) {
-	dao.insertStmt, err = dao.db.Prepare(context.Background(), "INSERT INTO account (account_id,phone_number,email_address,password_hash,oauth_provider,oauth_account_id) VALUES (?,?,?,?,?,?)")
+	dao.insertStmt, err = dao.db.Prepare(context.Background(), "INSERT INTO account (account_id,phone_number,email_address,password_hash,oauth_provider,oauth_account_id,update_version) VALUES (?,?,?,?,?,?,?)")
 	return err
 }
 
 func (dao *AccountDao) prepareUpdateStmt() (err error) {
-	dao.updateStmt, err = dao.db.Prepare(context.Background(), "UPDATE account SET account_id=?,phone_number=?,email_address=?,password_hash=?,oauth_provider=?,oauth_account_id=? WHERE id=?")
+	dao.updateStmt, err = dao.db.Prepare(context.Background(), "UPDATE account SET account_id=?,phone_number=?,email_address=?,password_hash=?,oauth_provider=?,oauth_account_id=?,update_version=update_version+1 WHERE id=? AND update_version=?")
 	return err
 }
 
@@ -394,7 +421,7 @@ func (dao *AccountDao) Insert(ctx context.Context, tx *wrap.Tx, e *Account) (id 
 		stmt = tx.Stmt(ctx, stmt)
 	}
 
-	result, err := stmt.Exec(ctx, e.AccountId, e.PhoneNumber, e.EmailAddress, e.PasswordHash, e.OauthProvider, e.OauthAccountId)
+	result, err := stmt.Exec(ctx, e.AccountId, e.PhoneNumber, e.EmailAddress, e.PasswordHash, e.OauthProvider, e.OauthAccountId, e.UpdateVersion)
 	if err != nil {
 		return 0, err
 	}
@@ -413,7 +440,7 @@ func (dao *AccountDao) Update(ctx context.Context, tx *wrap.Tx, e *Account) (err
 		stmt = tx.Stmt(ctx, stmt)
 	}
 
-	_, err = stmt.Exec(ctx, e.AccountId, e.PhoneNumber, e.EmailAddress, e.PasswordHash, e.OauthProvider, e.OauthAccountId, e.Id)
+	_, err = stmt.Exec(ctx, e.AccountId, e.PhoneNumber, e.EmailAddress, e.PasswordHash, e.OauthProvider, e.OauthAccountId, e.Id, e.UpdateVersion)
 	if err != nil {
 		return err
 	}
@@ -421,7 +448,7 @@ func (dao *AccountDao) Update(ctx context.Context, tx *wrap.Tx, e *Account) (err
 	return nil
 }
 
-func (dao *AccountDao) Delete(ctx context.Context, tx *wrap.Tx, id int64) (err error) {
+func (dao *AccountDao) Delete(ctx context.Context, tx *wrap.Tx, id uint64) (err error) {
 	stmt := dao.deleteStmt
 	if tx != nil {
 		stmt = tx.Stmt(ctx, stmt)
@@ -437,7 +464,7 @@ func (dao *AccountDao) Delete(ctx context.Context, tx *wrap.Tx, id int64) (err e
 
 func (dao *AccountDao) scanRow(row *wrap.Row) (*Account, error) {
 	e := &Account{}
-	err := row.Scan(&e.Id, &e.AccountId, &e.PhoneNumber, &e.EmailAddress, &e.PasswordHash, &e.OauthProvider, &e.OauthAccountId, &e.CreateTime, &e.UpdateTime)
+	err := row.Scan(&e.Id, &e.AccountId, &e.PhoneNumber, &e.EmailAddress, &e.PasswordHash, &e.OauthProvider, &e.OauthAccountId, &e.CreateTime, &e.UpdateTime, &e.UpdateVersion)
 	if err != nil {
 		if err == wrap.ErrNoRows {
 			return nil, nil
@@ -453,7 +480,7 @@ func (dao *AccountDao) scanRows(rows *wrap.Rows) (list []*Account, err error) {
 	list = make([]*Account, 0)
 	for rows.Next() {
 		e := Account{}
-		err = rows.Scan(&e.Id, &e.AccountId, &e.PhoneNumber, &e.EmailAddress, &e.PasswordHash, &e.OauthProvider, &e.OauthAccountId, &e.CreateTime, &e.UpdateTime)
+		err = rows.Scan(&e.Id, &e.AccountId, &e.PhoneNumber, &e.EmailAddress, &e.PasswordHash, &e.OauthProvider, &e.OauthAccountId, &e.CreateTime, &e.UpdateTime, &e.UpdateVersion)
 		if err != nil {
 			return nil, err
 		}
@@ -545,7 +572,7 @@ var ACCOUNT_OPERATION_ALL_FIELDS = []string{
 }
 
 type AccountOperation struct {
-	Id            int64  //size=20
+	Id            uint64 //size=20
 	OperationData string //size=256
 	CreateTime    time.Time
 }
@@ -640,22 +667,22 @@ func (q *AccountOperationQuery) And() *AccountOperationQuery   { return q.w(" AN
 func (q *AccountOperationQuery) Or() *AccountOperationQuery    { return q.w(" OR ") }
 func (q *AccountOperationQuery) Not() *AccountOperationQuery   { return q.w(" NOT ") }
 
-func (q *AccountOperationQuery) Id_Equal(v int64) *AccountOperationQuery {
+func (q *AccountOperationQuery) Id_Equal(v uint64) *AccountOperationQuery {
 	return q.w("id='" + fmt.Sprint(v) + "'")
 }
-func (q *AccountOperationQuery) Id_NotEqual(v int64) *AccountOperationQuery {
+func (q *AccountOperationQuery) Id_NotEqual(v uint64) *AccountOperationQuery {
 	return q.w("id<>'" + fmt.Sprint(v) + "'")
 }
-func (q *AccountOperationQuery) Id_Less(v int64) *AccountOperationQuery {
+func (q *AccountOperationQuery) Id_Less(v uint64) *AccountOperationQuery {
 	return q.w("id<'" + fmt.Sprint(v) + "'")
 }
-func (q *AccountOperationQuery) Id_LessEqual(v int64) *AccountOperationQuery {
+func (q *AccountOperationQuery) Id_LessEqual(v uint64) *AccountOperationQuery {
 	return q.w("id<='" + fmt.Sprint(v) + "'")
 }
-func (q *AccountOperationQuery) Id_Greater(v int64) *AccountOperationQuery {
+func (q *AccountOperationQuery) Id_Greater(v uint64) *AccountOperationQuery {
 	return q.w("id>'" + fmt.Sprint(v) + "'")
 }
-func (q *AccountOperationQuery) Id_GreaterEqual(v int64) *AccountOperationQuery {
+func (q *AccountOperationQuery) Id_GreaterEqual(v uint64) *AccountOperationQuery {
 	return q.w("id>='" + fmt.Sprint(v) + "'")
 }
 func (q *AccountOperationQuery) OperationData_Equal(v string) *AccountOperationQuery {
@@ -781,7 +808,7 @@ func (dao *AccountOperationDao) Update(ctx context.Context, tx *wrap.Tx, e *Acco
 	return nil
 }
 
-func (dao *AccountOperationDao) Delete(ctx context.Context, tx *wrap.Tx, id int64) (err error) {
+func (dao *AccountOperationDao) Delete(ctx context.Context, tx *wrap.Tx, id uint64) (err error) {
 	stmt := dao.deleteStmt
 	if tx != nil {
 		stmt = tx.Stmt(ctx, stmt)
@@ -905,7 +932,7 @@ var LOGIN_HISTORY_ALL_FIELDS = []string{
 }
 
 type LoginHistory struct {
-	Id         int64  //size=20
+	Id         uint64 //size=20
 	AccountId  string //size=128
 	CreateTime time.Time
 }
@@ -1000,22 +1027,22 @@ func (q *LoginHistoryQuery) And() *LoginHistoryQuery   { return q.w(" AND ") }
 func (q *LoginHistoryQuery) Or() *LoginHistoryQuery    { return q.w(" OR ") }
 func (q *LoginHistoryQuery) Not() *LoginHistoryQuery   { return q.w(" NOT ") }
 
-func (q *LoginHistoryQuery) Id_Equal(v int64) *LoginHistoryQuery {
+func (q *LoginHistoryQuery) Id_Equal(v uint64) *LoginHistoryQuery {
 	return q.w("id='" + fmt.Sprint(v) + "'")
 }
-func (q *LoginHistoryQuery) Id_NotEqual(v int64) *LoginHistoryQuery {
+func (q *LoginHistoryQuery) Id_NotEqual(v uint64) *LoginHistoryQuery {
 	return q.w("id<>'" + fmt.Sprint(v) + "'")
 }
-func (q *LoginHistoryQuery) Id_Less(v int64) *LoginHistoryQuery {
+func (q *LoginHistoryQuery) Id_Less(v uint64) *LoginHistoryQuery {
 	return q.w("id<'" + fmt.Sprint(v) + "'")
 }
-func (q *LoginHistoryQuery) Id_LessEqual(v int64) *LoginHistoryQuery {
+func (q *LoginHistoryQuery) Id_LessEqual(v uint64) *LoginHistoryQuery {
 	return q.w("id<='" + fmt.Sprint(v) + "'")
 }
-func (q *LoginHistoryQuery) Id_Greater(v int64) *LoginHistoryQuery {
+func (q *LoginHistoryQuery) Id_Greater(v uint64) *LoginHistoryQuery {
 	return q.w("id>'" + fmt.Sprint(v) + "'")
 }
-func (q *LoginHistoryQuery) Id_GreaterEqual(v int64) *LoginHistoryQuery {
+func (q *LoginHistoryQuery) Id_GreaterEqual(v uint64) *LoginHistoryQuery {
 	return q.w("id>='" + fmt.Sprint(v) + "'")
 }
 func (q *LoginHistoryQuery) AccountId_Equal(v string) *LoginHistoryQuery {
@@ -1141,7 +1168,7 @@ func (dao *LoginHistoryDao) Update(ctx context.Context, tx *wrap.Tx, e *LoginHis
 	return nil
 }
 
-func (dao *LoginHistoryDao) Delete(ctx context.Context, tx *wrap.Tx, id int64) (err error) {
+func (dao *LoginHistoryDao) Delete(ctx context.Context, tx *wrap.Tx, id uint64) (err error) {
 	stmt := dao.deleteStmt
 	if tx != nil {
 		stmt = tx.Stmt(ctx, stmt)
@@ -1269,7 +1296,7 @@ var SMS_CODE_ALL_FIELDS = []string{
 }
 
 type SmsCode struct {
-	Id          int64  //size=20
+	Id          uint64 //size=20
 	SceneType   string //size=32
 	PhoneNumber string //size=32
 	SmsCode     string //size=32
@@ -1366,12 +1393,14 @@ func (q *SmsCodeQuery) And() *SmsCodeQuery   { return q.w(" AND ") }
 func (q *SmsCodeQuery) Or() *SmsCodeQuery    { return q.w(" OR ") }
 func (q *SmsCodeQuery) Not() *SmsCodeQuery   { return q.w(" NOT ") }
 
-func (q *SmsCodeQuery) Id_Equal(v int64) *SmsCodeQuery        { return q.w("id='" + fmt.Sprint(v) + "'") }
-func (q *SmsCodeQuery) Id_NotEqual(v int64) *SmsCodeQuery     { return q.w("id<>'" + fmt.Sprint(v) + "'") }
-func (q *SmsCodeQuery) Id_Less(v int64) *SmsCodeQuery         { return q.w("id<'" + fmt.Sprint(v) + "'") }
-func (q *SmsCodeQuery) Id_LessEqual(v int64) *SmsCodeQuery    { return q.w("id<='" + fmt.Sprint(v) + "'") }
-func (q *SmsCodeQuery) Id_Greater(v int64) *SmsCodeQuery      { return q.w("id>'" + fmt.Sprint(v) + "'") }
-func (q *SmsCodeQuery) Id_GreaterEqual(v int64) *SmsCodeQuery { return q.w("id>='" + fmt.Sprint(v) + "'") }
+func (q *SmsCodeQuery) Id_Equal(v uint64) *SmsCodeQuery     { return q.w("id='" + fmt.Sprint(v) + "'") }
+func (q *SmsCodeQuery) Id_NotEqual(v uint64) *SmsCodeQuery  { return q.w("id<>'" + fmt.Sprint(v) + "'") }
+func (q *SmsCodeQuery) Id_Less(v uint64) *SmsCodeQuery      { return q.w("id<'" + fmt.Sprint(v) + "'") }
+func (q *SmsCodeQuery) Id_LessEqual(v uint64) *SmsCodeQuery { return q.w("id<='" + fmt.Sprint(v) + "'") }
+func (q *SmsCodeQuery) Id_Greater(v uint64) *SmsCodeQuery   { return q.w("id>'" + fmt.Sprint(v) + "'") }
+func (q *SmsCodeQuery) Id_GreaterEqual(v uint64) *SmsCodeQuery {
+	return q.w("id>='" + fmt.Sprint(v) + "'")
+}
 func (q *SmsCodeQuery) SceneType_Equal(v string) *SmsCodeQuery {
 	return q.w("scene_type='" + fmt.Sprint(v) + "'")
 }
@@ -1531,7 +1560,7 @@ func (dao *SmsCodeDao) Update(ctx context.Context, tx *wrap.Tx, e *SmsCode) (err
 	return nil
 }
 
-func (dao *SmsCodeDao) Delete(ctx context.Context, tx *wrap.Tx, id int64) (err error) {
+func (dao *SmsCodeDao) Delete(ctx context.Context, tx *wrap.Tx, id uint64) (err error) {
 	stmt := dao.deleteStmt
 	if tx != nil {
 		stmt = tx.Stmt(ctx, stmt)
@@ -1659,7 +1688,7 @@ var SMS_SCENE_ALL_FIELDS = []string{
 }
 
 type SmsScene struct {
-	Id         int64  //size=20
+	Id         uint64 //size=20
 	SceneType  string //size=32
 	SceneDesc  string //size=32
 	CreateTime time.Time
@@ -1756,12 +1785,12 @@ func (q *SmsSceneQuery) And() *SmsSceneQuery   { return q.w(" AND ") }
 func (q *SmsSceneQuery) Or() *SmsSceneQuery    { return q.w(" OR ") }
 func (q *SmsSceneQuery) Not() *SmsSceneQuery   { return q.w(" NOT ") }
 
-func (q *SmsSceneQuery) Id_Equal(v int64) *SmsSceneQuery     { return q.w("id='" + fmt.Sprint(v) + "'") }
-func (q *SmsSceneQuery) Id_NotEqual(v int64) *SmsSceneQuery  { return q.w("id<>'" + fmt.Sprint(v) + "'") }
-func (q *SmsSceneQuery) Id_Less(v int64) *SmsSceneQuery      { return q.w("id<'" + fmt.Sprint(v) + "'") }
-func (q *SmsSceneQuery) Id_LessEqual(v int64) *SmsSceneQuery { return q.w("id<='" + fmt.Sprint(v) + "'") }
-func (q *SmsSceneQuery) Id_Greater(v int64) *SmsSceneQuery   { return q.w("id>'" + fmt.Sprint(v) + "'") }
-func (q *SmsSceneQuery) Id_GreaterEqual(v int64) *SmsSceneQuery {
+func (q *SmsSceneQuery) Id_Equal(v uint64) *SmsSceneQuery     { return q.w("id='" + fmt.Sprint(v) + "'") }
+func (q *SmsSceneQuery) Id_NotEqual(v uint64) *SmsSceneQuery  { return q.w("id<>'" + fmt.Sprint(v) + "'") }
+func (q *SmsSceneQuery) Id_Less(v uint64) *SmsSceneQuery      { return q.w("id<'" + fmt.Sprint(v) + "'") }
+func (q *SmsSceneQuery) Id_LessEqual(v uint64) *SmsSceneQuery { return q.w("id<='" + fmt.Sprint(v) + "'") }
+func (q *SmsSceneQuery) Id_Greater(v uint64) *SmsSceneQuery   { return q.w("id>'" + fmt.Sprint(v) + "'") }
+func (q *SmsSceneQuery) Id_GreaterEqual(v uint64) *SmsSceneQuery {
 	return q.w("id>='" + fmt.Sprint(v) + "'")
 }
 func (q *SmsSceneQuery) SceneType_Equal(v string) *SmsSceneQuery {
@@ -1923,7 +1952,7 @@ func (dao *SmsSceneDao) Update(ctx context.Context, tx *wrap.Tx, e *SmsScene) (e
 	return nil
 }
 
-func (dao *SmsSceneDao) Delete(ctx context.Context, tx *wrap.Tx, id int64) (err error) {
+func (dao *SmsSceneDao) Delete(ctx context.Context, tx *wrap.Tx, id uint64) (err error) {
 	stmt := dao.deleteStmt
 	if tx != nil {
 		stmt = tx.Stmt(ctx, stmt)

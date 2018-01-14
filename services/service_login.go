@@ -18,7 +18,6 @@ func (s *AccountService) Login(ctx context.Context, name string, password string
 	} else { //phone
 		dbAccount, err = s.accountDB.Account.GetQuery().PhoneNumber_Equal(name).QueryOne(ctx, nil)
 	}
-
 	if err != nil {
 		return "", err
 	}

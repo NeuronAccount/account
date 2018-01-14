@@ -25,20 +25,21 @@ DROP TABLE IF EXISTS `account`;
 CREATE TABLE `account` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `account_id` varchar(128) NOT NULL,
-  `phone_number` varchar(32) NOT NULL,
-  `email_address` varchar(128) NOT NULL,
+  `phone_number` varchar(32) DEFAULT NULL,
+  `email_address` varchar(128) DEFAULT NULL,
   `password_hash` varchar(128) NOT NULL,
-  `oauth_provider` varchar(128) NOT NULL,
-  `oauth_account_id` varchar(128) NOT NULL,
+  `oauth_provider` varchar(128) DEFAULT NULL,
+  `oauth_account_id` varchar(128) DEFAULT NULL,
   `create_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `update_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `update_version` bigint(20) unsigned NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_account` (`account_id`),
-  KEY `idx_phone` (`phone_number`),
-  KEY `idx_email` (`email_address`),
-  KEY `idx_update_time` (`update_time`),
-  KEY `idx_oauth` (`oauth_provider`,`oauth_account_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8;
+  UNIQUE KEY `idx_phone` (`phone_number`),
+  UNIQUE KEY `idx_email` (`email_address`),
+  UNIQUE KEY `idx_oauth` (`oauth_provider`,`oauth_account_id`),
+  KEY `idx_update_time` (`update_time`)
+) ENGINE=InnoDB AUTO_INCREMENT=60 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -87,7 +88,7 @@ CREATE TABLE `sms_code` (
   PRIMARY KEY (`id`),
   KEY `idx_scene_phone` (`scene_type`,`phone_number`),
   KEY `idx_create_time` (`create_time`)
-) ENGINE=InnoDB AUTO_INCREMENT=28 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=478 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -118,4 +119,4 @@ CREATE TABLE `sms_scene` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2017-12-04 13:21:16
+-- Dump completed on 2018-01-12 19:04:42

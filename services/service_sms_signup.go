@@ -10,15 +10,9 @@ import (
 )
 
 func (s *AccountService) SmsSignup(ctx context.Context, phone string, smsCode string, password string) (jwt string, err error) {
-	//check sms code
-	dbSmsCode, err := s.accountDB.SmsCode.GetQuery().
-		SceneType_Equal(models.SceneTypeSmsSignup).And().PhoneNumber_Equal(phone).
-		OrderBy(account_db.SMS_CODE_FIELD_CREATE_TIME, false).QueryOne(ctx, nil)
+	err = s.validateSmsCode(ctx, models.SmsSceneSignup, phone, smsCode)
 	if err != nil {
 		return "", err
-	}
-	if dbSmsCode == nil || dbSmsCode.SmsCode != smsCode {
-		return "", errors.BadRequest("InvalidSmsCode", "验证码错误")
 	}
 
 	//check account exists
@@ -40,7 +34,7 @@ func (s *AccountService) SmsSignup(ctx context.Context, phone string, smsCode st
 	}
 
 	//gen gwt
-	jwt, err = generateJwt(dbAccount.AccountId)
+	jwt, err = s.generateJwt(dbAccount.AccountId)
 	if err != nil {
 		return "", err
 	}

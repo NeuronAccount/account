@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"strings"
 
-	errors "github.com/go-openapi/errors"
+	"github.com/NeuronFramework/restful"
 	loads "github.com/go-openapi/loads"
 	runtime "github.com/go-openapi/runtime"
 	middleware "github.com/go-openapi/runtime/middleware"
@@ -29,26 +29,29 @@ func NewAccountPrivateAPI(spec *loads.Document) *AccountPrivateAPI {
 		defaultProduces:     "application/json",
 		ServerShutdown:      func() {},
 		spec:                spec,
-		ServeError:          errors.ServeError,
+		ServeError:          restful.ServeError,
 		BasicAuthenticator:  security.BasicAuth,
 		APIKeyAuthenticator: security.APIKeyAuth,
 		BearerAuthenticator: security.BearerAuth,
 		JSONConsumer:        runtime.JSONConsumer(),
 		JSONProducer:        runtime.JSONProducer(),
 		LoginHandler: LoginHandlerFunc(func(params LoginParams) middleware.Responder {
-			return middleware.NotImplemented("operation Login has not yet been implemented")
+			panic("operation Login has not yet been implemented")
 		}),
 		LogoutHandler: LogoutHandlerFunc(func(params LogoutParams) middleware.Responder {
-			return middleware.NotImplemented("operation Logout has not yet been implemented")
+			panic("operation Logout has not yet been implemented")
+		}),
+		ResetPasswordHandler: ResetPasswordHandlerFunc(func(params ResetPasswordParams) middleware.Responder {
+			panic("operation ResetPassword has not yet been implemented")
 		}),
 		SmsCodeHandler: SmsCodeHandlerFunc(func(params SmsCodeParams) middleware.Responder {
-			return middleware.NotImplemented("operation SmsCode has not yet been implemented")
+			panic("operation SmsCode has not yet been implemented")
 		}),
 		SmsLoginHandler: SmsLoginHandlerFunc(func(params SmsLoginParams) middleware.Responder {
-			return middleware.NotImplemented("operation SmsLogin has not yet been implemented")
+			panic("operation SmsLogin has not yet been implemented")
 		}),
 		SmsSignupHandler: SmsSignupHandlerFunc(func(params SmsSignupParams) middleware.Responder {
-			return middleware.NotImplemented("operation SmsSignup has not yet been implemented")
+			panic("operation SmsSignup has not yet been implemented")
 		}),
 	}
 }
@@ -83,6 +86,8 @@ type AccountPrivateAPI struct {
 	LoginHandler LoginHandler
 	// LogoutHandler sets the operation handler for the logout operation
 	LogoutHandler LogoutHandler
+	// ResetPasswordHandler sets the operation handler for the reset password operation
+	ResetPasswordHandler ResetPasswordHandler
 	// SmsCodeHandler sets the operation handler for the sms code operation
 	SmsCodeHandler SmsCodeHandler
 	// SmsLoginHandler sets the operation handler for the sms login operation
@@ -158,6 +163,10 @@ func (o *AccountPrivateAPI) Validate() error {
 
 	if o.LogoutHandler == nil {
 		unregistered = append(unregistered, "LogoutHandler")
+	}
+
+	if o.ResetPasswordHandler == nil {
+		unregistered = append(unregistered, "ResetPasswordHandler")
 	}
 
 	if o.SmsCodeHandler == nil {
@@ -271,6 +280,11 @@ func (o *AccountPrivateAPI) initHandlerCache() {
 		o.handlers["POST"] = make(map[string]http.Handler)
 	}
 	o.handlers["POST"]["/logout"] = NewLogout(o.context, o.LogoutHandler)
+
+	if o.handlers["POST"] == nil {
+		o.handlers["POST"] = make(map[string]http.Handler)
+	}
+	o.handlers["POST"]["/resetPassword"] = NewResetPassword(o.context, o.ResetPasswordHandler)
 
 	if o.handlers["POST"] == nil {
 		o.handlers["POST"] = make(map[string]http.Handler)

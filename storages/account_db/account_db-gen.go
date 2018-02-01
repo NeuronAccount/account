@@ -235,6 +235,8 @@ func (q *AccountQuery) PhoneNumber_Greater(v string) *AccountQuery {
 func (q *AccountQuery) PhoneNumber_GreaterEqual(v string) *AccountQuery {
 	return q.w("phone_number>='" + fmt.Sprint(v) + "'")
 }
+func (q *AccountQuery) PhoneNumber_IsNull() *AccountQuery  { return q.w("phone_number IS NULL") }
+func (q *AccountQuery) PhoneNumber_NotNull() *AccountQuery { return q.w("phone_number IS NOT NULL") }
 func (q *AccountQuery) EmailAddress_Equal(v string) *AccountQuery {
 	return q.w("email_address='" + fmt.Sprint(v) + "'")
 }
@@ -253,6 +255,8 @@ func (q *AccountQuery) EmailAddress_Greater(v string) *AccountQuery {
 func (q *AccountQuery) EmailAddress_GreaterEqual(v string) *AccountQuery {
 	return q.w("email_address>='" + fmt.Sprint(v) + "'")
 }
+func (q *AccountQuery) EmailAddress_IsNull() *AccountQuery  { return q.w("email_address IS NULL") }
+func (q *AccountQuery) EmailAddress_NotNull() *AccountQuery { return q.w("email_address IS NOT NULL") }
 func (q *AccountQuery) PasswordHash_Equal(v string) *AccountQuery {
 	return q.w("password_hash='" + fmt.Sprint(v) + "'")
 }
@@ -289,6 +293,8 @@ func (q *AccountQuery) OauthProvider_Greater(v string) *AccountQuery {
 func (q *AccountQuery) OauthProvider_GreaterEqual(v string) *AccountQuery {
 	return q.w("oauth_provider>='" + fmt.Sprint(v) + "'")
 }
+func (q *AccountQuery) OauthProvider_IsNull() *AccountQuery  { return q.w("oauth_provider IS NULL") }
+func (q *AccountQuery) OauthProvider_NotNull() *AccountQuery { return q.w("oauth_provider IS NOT NULL") }
 func (q *AccountQuery) OauthAccountId_Equal(v string) *AccountQuery {
 	return q.w("oauth_account_id='" + fmt.Sprint(v) + "'")
 }
@@ -306,6 +312,10 @@ func (q *AccountQuery) OauthAccountId_Greater(v string) *AccountQuery {
 }
 func (q *AccountQuery) OauthAccountId_GreaterEqual(v string) *AccountQuery {
 	return q.w("oauth_account_id>='" + fmt.Sprint(v) + "'")
+}
+func (q *AccountQuery) OauthAccountId_IsNull() *AccountQuery { return q.w("oauth_account_id IS NULL") }
+func (q *AccountQuery) OauthAccountId_NotNull() *AccountQuery {
+	return q.w("oauth_account_id IS NOT NULL")
 }
 func (q *AccountQuery) CreateTime_Equal(v time.Time) *AccountQuery {
 	return q.w("create_time='" + fmt.Sprint(v) + "'")
@@ -400,6 +410,7 @@ func (dao *AccountDao) init() (err error) {
 
 	return nil
 }
+
 func (dao *AccountDao) prepareInsertStmt() (err error) {
 	dao.insertStmt, err = dao.db.Prepare(context.Background(), "INSERT INTO account (account_id,phone_number,email_address,password_hash,oauth_provider,oauth_account_id,update_version) VALUES (?,?,?,?,?,?,?)")
 	return err
@@ -760,6 +771,7 @@ func (dao *AccountOperationDao) init() (err error) {
 
 	return nil
 }
+
 func (dao *AccountOperationDao) prepareInsertStmt() (err error) {
 	dao.insertStmt, err = dao.db.Prepare(context.Background(), "INSERT INTO account_operation (operation_data) VALUES (?)")
 	return err
@@ -1120,6 +1132,7 @@ func (dao *LoginHistoryDao) init() (err error) {
 
 	return nil
 }
+
 func (dao *LoginHistoryDao) prepareInsertStmt() (err error) {
 	dao.insertStmt, err = dao.db.Prepare(context.Background(), "INSERT INTO login_history (account_id) VALUES (?)")
 	return err
@@ -1512,6 +1525,7 @@ func (dao *SmsCodeDao) init() (err error) {
 
 	return nil
 }
+
 func (dao *SmsCodeDao) prepareInsertStmt() (err error) {
 	dao.insertStmt, err = dao.db.Prepare(context.Background(), "INSERT INTO sms_code (scene_type,phone_number,sms_code) VALUES (?,?,?)")
 	return err
@@ -1904,6 +1918,7 @@ func (dao *SmsSceneDao) init() (err error) {
 
 	return nil
 }
+
 func (dao *SmsSceneDao) prepareInsertStmt() (err error) {
 	dao.insertStmt, err = dao.db.Prepare(context.Background(), "INSERT INTO sms_scene (scene_type,scene_desc) VALUES (?,?)")
 	return err

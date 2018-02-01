@@ -31,6 +31,7 @@ func main() {
 		api.SmsLoginHandler = operations.SmsLoginHandlerFunc(h.SmsLogin)
 		api.LoginHandler = operations.LoginHandlerFunc(h.Login)
 		api.LogoutHandler = operations.LogoutHandlerFunc(h.Logout)
+		api.ResetPasswordHandler = operations.ResetPasswordHandlerFunc(h.ResetPassword)
 
 		return api.Serve(nil), nil
 	})

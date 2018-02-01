@@ -80,3 +80,12 @@ func (h AccountHandler) Logout(p operations.LogoutParams) middleware.Responder {
 
 	return operations.NewLogoutOK()
 }
+
+func (h AccountHandler) ResetPassword(p operations.ResetPasswordParams) middleware.Responder {
+	err := h.service.ResetPassword(context.Background(), p.Phone, p.SmsCode, p.NewPassword)
+	if err != nil {
+		return errors.Wrap(err)
+	}
+
+	return operations.NewResetPasswordOK()
+}

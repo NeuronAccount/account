@@ -79,6 +79,36 @@ func init() {
         }
       }
     },
+    "/resetPassword": {
+      "post": {
+        "operationId": "ResetPassword",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "phone",
+            "in": "query",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "smsCode",
+            "in": "query",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "newPassword",
+            "in": "query",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        }
+      }
+    },
     "/smsCode": {
       "post": {
         "operationId": "SmsCode",
@@ -238,6 +268,36 @@ func init() {
           {
             "type": "string",
             "name": "jwt",
+            "in": "query",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        }
+      }
+    },
+    "/resetPassword": {
+      "post": {
+        "operationId": "ResetPassword",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "phone",
+            "in": "query",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "smsCode",
+            "in": "query",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "newPassword",
             "in": "query",
             "required": true
           }

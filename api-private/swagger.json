@@ -172,6 +172,37 @@
           }
         }
       }
+    },
+    "/resetPassword": {
+      "post": {
+        "summary": "",
+        "operationId": "ResetPassword",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "phone",
+            "type": "string",
+            "required": true
+          },
+          {
+            "in": "query",
+            "name": "smsCode",
+            "type": "string",
+            "required": true
+          },
+          {
+            "in": "query",
+            "name": "newPassword",
+            "type": "string",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        }
+      }
     }
   },
   "definitions": {

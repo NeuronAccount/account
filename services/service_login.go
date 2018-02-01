@@ -7,10 +7,6 @@ import (
 	"strings"
 )
 
-func (s *AccountService) calcPasswordHash(password string) (passwordHash string) {
-	return password
-}
-
 func (s *AccountService) Login(ctx context.Context, name string, password string) (jwt string, err error) {
 	var dbAccount *account_db.Account
 	if strings.Contains(name, "@") { //email
@@ -31,7 +27,7 @@ func (s *AccountService) Login(ctx context.Context, name string, password string
 		return "", errors.Unauthorized("帐号或密码错误")
 	}
 
-	jwt, err = generateJwt(dbAccount.AccountId)
+	jwt, err = s.generateJwt(dbAccount.AccountId)
 	if err != nil {
 		return "", err
 	}

@@ -37,19 +37,22 @@ func configureAPI(api *operations.AccountPrivateAPI) http.Handler {
 	api.JSONProducer = runtime.JSONProducer()
 
 	api.LoginHandler = operations.LoginHandlerFunc(func(params operations.LoginParams) middleware.Responder {
-		return middleware.NotImplemented("operation .Login has not yet been implemented")
+		panic("operation .Login has not yet been implemented")
 	})
 	api.LogoutHandler = operations.LogoutHandlerFunc(func(params operations.LogoutParams) middleware.Responder {
-		return middleware.NotImplemented("operation .Logout has not yet been implemented")
+		panic("operation .Logout has not yet been implemented")
+	})
+	api.ResetPasswordHandler = operations.ResetPasswordHandlerFunc(func(params operations.ResetPasswordParams) middleware.Responder {
+		panic("operation .ResetPassword has not yet been implemented")
 	})
 	api.SmsCodeHandler = operations.SmsCodeHandlerFunc(func(params operations.SmsCodeParams) middleware.Responder {
-		return middleware.NotImplemented("operation .SmsCode has not yet been implemented")
+		panic("operation .SmsCode has not yet been implemented")
 	})
 	api.SmsLoginHandler = operations.SmsLoginHandlerFunc(func(params operations.SmsLoginParams) middleware.Responder {
-		return middleware.NotImplemented("operation .SmsLogin has not yet been implemented")
+		panic("operation .SmsLogin has not yet been implemented")
 	})
 	api.SmsSignupHandler = operations.SmsSignupHandlerFunc(func(params operations.SmsSignupParams) middleware.Responder {
-		return middleware.NotImplemented("operation .SmsSignup has not yet been implemented")
+		panic("operation .SmsSignup has not yet been implemented")
 	})
 
 	api.ServerShutdown = func() {}

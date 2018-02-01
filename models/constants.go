@@ -1,4 +1,7 @@
 package models
 
-const SceneTypeSmsSignup = "SMS_SIGNUP"
-const SceneTypeSmsLogin = "SMS_LOGIN"
+const SmsSceneSignup = "SMS_SIGNUP"
+const SmsSceneLogin = "SMS_LOGIN"
+const SmsSceneResetPassword = "RESET_PASSWORD"
+
+const SmsCodeValidSeconds = 5 * 60 //5m

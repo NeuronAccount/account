@@ -27,7 +27,7 @@ func (s *AccountService) SmsCode(ctx context.Context, scene string, phone string
 			return errors.NotFound("帐号不存在")
 		}
 	} else {
-		return errors.InvalidParam("scene", "验证码场景错误")
+		return errors.InvalidParam("验证码场景错误")
 	}
 
 	dbSmsCode := &account_db.SmsCode{}

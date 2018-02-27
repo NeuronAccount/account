@@ -7,13 +7,9 @@ import (
 	"github.com/NeuronFramework/restful"
 	"github.com/go-openapi/loads"
 	"net/http"
-	"os"
 )
 
 func main() {
-	os.Setenv("DEBUG", "true")
-	os.Setenv("PORT", "8083")
-
 	restful.Run(func() (http.Handler, error) {
 		h, err := handler.NewAccountHandler()
 		if err != nil {

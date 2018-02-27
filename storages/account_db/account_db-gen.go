@@ -9,6 +9,7 @@ import (
 	"github.com/NeuronFramework/sql/wrap"
 	"github.com/go-sql-driver/mysql"
 	"go.uber.org/zap"
+	"os"
 	"strings"
 	"time"
 )
@@ -2083,13 +2084,14 @@ type DB struct {
 	SmsScene         *SmsSceneDao
 }
 
-func NewDB(connectionString string) (d *DB, err error) {
-	if connectionString == "" {
-		return nil, fmt.Errorf("connectionString nil")
-	}
-
+func NewDB() (d *DB, err error) {
 	d = &DB{}
 
+	connectionString := os.Getenv("DB")
+	if connectionString == "" {
+		return nil, fmt.Errorf("DB env nil")
+	}
+	connectionString += "/account?parseTime=true"
 	db, err := wrap.Open("mysql", connectionString)
 	if err != nil {
 		return nil, err

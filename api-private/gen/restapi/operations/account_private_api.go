@@ -27,6 +27,8 @@ func NewAccountPrivateAPI(spec *loads.Document) *AccountPrivateAPI {
 		formats:             strfmt.Default,
 		defaultConsumes:     "application/json",
 		defaultProduces:     "application/json",
+		customConsumers:     make(map[string]runtime.Consumer),
+		customProducers:     make(map[string]runtime.Producer),
 		ServerShutdown:      func() {},
 		spec:                spec,
 		ServeError:          restful.ServeError,
@@ -36,22 +38,22 @@ func NewAccountPrivateAPI(spec *loads.Document) *AccountPrivateAPI {
 		JSONConsumer:        runtime.JSONConsumer(),
 		JSONProducer:        runtime.JSONProducer(),
 		LoginHandler: LoginHandlerFunc(func(params LoginParams) middleware.Responder {
-			panic("operation Login has not yet been implemented")
+			return middleware.NotImplemented("operation Login has not yet been implemented")
 		}),
 		LogoutHandler: LogoutHandlerFunc(func(params LogoutParams) middleware.Responder {
-			panic("operation Logout has not yet been implemented")
+			return middleware.NotImplemented("operation Logout has not yet been implemented")
 		}),
 		ResetPasswordHandler: ResetPasswordHandlerFunc(func(params ResetPasswordParams) middleware.Responder {
-			panic("operation ResetPassword has not yet been implemented")
+			return middleware.NotImplemented("operation ResetPassword has not yet been implemented")
 		}),
 		SmsCodeHandler: SmsCodeHandlerFunc(func(params SmsCodeParams) middleware.Responder {
-			panic("operation SmsCode has not yet been implemented")
+			return middleware.NotImplemented("operation SmsCode has not yet been implemented")
 		}),
 		SmsLoginHandler: SmsLoginHandlerFunc(func(params SmsLoginParams) middleware.Responder {
-			panic("operation SmsLogin has not yet been implemented")
+			return middleware.NotImplemented("operation SmsLogin has not yet been implemented")
 		}),
 		SmsSignupHandler: SmsSignupHandlerFunc(func(params SmsSignupParams) middleware.Responder {
-			panic("operation SmsSignup has not yet been implemented")
+			return middleware.NotImplemented("operation SmsSignup has not yet been implemented")
 		}),
 	}
 }
@@ -62,6 +64,8 @@ type AccountPrivateAPI struct {
 	context         *middleware.Context
 	handlers        map[string]map[string]http.Handler
 	formats         strfmt.Registry
+	customConsumers map[string]runtime.Consumer
+	customProducers map[string]runtime.Producer
 	defaultConsumes string
 	defaultProduces string
 	Middleware      func(middleware.Builder) http.Handler
@@ -218,6 +222,10 @@ func (o *AccountPrivateAPI) ConsumersFor(mediaTypes []string) map[string]runtime
 			result["application/json"] = o.JSONConsumer
 
 		}
+
+		if c, ok := o.customConsumers[mt]; ok {
+			result[mt] = c
+		}
 	}
 	return result
 
@@ -233,6 +241,10 @@ func (o *AccountPrivateAPI) ProducersFor(mediaTypes []string) map[string]runtime
 		case "application/json":
 			result["application/json"] = o.JSONProducer
 
+		}
+
+		if p, ok := o.customProducers[mt]; ok {
+			result[mt] = p
 		}
 	}
 	return result
@@ -319,4 +331,14 @@ func (o *AccountPrivateAPI) Init() {
 	if len(o.handlers) == 0 {
 		o.initHandlerCache()
 	}
+}
+
+// RegisterConsumer allows you to add (or override) a consumer for a media type.
+func (o *AccountPrivateAPI) RegisterConsumer(mediaType string, consumer runtime.Consumer) {
+	o.customConsumers[mediaType] = consumer
+}
+
+// RegisterProducer allows you to add (or override) a producer for a media type.
+func (o *AccountPrivateAPI) RegisterProducer(mediaType string, producer runtime.Producer) {
+	o.customProducers[mediaType] = producer
 }

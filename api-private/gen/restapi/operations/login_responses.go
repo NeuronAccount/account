@@ -28,6 +28,7 @@ type LoginOK struct {
 
 // NewLoginOK creates LoginOK with default headers values
 func NewLoginOK() *LoginOK {
+
 	return &LoginOK{}
 }
 

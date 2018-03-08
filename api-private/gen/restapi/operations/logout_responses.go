@@ -23,6 +23,7 @@ type LogoutOK struct {
 
 // NewLogoutOK creates LogoutOK with default headers values
 func NewLogoutOK() *LogoutOK {
+
 	return &LogoutOK{}
 }
 

@@ -28,6 +28,7 @@ type SmsSignupOK struct {
 
 // NewSmsSignupOK creates SmsSignupOK with default headers values
 func NewSmsSignupOK() *SmsSignupOK {
+
 	return &SmsSignupOK{}
 }
 

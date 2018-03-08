@@ -41,6 +41,8 @@ type SmsLogin struct {
 }
 
 func (o *SmsLogin) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
+	zap.L().Named("api").Info("SmsLogin")
+
 	route, rCtx, _ := o.Context.RouteInfo(r)
 	if rCtx != nil {
 		r = rCtx
@@ -48,6 +50,7 @@ func (o *SmsLogin) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	var Params = NewSmsLoginParams()
 
 	if err := o.Context.BindValidRequest(r, route, &Params); err != nil { // bind params
+		zap.L().Named("api").Info("SmsLogin", zap.Error(err))
 		o.Context.Respond(rw, r, route.Produces, route, err)
 		return
 	}

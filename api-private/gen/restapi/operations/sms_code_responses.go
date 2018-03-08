@@ -23,6 +23,7 @@ type SmsCodeOK struct {
 
 // NewSmsCodeOK creates SmsCodeOK with default headers values
 func NewSmsCodeOK() *SmsCodeOK {
+
 	return &SmsCodeOK{}
 }
 

@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"github.com/NeuronAccount/account/models"
+	"github.com/NeuronAccount/account/remotes/sms"
 	"github.com/NeuronAccount/account/storages/account_db"
 	"github.com/NeuronFramework/errors"
 	"github.com/NeuronFramework/log"
@@ -15,9 +16,10 @@ type AccountServiceOptions struct {
 }
 
 type AccountService struct {
-	logger    *zap.Logger
-	options   *AccountServiceOptions
-	accountDB *account_db.DB
+	logger     *zap.Logger
+	options    *AccountServiceOptions
+	accountDB  *account_db.DB
+	smsService *sms.Service
 }
 
 func NewAccountService(options *AccountServiceOptions) (s *AccountService, err error) {
@@ -25,6 +27,10 @@ func NewAccountService(options *AccountServiceOptions) (s *AccountService, err e
 	s.logger = log.TypedLogger(s)
 	s.options = options
 	s.accountDB, err = account_db.NewDB()
+	if err != nil {
+		return nil, err
+	}
+	s.smsService, err = sms.New()
 	if err != nil {
 		return nil, err
 	}

@@ -5,6 +5,7 @@ import (
 	"github.com/NeuronAccount/account/models"
 	"github.com/NeuronAccount/account/storages/account_db"
 	"github.com/NeuronFramework/errors"
+	"github.com/NeuronFramework/rand"
 	"time"
 )
 
@@ -30,10 +31,16 @@ func (s *AccountService) SmsCode(ctx context.Context, scene string, phone string
 		return errors.InvalidParam("验证码场景错误")
 	}
 
+	smsCode := rand.NextNumberFixedLength(6)
+	_, err = s.smsService.SendSms(phone, smsCode, "")
+	if err != nil {
+		return err
+	}
+
 	dbSmsCode := &account_db.SmsCode{}
 	dbSmsCode.SceneType = scene
 	dbSmsCode.PhoneNumber = phone
-	dbSmsCode.SmsCode = "1234"
+	dbSmsCode.SmsCode = smsCode
 	dbSmsCode.CreateTime = time.Now()
 	_, err = s.accountDB.SmsCode.Insert(ctx, nil, dbSmsCode)
 	if err != nil {

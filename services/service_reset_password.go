@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"fmt"
 	"github.com/NeuronAccount/account/models"
 	"github.com/NeuronFramework/errors"
 )
@@ -12,8 +11,6 @@ func (s *AccountService) ResetPassword(ctx context.Context, phone string, smsCod
 	if err != nil {
 		return err
 	}
-
-	fmt.Println("aaa")
 
 	dbAccount, err := s.accountDB.Account.GetQuery().PhoneNumber_Equal(phone).QueryOne(ctx, nil)
 	if err != nil {

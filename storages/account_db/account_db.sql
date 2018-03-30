@@ -39,7 +39,7 @@ CREATE TABLE `account` (
   UNIQUE KEY `idx_email` (`email_address`),
   UNIQUE KEY `idx_oauth` (`oauth_provider`,`oauth_account_id`),
   KEY `idx_update_time` (`update_time`)
-) ENGINE=InnoDB AUTO_INCREMENT=60 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=88 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -51,24 +51,21 @@ DROP TABLE IF EXISTS `account_operation`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `account_operation` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-  `operation_data` varchar(256) NOT NULL,
   `create_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `login_history`
---
-
-DROP TABLE IF EXISTS `login_history`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `login_history` (
-  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `operation_type` char(32) NOT NULL,
+  `user_agent` varchar(256) NOT NULL,
+  `error_status` int(11) NOT NULL,
+  `error_code` varchar(32) NOT NULL,
+  `error_message` varchar(256) NOT NULL,
+  `sms_scene` varchar(32) NOT NULL,
+  `phone_number` varchar(16) NOT NULL,
+  `login_name` varchar(64) NOT NULL,
   `account_id` varchar(128) NOT NULL,
-  `create_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  KEY `idx_create_time` (`create_time`),
+  KEY `idx_phone_number` (`phone_number`),
+  KEY `idx_login_name` (`login_name`),
+  KEY `idx_account_id` (`account_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -88,7 +85,7 @@ CREATE TABLE `sms_code` (
   PRIMARY KEY (`id`),
   KEY `idx_scene_phone` (`scene_type`,`phone_number`),
   KEY `idx_create_time` (`create_time`)
-) ENGINE=InnoDB AUTO_INCREMENT=478 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=808 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -119,4 +116,4 @@ CREATE TABLE `sms_scene` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2018-01-12 19:04:42
+-- Dump completed on 2018-03-30  1:22:47

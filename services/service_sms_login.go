@@ -1,12 +1,12 @@
 package services
 
 import (
-	"context"
 	"github.com/NeuronAccount/account/models"
 	"github.com/NeuronFramework/errors"
+	"github.com/NeuronFramework/restful"
 )
 
-func (s *AccountService) SmsLogin(ctx context.Context, phone string, smsCode string) (jwt string, err error) {
+func (s *AccountService) SmsLogin(ctx *restful.Context, phone string, smsCode string) (jwt string, err error) {
 	//check account exists
 	dbAccount, err := s.accountDB.Account.GetQuery().
 		PhoneNumber_Equal(phone).QueryOne(ctx, nil)
@@ -27,6 +27,12 @@ func (s *AccountService) SmsLogin(ctx context.Context, phone string, smsCode str
 	if err != nil {
 		return "", err
 	}
+
+	s.addOperation(ctx, &models.Operation{
+		OperationType: models.OperationSmsLogin,
+		Phone:         phone,
+		AccountID:     dbAccount.AccountId,
+	})
 
 	return jwt, nil
 }

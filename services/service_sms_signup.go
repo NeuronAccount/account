@@ -1,27 +1,27 @@
 package services
 
 import (
-	"context"
 	"database/sql"
 	"github.com/NeuronAccount/account/models"
 	"github.com/NeuronAccount/account/storages/account_db"
 	"github.com/NeuronFramework/errors"
 	"github.com/NeuronFramework/rand"
+	"github.com/NeuronFramework/restful"
 )
 
-func (s *AccountService) SmsSignup(ctx context.Context, phone string, smsCode string, password string) (jwt string, err error) {
-	err = s.validateSmsCode(ctx, models.SmsSceneSignup, phone, smsCode)
-	if err != nil {
-		return "", err
-	}
-
+func (s *AccountService) SmsSignup(ctx *restful.Context, phone string, smsCode string, password string) (jwt string, err error) {
 	//check account exists
 	dbAccount, err := s.accountDB.Account.GetQuery().PhoneNumber_Equal(phone).QueryOne(ctx, nil)
 	if err != nil {
 		return "", err
 	}
 	if dbAccount != nil {
-		return "", errors.AlreadyExists("帐号已存在")
+		return "", errors.AlreadyExists("帐号已存在，请直接登录")
+	}
+
+	err = s.validateSmsCode(ctx, models.SmsSceneSignup, phone, smsCode)
+	if err != nil {
+		return "", err
 	}
 
 	dbAccount = &account_db.Account{}
@@ -38,6 +38,12 @@ func (s *AccountService) SmsSignup(ctx context.Context, phone string, smsCode st
 	if err != nil {
 		return "", err
 	}
+
+	s.addOperation(ctx, &models.Operation{
+		OperationType: models.OperationSmsSignup,
+		Phone:         phone,
+		AccountID:     dbAccount.AccountId,
+	})
 
 	return jwt, nil
 }

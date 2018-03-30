@@ -1,15 +1,15 @@
 package services
 
 import (
-	"context"
 	"github.com/NeuronAccount/account/models"
 	"github.com/NeuronAccount/account/storages/account_db"
 	"github.com/NeuronFramework/errors"
 	"github.com/NeuronFramework/rand"
+	"github.com/NeuronFramework/restful"
 	"time"
 )
 
-func (s *AccountService) SmsCode(ctx context.Context, scene string, phone string, captchaId string, captchaCode string) (err error) {
+func (s *AccountService) SmsCode(ctx *restful.Context, scene string, phone string, captchaId string, captchaCode string) (err error) {
 	dbAccount, err := s.accountDB.Account.GetQuery().PhoneNumber_Equal(phone).QueryOne(ctx, nil)
 	if err != nil {
 		return err
@@ -46,6 +46,12 @@ func (s *AccountService) SmsCode(ctx context.Context, scene string, phone string
 	if err != nil {
 		return err
 	}
+
+	s.addOperation(ctx, &models.Operation{
+		OperationType: models.OperationSmsCode,
+		SmsScene:      scene,
+		Phone:         phone,
+	})
 
 	return nil
 }

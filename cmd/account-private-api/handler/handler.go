@@ -1,11 +1,11 @@
 package handler
 
 import (
-	"context"
 	"github.com/NeuronAccount/account/api-private/gen/restapi/operations"
 	"github.com/NeuronAccount/account/services"
 	"github.com/NeuronFramework/errors"
 	"github.com/NeuronFramework/log"
+	"github.com/NeuronFramework/restful"
 	"github.com/go-openapi/runtime/middleware"
 	"go.uber.org/zap"
 )
@@ -37,7 +37,7 @@ func (h AccountHandler) SmsCode(p operations.SmsCodeParams) middleware.Responder
 		captchaCode = *p.CaptchaCode
 	}
 
-	err := h.service.SmsCode(context.Background(), p.Scene, p.Phone, captchaId, captchaCode)
+	err := h.service.SmsCode(restful.NewContext(p.HTTPRequest), p.Scene, p.Phone, captchaId, captchaCode)
 	if err != nil {
 		return errors.Wrap(err)
 	}
@@ -46,7 +46,7 @@ func (h AccountHandler) SmsCode(p operations.SmsCodeParams) middleware.Responder
 }
 
 func (h AccountHandler) SmsSignup(p operations.SmsSignupParams) middleware.Responder {
-	jwt, err := h.service.SmsSignup(context.Background(), p.Phone, p.SmsCode, p.Password)
+	jwt, err := h.service.SmsSignup(restful.NewContext(p.HTTPRequest), p.Phone, p.SmsCode, p.Password)
 	if err != nil {
 		return errors.Wrap(err)
 	}
@@ -55,7 +55,7 @@ func (h AccountHandler) SmsSignup(p operations.SmsSignupParams) middleware.Respo
 }
 
 func (h AccountHandler) SmsLogin(p operations.SmsLoginParams) middleware.Responder {
-	jwt, err := h.service.SmsLogin(context.Background(), p.Phone, p.SmsCode)
+	jwt, err := h.service.SmsLogin(restful.NewContext(p.HTTPRequest), p.Phone, p.SmsCode)
 	if err != nil {
 		return errors.Wrap(err)
 	}
@@ -64,7 +64,7 @@ func (h AccountHandler) SmsLogin(p operations.SmsLoginParams) middleware.Respond
 }
 
 func (h AccountHandler) Login(p operations.LoginParams) middleware.Responder {
-	jwt, err := h.service.Login(context.Background(), p.Name, p.Password)
+	jwt, err := h.service.Login(restful.NewContext(p.HTTPRequest), p.Name, p.Password)
 	if err != nil {
 		return errors.Wrap(err)
 	}
@@ -73,7 +73,7 @@ func (h AccountHandler) Login(p operations.LoginParams) middleware.Responder {
 }
 
 func (h AccountHandler) Logout(p operations.LogoutParams) middleware.Responder {
-	err := h.service.Logout(context.Background(), p.Jwt)
+	err := h.service.Logout(restful.NewContext(p.HTTPRequest), p.Jwt)
 	if err != nil {
 		return errors.Wrap(err)
 	}
@@ -82,7 +82,7 @@ func (h AccountHandler) Logout(p operations.LogoutParams) middleware.Responder {
 }
 
 func (h AccountHandler) ResetPassword(p operations.ResetPasswordParams) middleware.Responder {
-	err := h.service.ResetPassword(context.Background(), p.Phone, p.SmsCode, p.NewPassword)
+	err := h.service.ResetPassword(restful.NewContext(p.HTTPRequest), p.Phone, p.SmsCode, p.NewPassword)
 	if err != nil {
 		return errors.Wrap(err)
 	}

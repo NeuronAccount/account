@@ -572,21 +572,45 @@ const ACCOUNT_OPERATION_TABLE_NAME = "account_operation"
 type ACCOUNT_OPERATION_FIELD string
 
 const ACCOUNT_OPERATION_FIELD_ID = ACCOUNT_OPERATION_FIELD("id")
-const ACCOUNT_OPERATION_FIELD_OPERATION_DATA = ACCOUNT_OPERATION_FIELD("operation_data")
 const ACCOUNT_OPERATION_FIELD_CREATE_TIME = ACCOUNT_OPERATION_FIELD("create_time")
+const ACCOUNT_OPERATION_FIELD_OPERATION_TYPE = ACCOUNT_OPERATION_FIELD("operation_type")
+const ACCOUNT_OPERATION_FIELD_USER_AGENT = ACCOUNT_OPERATION_FIELD("user_agent")
+const ACCOUNT_OPERATION_FIELD_ERROR_STATUS = ACCOUNT_OPERATION_FIELD("error_status")
+const ACCOUNT_OPERATION_FIELD_ERROR_CODE = ACCOUNT_OPERATION_FIELD("error_code")
+const ACCOUNT_OPERATION_FIELD_ERROR_MESSAGE = ACCOUNT_OPERATION_FIELD("error_message")
+const ACCOUNT_OPERATION_FIELD_SMS_SCENE = ACCOUNT_OPERATION_FIELD("sms_scene")
+const ACCOUNT_OPERATION_FIELD_PHONE_NUMBER = ACCOUNT_OPERATION_FIELD("phone_number")
+const ACCOUNT_OPERATION_FIELD_LOGIN_NAME = ACCOUNT_OPERATION_FIELD("login_name")
+const ACCOUNT_OPERATION_FIELD_ACCOUNT_ID = ACCOUNT_OPERATION_FIELD("account_id")
 
-const ACCOUNT_OPERATION_ALL_FIELDS_STRING = "id,operation_data,create_time"
+const ACCOUNT_OPERATION_ALL_FIELDS_STRING = "id,create_time,operation_type,user_agent,error_status,error_code,error_message,sms_scene,phone_number,login_name,account_id"
 
 var ACCOUNT_OPERATION_ALL_FIELDS = []string{
 	"id",
-	"operation_data",
 	"create_time",
+	"operation_type",
+	"user_agent",
+	"error_status",
+	"error_code",
+	"error_message",
+	"sms_scene",
+	"phone_number",
+	"login_name",
+	"account_id",
 }
 
 type AccountOperation struct {
 	Id            uint64 //size=20
-	OperationData string //size=256
 	CreateTime    time.Time
+	OperationType string //size=32
+	UserAgent     string //size=256
+	ErrorStatus   int32  //size=11
+	ErrorCode     string //size=32
+	ErrorMessage  string //size=256
+	SmsScene      string //size=32
+	PhoneNumber   string //size=16
+	LoginName     string //size=64
+	AccountId     string //size=128
 }
 
 type AccountOperationQuery struct {
@@ -697,24 +721,6 @@ func (q *AccountOperationQuery) Id_Greater(v uint64) *AccountOperationQuery {
 func (q *AccountOperationQuery) Id_GreaterEqual(v uint64) *AccountOperationQuery {
 	return q.w("id>='" + fmt.Sprint(v) + "'")
 }
-func (q *AccountOperationQuery) OperationData_Equal(v string) *AccountOperationQuery {
-	return q.w("operation_data='" + fmt.Sprint(v) + "'")
-}
-func (q *AccountOperationQuery) OperationData_NotEqual(v string) *AccountOperationQuery {
-	return q.w("operation_data<>'" + fmt.Sprint(v) + "'")
-}
-func (q *AccountOperationQuery) OperationData_Less(v string) *AccountOperationQuery {
-	return q.w("operation_data<'" + fmt.Sprint(v) + "'")
-}
-func (q *AccountOperationQuery) OperationData_LessEqual(v string) *AccountOperationQuery {
-	return q.w("operation_data<='" + fmt.Sprint(v) + "'")
-}
-func (q *AccountOperationQuery) OperationData_Greater(v string) *AccountOperationQuery {
-	return q.w("operation_data>'" + fmt.Sprint(v) + "'")
-}
-func (q *AccountOperationQuery) OperationData_GreaterEqual(v string) *AccountOperationQuery {
-	return q.w("operation_data>='" + fmt.Sprint(v) + "'")
-}
 func (q *AccountOperationQuery) CreateTime_Equal(v time.Time) *AccountOperationQuery {
 	return q.w("create_time='" + fmt.Sprint(v) + "'")
 }
@@ -732,6 +738,168 @@ func (q *AccountOperationQuery) CreateTime_Greater(v time.Time) *AccountOperatio
 }
 func (q *AccountOperationQuery) CreateTime_GreaterEqual(v time.Time) *AccountOperationQuery {
 	return q.w("create_time>='" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) OperationType_Equal(v string) *AccountOperationQuery {
+	return q.w("operation_type='" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) OperationType_NotEqual(v string) *AccountOperationQuery {
+	return q.w("operation_type<>'" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) OperationType_Less(v string) *AccountOperationQuery {
+	return q.w("operation_type<'" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) OperationType_LessEqual(v string) *AccountOperationQuery {
+	return q.w("operation_type<='" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) OperationType_Greater(v string) *AccountOperationQuery {
+	return q.w("operation_type>'" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) OperationType_GreaterEqual(v string) *AccountOperationQuery {
+	return q.w("operation_type>='" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) UserAgent_Equal(v string) *AccountOperationQuery {
+	return q.w("user_agent='" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) UserAgent_NotEqual(v string) *AccountOperationQuery {
+	return q.w("user_agent<>'" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) UserAgent_Less(v string) *AccountOperationQuery {
+	return q.w("user_agent<'" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) UserAgent_LessEqual(v string) *AccountOperationQuery {
+	return q.w("user_agent<='" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) UserAgent_Greater(v string) *AccountOperationQuery {
+	return q.w("user_agent>'" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) UserAgent_GreaterEqual(v string) *AccountOperationQuery {
+	return q.w("user_agent>='" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) ErrorStatus_Equal(v int32) *AccountOperationQuery {
+	return q.w("error_status='" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) ErrorStatus_NotEqual(v int32) *AccountOperationQuery {
+	return q.w("error_status<>'" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) ErrorStatus_Less(v int32) *AccountOperationQuery {
+	return q.w("error_status<'" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) ErrorStatus_LessEqual(v int32) *AccountOperationQuery {
+	return q.w("error_status<='" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) ErrorStatus_Greater(v int32) *AccountOperationQuery {
+	return q.w("error_status>'" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) ErrorStatus_GreaterEqual(v int32) *AccountOperationQuery {
+	return q.w("error_status>='" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) ErrorCode_Equal(v string) *AccountOperationQuery {
+	return q.w("error_code='" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) ErrorCode_NotEqual(v string) *AccountOperationQuery {
+	return q.w("error_code<>'" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) ErrorCode_Less(v string) *AccountOperationQuery {
+	return q.w("error_code<'" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) ErrorCode_LessEqual(v string) *AccountOperationQuery {
+	return q.w("error_code<='" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) ErrorCode_Greater(v string) *AccountOperationQuery {
+	return q.w("error_code>'" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) ErrorCode_GreaterEqual(v string) *AccountOperationQuery {
+	return q.w("error_code>='" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) ErrorMessage_Equal(v string) *AccountOperationQuery {
+	return q.w("error_message='" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) ErrorMessage_NotEqual(v string) *AccountOperationQuery {
+	return q.w("error_message<>'" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) ErrorMessage_Less(v string) *AccountOperationQuery {
+	return q.w("error_message<'" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) ErrorMessage_LessEqual(v string) *AccountOperationQuery {
+	return q.w("error_message<='" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) ErrorMessage_Greater(v string) *AccountOperationQuery {
+	return q.w("error_message>'" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) ErrorMessage_GreaterEqual(v string) *AccountOperationQuery {
+	return q.w("error_message>='" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) SmsScene_Equal(v string) *AccountOperationQuery {
+	return q.w("sms_scene='" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) SmsScene_NotEqual(v string) *AccountOperationQuery {
+	return q.w("sms_scene<>'" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) SmsScene_Less(v string) *AccountOperationQuery {
+	return q.w("sms_scene<'" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) SmsScene_LessEqual(v string) *AccountOperationQuery {
+	return q.w("sms_scene<='" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) SmsScene_Greater(v string) *AccountOperationQuery {
+	return q.w("sms_scene>'" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) SmsScene_GreaterEqual(v string) *AccountOperationQuery {
+	return q.w("sms_scene>='" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) PhoneNumber_Equal(v string) *AccountOperationQuery {
+	return q.w("phone_number='" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) PhoneNumber_NotEqual(v string) *AccountOperationQuery {
+	return q.w("phone_number<>'" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) PhoneNumber_Less(v string) *AccountOperationQuery {
+	return q.w("phone_number<'" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) PhoneNumber_LessEqual(v string) *AccountOperationQuery {
+	return q.w("phone_number<='" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) PhoneNumber_Greater(v string) *AccountOperationQuery {
+	return q.w("phone_number>'" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) PhoneNumber_GreaterEqual(v string) *AccountOperationQuery {
+	return q.w("phone_number>='" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) LoginName_Equal(v string) *AccountOperationQuery {
+	return q.w("login_name='" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) LoginName_NotEqual(v string) *AccountOperationQuery {
+	return q.w("login_name<>'" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) LoginName_Less(v string) *AccountOperationQuery {
+	return q.w("login_name<'" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) LoginName_LessEqual(v string) *AccountOperationQuery {
+	return q.w("login_name<='" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) LoginName_Greater(v string) *AccountOperationQuery {
+	return q.w("login_name>'" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) LoginName_GreaterEqual(v string) *AccountOperationQuery {
+	return q.w("login_name>='" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) AccountId_Equal(v string) *AccountOperationQuery {
+	return q.w("account_id='" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) AccountId_NotEqual(v string) *AccountOperationQuery {
+	return q.w("account_id<>'" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) AccountId_Less(v string) *AccountOperationQuery {
+	return q.w("account_id<'" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) AccountId_LessEqual(v string) *AccountOperationQuery {
+	return q.w("account_id<='" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) AccountId_Greater(v string) *AccountOperationQuery {
+	return q.w("account_id>'" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) AccountId_GreaterEqual(v string) *AccountOperationQuery {
+	return q.w("account_id>='" + fmt.Sprint(v) + "'")
 }
 
 type AccountOperationDao struct {
@@ -774,12 +942,12 @@ func (dao *AccountOperationDao) init() (err error) {
 }
 
 func (dao *AccountOperationDao) prepareInsertStmt() (err error) {
-	dao.insertStmt, err = dao.db.Prepare(context.Background(), "INSERT INTO account_operation (operation_data) VALUES (?)")
+	dao.insertStmt, err = dao.db.Prepare(context.Background(), "INSERT INTO account_operation (operation_type,user_agent,error_status,error_code,error_message,sms_scene,phone_number,login_name,account_id) VALUES (?,?,?,?,?,?,?,?,?)")
 	return err
 }
 
 func (dao *AccountOperationDao) prepareUpdateStmt() (err error) {
-	dao.updateStmt, err = dao.db.Prepare(context.Background(), "UPDATE account_operation SET operation_data=? WHERE id=?")
+	dao.updateStmt, err = dao.db.Prepare(context.Background(), "UPDATE account_operation SET operation_type=?,user_agent=?,error_status=?,error_code=?,error_message=?,sms_scene=?,phone_number=?,login_name=?,account_id=? WHERE id=?")
 	return err
 }
 
@@ -794,7 +962,7 @@ func (dao *AccountOperationDao) Insert(ctx context.Context, tx *wrap.Tx, e *Acco
 		stmt = tx.Stmt(ctx, stmt)
 	}
 
-	result, err := stmt.Exec(ctx, e.OperationData)
+	result, err := stmt.Exec(ctx, e.OperationType, e.UserAgent, e.ErrorStatus, e.ErrorCode, e.ErrorMessage, e.SmsScene, e.PhoneNumber, e.LoginName, e.AccountId)
 	if err != nil {
 		return 0, err
 	}
@@ -813,7 +981,7 @@ func (dao *AccountOperationDao) Update(ctx context.Context, tx *wrap.Tx, e *Acco
 		stmt = tx.Stmt(ctx, stmt)
 	}
 
-	_, err = stmt.Exec(ctx, e.OperationData, e.Id)
+	_, err = stmt.Exec(ctx, e.OperationType, e.UserAgent, e.ErrorStatus, e.ErrorCode, e.ErrorMessage, e.SmsScene, e.PhoneNumber, e.LoginName, e.AccountId, e.Id)
 	if err != nil {
 		return err
 	}
@@ -837,7 +1005,7 @@ func (dao *AccountOperationDao) Delete(ctx context.Context, tx *wrap.Tx, id uint
 
 func (dao *AccountOperationDao) scanRow(row *wrap.Row) (*AccountOperation, error) {
 	e := &AccountOperation{}
-	err := row.Scan(&e.Id, &e.OperationData, &e.CreateTime)
+	err := row.Scan(&e.Id, &e.CreateTime, &e.OperationType, &e.UserAgent, &e.ErrorStatus, &e.ErrorCode, &e.ErrorMessage, &e.SmsScene, &e.PhoneNumber, &e.LoginName, &e.AccountId)
 	if err != nil {
 		if err == wrap.ErrNoRows {
 			return nil, nil
@@ -853,7 +1021,7 @@ func (dao *AccountOperationDao) scanRows(rows *wrap.Rows) (list []*AccountOperat
 	list = make([]*AccountOperation, 0)
 	for rows.Next() {
 		e := AccountOperation{}
-		err = rows.Scan(&e.Id, &e.OperationData, &e.CreateTime)
+		err = rows.Scan(&e.Id, &e.CreateTime, &e.OperationType, &e.UserAgent, &e.ErrorStatus, &e.ErrorCode, &e.ErrorMessage, &e.SmsScene, &e.PhoneNumber, &e.LoginName, &e.AccountId)
 		if err != nil {
 			return nil, err
 		}
@@ -926,367 +1094,6 @@ func (dao *AccountOperationDao) QueryGroupBy(ctx context.Context, tx *wrap.Tx, g
 
 func (dao *AccountOperationDao) GetQuery() *AccountOperationQuery {
 	return NewAccountOperationQuery(dao)
-}
-
-const LOGIN_HISTORY_TABLE_NAME = "login_history"
-
-type LOGIN_HISTORY_FIELD string
-
-const LOGIN_HISTORY_FIELD_ID = LOGIN_HISTORY_FIELD("id")
-const LOGIN_HISTORY_FIELD_ACCOUNT_ID = LOGIN_HISTORY_FIELD("account_id")
-const LOGIN_HISTORY_FIELD_CREATE_TIME = LOGIN_HISTORY_FIELD("create_time")
-
-const LOGIN_HISTORY_ALL_FIELDS_STRING = "id,account_id,create_time"
-
-var LOGIN_HISTORY_ALL_FIELDS = []string{
-	"id",
-	"account_id",
-	"create_time",
-}
-
-type LoginHistory struct {
-	Id         uint64 //size=20
-	AccountId  string //size=128
-	CreateTime time.Time
-}
-
-type LoginHistoryQuery struct {
-	BaseQuery
-	dao *LoginHistoryDao
-}
-
-func NewLoginHistoryQuery(dao *LoginHistoryDao) *LoginHistoryQuery {
-	q := &LoginHistoryQuery{}
-	q.dao = dao
-
-	return q
-}
-
-func (q *LoginHistoryQuery) QueryOne(ctx context.Context, tx *wrap.Tx) (*LoginHistory, error) {
-	return q.dao.QueryOne(ctx, tx, q.buildQueryString())
-}
-
-func (q *LoginHistoryQuery) QueryList(ctx context.Context, tx *wrap.Tx) (list []*LoginHistory, err error) {
-	return q.dao.QueryList(ctx, tx, q.buildQueryString())
-}
-
-func (q *LoginHistoryQuery) QueryCount(ctx context.Context, tx *wrap.Tx) (count int64, err error) {
-	return q.dao.QueryCount(ctx, tx, q.buildQueryString())
-}
-
-func (q *LoginHistoryQuery) QueryGroupBy(ctx context.Context, tx *wrap.Tx) (rows *wrap.Rows, err error) {
-	return q.dao.QueryGroupBy(ctx, tx, q.groupByFields, q.buildQueryString())
-}
-
-func (q *LoginHistoryQuery) ForUpdate() *LoginHistoryQuery {
-	q.forUpdate = true
-	return q
-}
-
-func (q *LoginHistoryQuery) ForShare() *LoginHistoryQuery {
-	q.forShare = true
-	return q
-}
-
-func (q *LoginHistoryQuery) GroupBy(fields ...LOGIN_HISTORY_FIELD) *LoginHistoryQuery {
-	q.groupByFields = make([]string, len(fields))
-	for i, v := range fields {
-		q.groupByFields[i] = string(v)
-	}
-	return q
-}
-
-func (q *LoginHistoryQuery) Limit(startIncluded int64, count int64) *LoginHistoryQuery {
-	q.limit = fmt.Sprintf(" limit %d,%d", startIncluded, count)
-	return q
-}
-
-func (q *LoginHistoryQuery) OrderBy(fieldName LOGIN_HISTORY_FIELD, asc bool) *LoginHistoryQuery {
-	if q.order != "" {
-		q.order += ","
-	}
-	q.order += string(fieldName) + " "
-	if asc {
-		q.order += "asc"
-	} else {
-		q.order += "desc"
-	}
-
-	return q
-}
-
-func (q *LoginHistoryQuery) OrderByGroupCount(asc bool) *LoginHistoryQuery {
-	if q.order != "" {
-		q.order += ","
-	}
-	q.order += "count(1) "
-	if asc {
-		q.order += "asc"
-	} else {
-		q.order += "desc"
-	}
-
-	return q
-}
-
-func (q *LoginHistoryQuery) w(format string, a ...interface{}) *LoginHistoryQuery {
-	q.where += fmt.Sprintf(format, a...)
-	return q
-}
-
-func (q *LoginHistoryQuery) Left() *LoginHistoryQuery  { return q.w(" ( ") }
-func (q *LoginHistoryQuery) Right() *LoginHistoryQuery { return q.w(" ) ") }
-func (q *LoginHistoryQuery) And() *LoginHistoryQuery   { return q.w(" AND ") }
-func (q *LoginHistoryQuery) Or() *LoginHistoryQuery    { return q.w(" OR ") }
-func (q *LoginHistoryQuery) Not() *LoginHistoryQuery   { return q.w(" NOT ") }
-
-func (q *LoginHistoryQuery) Id_Equal(v uint64) *LoginHistoryQuery {
-	return q.w("id='" + fmt.Sprint(v) + "'")
-}
-func (q *LoginHistoryQuery) Id_NotEqual(v uint64) *LoginHistoryQuery {
-	return q.w("id<>'" + fmt.Sprint(v) + "'")
-}
-func (q *LoginHistoryQuery) Id_Less(v uint64) *LoginHistoryQuery {
-	return q.w("id<'" + fmt.Sprint(v) + "'")
-}
-func (q *LoginHistoryQuery) Id_LessEqual(v uint64) *LoginHistoryQuery {
-	return q.w("id<='" + fmt.Sprint(v) + "'")
-}
-func (q *LoginHistoryQuery) Id_Greater(v uint64) *LoginHistoryQuery {
-	return q.w("id>'" + fmt.Sprint(v) + "'")
-}
-func (q *LoginHistoryQuery) Id_GreaterEqual(v uint64) *LoginHistoryQuery {
-	return q.w("id>='" + fmt.Sprint(v) + "'")
-}
-func (q *LoginHistoryQuery) AccountId_Equal(v string) *LoginHistoryQuery {
-	return q.w("account_id='" + fmt.Sprint(v) + "'")
-}
-func (q *LoginHistoryQuery) AccountId_NotEqual(v string) *LoginHistoryQuery {
-	return q.w("account_id<>'" + fmt.Sprint(v) + "'")
-}
-func (q *LoginHistoryQuery) AccountId_Less(v string) *LoginHistoryQuery {
-	return q.w("account_id<'" + fmt.Sprint(v) + "'")
-}
-func (q *LoginHistoryQuery) AccountId_LessEqual(v string) *LoginHistoryQuery {
-	return q.w("account_id<='" + fmt.Sprint(v) + "'")
-}
-func (q *LoginHistoryQuery) AccountId_Greater(v string) *LoginHistoryQuery {
-	return q.w("account_id>'" + fmt.Sprint(v) + "'")
-}
-func (q *LoginHistoryQuery) AccountId_GreaterEqual(v string) *LoginHistoryQuery {
-	return q.w("account_id>='" + fmt.Sprint(v) + "'")
-}
-func (q *LoginHistoryQuery) CreateTime_Equal(v time.Time) *LoginHistoryQuery {
-	return q.w("create_time='" + fmt.Sprint(v) + "'")
-}
-func (q *LoginHistoryQuery) CreateTime_NotEqual(v time.Time) *LoginHistoryQuery {
-	return q.w("create_time<>'" + fmt.Sprint(v) + "'")
-}
-func (q *LoginHistoryQuery) CreateTime_Less(v time.Time) *LoginHistoryQuery {
-	return q.w("create_time<'" + fmt.Sprint(v) + "'")
-}
-func (q *LoginHistoryQuery) CreateTime_LessEqual(v time.Time) *LoginHistoryQuery {
-	return q.w("create_time<='" + fmt.Sprint(v) + "'")
-}
-func (q *LoginHistoryQuery) CreateTime_Greater(v time.Time) *LoginHistoryQuery {
-	return q.w("create_time>'" + fmt.Sprint(v) + "'")
-}
-func (q *LoginHistoryQuery) CreateTime_GreaterEqual(v time.Time) *LoginHistoryQuery {
-	return q.w("create_time>='" + fmt.Sprint(v) + "'")
-}
-
-type LoginHistoryDao struct {
-	logger     *zap.Logger
-	db         *DB
-	insertStmt *wrap.Stmt
-	updateStmt *wrap.Stmt
-	deleteStmt *wrap.Stmt
-}
-
-func NewLoginHistoryDao(db *DB) (t *LoginHistoryDao, err error) {
-	t = &LoginHistoryDao{}
-	t.logger = log.TypedLogger(t)
-	t.db = db
-	err = t.init()
-	if err != nil {
-		return nil, err
-	}
-
-	return t, nil
-}
-
-func (dao *LoginHistoryDao) init() (err error) {
-	err = dao.prepareInsertStmt()
-	if err != nil {
-		return err
-	}
-
-	err = dao.prepareUpdateStmt()
-	if err != nil {
-		return err
-	}
-
-	err = dao.prepareDeleteStmt()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (dao *LoginHistoryDao) prepareInsertStmt() (err error) {
-	dao.insertStmt, err = dao.db.Prepare(context.Background(), "INSERT INTO login_history (account_id) VALUES (?)")
-	return err
-}
-
-func (dao *LoginHistoryDao) prepareUpdateStmt() (err error) {
-	dao.updateStmt, err = dao.db.Prepare(context.Background(), "UPDATE login_history SET account_id=? WHERE id=?")
-	return err
-}
-
-func (dao *LoginHistoryDao) prepareDeleteStmt() (err error) {
-	dao.deleteStmt, err = dao.db.Prepare(context.Background(), "DELETE FROM login_history WHERE id=?")
-	return err
-}
-
-func (dao *LoginHistoryDao) Insert(ctx context.Context, tx *wrap.Tx, e *LoginHistory) (id int64, err error) {
-	stmt := dao.insertStmt
-	if tx != nil {
-		stmt = tx.Stmt(ctx, stmt)
-	}
-
-	result, err := stmt.Exec(ctx, e.AccountId)
-	if err != nil {
-		return 0, err
-	}
-
-	id, err = result.LastInsertId()
-	if err != nil {
-		return 0, err
-	}
-
-	return id, nil
-}
-
-func (dao *LoginHistoryDao) Update(ctx context.Context, tx *wrap.Tx, e *LoginHistory) (err error) {
-	stmt := dao.updateStmt
-	if tx != nil {
-		stmt = tx.Stmt(ctx, stmt)
-	}
-
-	_, err = stmt.Exec(ctx, e.AccountId, e.Id)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (dao *LoginHistoryDao) Delete(ctx context.Context, tx *wrap.Tx, id uint64) (err error) {
-	stmt := dao.deleteStmt
-	if tx != nil {
-		stmt = tx.Stmt(ctx, stmt)
-	}
-
-	_, err = stmt.Exec(ctx, id)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (dao *LoginHistoryDao) scanRow(row *wrap.Row) (*LoginHistory, error) {
-	e := &LoginHistory{}
-	err := row.Scan(&e.Id, &e.AccountId, &e.CreateTime)
-	if err != nil {
-		if err == wrap.ErrNoRows {
-			return nil, nil
-		} else {
-			return nil, err
-		}
-	}
-
-	return e, nil
-}
-
-func (dao *LoginHistoryDao) scanRows(rows *wrap.Rows) (list []*LoginHistory, err error) {
-	list = make([]*LoginHistory, 0)
-	for rows.Next() {
-		e := LoginHistory{}
-		err = rows.Scan(&e.Id, &e.AccountId, &e.CreateTime)
-		if err != nil {
-			return nil, err
-		}
-		list = append(list, &e)
-	}
-	if rows.Err() != nil {
-		err = rows.Err()
-		return nil, err
-	}
-
-	return list, nil
-}
-
-func (dao *LoginHistoryDao) QueryOne(ctx context.Context, tx *wrap.Tx, query string) (*LoginHistory, error) {
-	querySql := "SELECT " + LOGIN_HISTORY_ALL_FIELDS_STRING + " FROM login_history " + query
-	var row *wrap.Row
-	if tx == nil {
-		row = dao.db.QueryRow(ctx, querySql)
-	} else {
-		row = tx.QueryRow(ctx, querySql)
-	}
-	return dao.scanRow(row)
-}
-
-func (dao *LoginHistoryDao) QueryList(ctx context.Context, tx *wrap.Tx, query string) (list []*LoginHistory, err error) {
-	querySql := "SELECT " + LOGIN_HISTORY_ALL_FIELDS_STRING + " FROM login_history " + query
-	var rows *wrap.Rows
-	if tx == nil {
-		rows, err = dao.db.Query(ctx, querySql)
-	} else {
-		rows, err = tx.Query(ctx, querySql)
-	}
-	if err != nil {
-		dao.logger.Error("sqlDriver", zap.Error(err))
-		return nil, err
-	}
-
-	return dao.scanRows(rows)
-}
-
-func (dao *LoginHistoryDao) QueryCount(ctx context.Context, tx *wrap.Tx, query string) (count int64, err error) {
-	querySql := "SELECT COUNT(1) FROM login_history " + query
-	var row *wrap.Row
-	if tx == nil {
-		row = dao.db.QueryRow(ctx, querySql)
-	} else {
-		row = tx.QueryRow(ctx, querySql)
-	}
-	if err != nil {
-		dao.logger.Error("sqlDriver", zap.Error(err))
-		return 0, err
-	}
-
-	err = row.Scan(&count)
-	if err != nil {
-		return 0, err
-	}
-
-	return count, nil
-}
-
-func (dao *LoginHistoryDao) QueryGroupBy(ctx context.Context, tx *wrap.Tx, groupByFields []string, query string) (rows *wrap.Rows, err error) {
-	querySql := "SELECT " + strings.Join(groupByFields, ",") + ",count(1) FROM login_history " + query
-	if tx == nil {
-		return dao.db.Query(ctx, querySql)
-	} else {
-		return tx.Query(ctx, querySql)
-	}
-}
-
-func (dao *LoginHistoryDao) GetQuery() *LoginHistoryQuery {
-	return NewLoginHistoryQuery(dao)
 }
 
 const SMS_CODE_TABLE_NAME = "sms_code"
@@ -2079,7 +1886,6 @@ type DB struct {
 	wrap.DB
 	Account          *AccountDao
 	AccountOperation *AccountOperationDao
-	LoginHistory     *LoginHistoryDao
 	SmsCode          *SmsCodeDao
 	SmsScene         *SmsSceneDao
 }
@@ -2109,11 +1915,6 @@ func NewDB() (d *DB, err error) {
 	}
 
 	d.AccountOperation, err = NewAccountOperationDao(d)
-	if err != nil {
-		return nil, err
-	}
-
-	d.LoginHistory, err = NewLoginHistoryDao(d)
 	if err != nil {
 		return nil, err
 	}

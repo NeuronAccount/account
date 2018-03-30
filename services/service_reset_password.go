@@ -1,12 +1,12 @@
 package services
 
 import (
-	"context"
 	"github.com/NeuronAccount/account/models"
 	"github.com/NeuronFramework/errors"
+	"github.com/NeuronFramework/restful"
 )
 
-func (s *AccountService) ResetPassword(ctx context.Context, phone string, smsCode string, newPassword string) (err error) {
+func (s *AccountService) ResetPassword(ctx *restful.Context, phone string, smsCode string, newPassword string) (err error) {
 	err = s.validateSmsCode(ctx, models.SmsSceneResetPassword, phone, smsCode)
 	if err != nil {
 		return err
@@ -26,6 +26,12 @@ func (s *AccountService) ResetPassword(ctx context.Context, phone string, smsCod
 	if err != nil {
 		return err
 	}
+
+	s.addOperation(nil, &models.Operation{
+		OperationType: models.OperationResetPassword,
+		Phone:         phone,
+		AccountID:     dbAccount.AccountId,
+	})
 
 	return nil
 }

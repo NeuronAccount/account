@@ -13,6 +13,7 @@ import (
 	"github.com/go-openapi/runtime/middleware"
 	"github.com/go-openapi/validate"
 
+	"context"
 	strfmt "github.com/go-openapi/strfmt"
 )
 
@@ -31,6 +32,8 @@ type SmsLoginParams struct {
 
 	// HTTP Request Object
 	HTTPRequest *http.Request `json:"-"`
+
+	Context context.Context
 
 	/*
 	  Required: true

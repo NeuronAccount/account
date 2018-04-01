@@ -7,6 +7,11 @@ import (
 )
 
 func (s *AccountService) ResetPassword(ctx *restful.Context, phone string, smsCode string, newPassword string) (err error) {
+	err = s.validateNewPassword(newPassword)
+	if err != nil {
+		return err
+	}
+
 	err = s.validateSmsCode(ctx, models.SmsSceneResetPassword, phone, smsCode)
 	if err != nil {
 		return err

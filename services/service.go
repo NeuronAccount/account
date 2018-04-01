@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"fmt"
 	"github.com/NeuronAccount/account/models"
 	"github.com/NeuronAccount/account/remotes/sms"
 	"github.com/NeuronAccount/account/storages/account_db"
@@ -10,6 +11,7 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"go.uber.org/zap"
 	"time"
+	"unicode/utf8"
 )
 
 type AccountServiceOptions struct {
@@ -74,4 +76,16 @@ func (s *AccountService) generateJwt(accountId string) (tokenString string, err 
 
 func (s *AccountService) calcPasswordHash(password string) (passwordHash string) {
 	return password
+}
+
+func (s *AccountService) validateNewPassword(password string) (err error) {
+	if password == "" {
+		return errors.InvalidParam("密码不能为空")
+	}
+
+	if utf8.RuneCountInString(password) > models.MAX_PASSWORD_LENGTH {
+		return errors.InvalidParam(fmt.Sprintf("密码长度最多%d个字符", password))
+	}
+
+	return nil
 }

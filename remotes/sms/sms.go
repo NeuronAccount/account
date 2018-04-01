@@ -135,7 +135,7 @@ func (s *Service) wrapError(code string, message string) (err error) {
 	case "isv.MOBILE_NUMBER_ILLEGAL":
 		return errors.InvalidParam("手机号格式错误")
 	case "isv.BUSINESS_LIMIT_CONTROL":
-		return errors.BadRequest("SendLimit", "每小时最多5次，每天最多10次，请稍后再试")
+		return errors.BadRequest("SendLimit", "每天最多发送5次")
 	default:
 		return errors.Unknown("短信发送后端服务失败，code＝" + code + ",message=" + message)
 	}

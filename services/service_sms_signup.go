@@ -10,6 +10,11 @@ import (
 )
 
 func (s *AccountService) SmsSignup(ctx *restful.Context, phone string, smsCode string, password string) (jwt string, err error) {
+	err = s.validateNewPassword(password)
+	if err != nil {
+		return "", err
+	}
+
 	//check account exists
 	dbAccount, err := s.accountDB.Account.GetQuery().PhoneNumber_Equal(phone).QueryOne(ctx, nil)
 	if err != nil {

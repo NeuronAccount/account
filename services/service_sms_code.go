@@ -47,11 +47,15 @@ func (s *AccountService) SmsCode(ctx *restful.Context, scene string, phone strin
 		return err
 	}
 
-	s.addOperation(ctx, &models.Operation{
+	op := &models.Operation{
 		OperationType: models.OperationSmsCode,
 		SmsScene:      scene,
 		Phone:         phone,
-	})
+	}
+	if dbAccount != nil {
+		op.AccountID = dbAccount.AccountId
+	}
+	s.addOperation(ctx, op)
 
 	return nil
 }

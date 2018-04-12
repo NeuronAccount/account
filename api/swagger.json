@@ -185,6 +185,29 @@
         }
       }
     },
+    "/userInfo":{
+      "get": {
+        "summary": "",
+        "operationId": "GetUserInfo",
+        "parameters": [
+
+        ],
+        "security": [
+          {
+            "Bearer": [
+            ]
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/userInfo"
+            }
+          }
+        }
+      }
+    },
     "/bindPhone": {
     },
     "/unbindPhone": {
@@ -211,6 +234,20 @@
         "accessToken",
         "refreshToken"
       ]
+    },
+    "userInfo":{
+      "type": "object",
+      "properties": {
+        "userId":{
+          "type": "string"
+        },
+        "name":{
+          "type": "string"
+        },
+        "icon":{
+          "type": "string"
+        }
+      }
     }
   }
 }

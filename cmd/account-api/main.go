@@ -22,6 +22,7 @@ func main() {
 		}
 
 		api := operations.NewAccountAPI(swaggerSpec)
+		api.BearerAuth = h.BearerAuth
 		api.SendLoginSmsCodeHandler = operations.SendLoginSmsCodeHandlerFunc(h.SendLoginSmsCode)
 		api.SmsLoginHandler = operations.SmsLoginHandlerFunc(h.SmsLogin)
 		api.LogoutHandler = operations.LogoutHandlerFunc(h.Logout)

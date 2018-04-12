@@ -6,6 +6,7 @@ import (
 	"github.com/NeuronFramework/errors"
 	"github.com/NeuronFramework/log"
 	"github.com/NeuronFramework/restful"
+	"github.com/dgrijalva/jwt-go"
 	"github.com/go-openapi/runtime/middleware"
 	"go.uber.org/zap"
 )
@@ -24,6 +25,22 @@ func NewAccountHandler() (h *AccountHandler, err error) {
 	}
 
 	return h, nil
+}
+
+func (h *AccountHandler) BearerAuth(token string) (userId interface{}, err error) {
+	claims := jwt.StandardClaims{}
+	_, err = jwt.ParseWithClaims(token, &claims, func(t *jwt.Token) (interface{}, error) {
+		return []byte("0123456789"), nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if claims.Subject == "" {
+		return nil, errors.Unknown("验证失败： claims.Subject nil")
+	}
+
+	return claims.Subject, nil
 }
 
 func (h *AccountHandler) SendLoginSmsCode(p operations.SendLoginSmsCodeParams) middleware.Responder {
@@ -60,4 +77,13 @@ func (h *AccountHandler) RefreshToken(p operations.RefreshTokenParams) middlewar
 	}
 
 	return operations.NewRefreshTokenOK().WithPayload(fromToken(userToken))
+}
+
+func (h *AccountHandler) GetUserInfo(p operations.GetUserInfoParams, userId interface{}) middleware.Responder {
+	userInfo, err := h.service.GetUserInfo(restful.NewContext(p.HTTPRequest), userId.(string))
+	if err != nil {
+		return errors.Wrap(err)
+	}
+
+	return operations.NewGetUserInfoOK().WithPayload(fromUserInfo(userInfo))
 }

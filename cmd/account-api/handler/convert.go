@@ -14,3 +14,16 @@ func fromToken(p *models.UserToken) (r *api.UserToken) {
 
 	return r
 }
+
+func fromUserInfo(p *models.UserInfo) (r *api.UserInfo) {
+	if p == nil {
+		return nil
+	}
+
+	r = &api.UserInfo{}
+	r.UserID = p.UserID
+	r.Name = p.Name
+	r.Icon = p.Icon
+
+	return r
+}

@@ -35,7 +35,7 @@ func (s *AccountService) SmsLogin(ctx *restful.Context, phone string, smsCode st
 	if dbPhoneAccount == nil {
 		dbUser := &user_db.User{}
 		dbUser.UserId = rand.NextHex(16)
-		dbUser.UserName = rand.NextNumberFixedLength(16)
+		dbUser.UserName = "用户" + rand.NextNumberFixedLength(8)
 		dbUser.UserIcon = ""
 		_, err = s.userDB.User.Insert(ctx, nil, dbUser)
 		if err != nil {
@@ -76,7 +76,7 @@ func (s *AccountService) SmsLogin(ctx *restful.Context, phone string, smsCode st
 	}
 
 	//操作纪录
-	s.addOperation(ctx, &models.Operation{
+	s.addOperation(ctx, &models.AccountOperation{
 		OperationType: models.OperationSmsLogin,
 		UserId:        dbPhoneAccount.UserId,
 		Phone:         phone,

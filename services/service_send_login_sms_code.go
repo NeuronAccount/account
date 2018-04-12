@@ -18,6 +18,8 @@ func (s *AccountService) SendLoginSmsCode(
 		return err
 	}
 
+	loginSmsCode = "1234"
+
 	dbLoginSmsCode := &user_db.LoginSmsCode{}
 	dbLoginSmsCode.PhoneNumber = phone
 	dbLoginSmsCode.SmsCode = loginSmsCode

@@ -26,7 +26,7 @@ func (s *AccountService) Logout(ctx *restful.Context, accessToken string, refres
 		return err
 	}
 
-	s.addOperation(ctx, &models.Operation{
+	s.addOperation(ctx, &models.AccountOperation{
 		OperationType: models.OperationLogout,
 		UserId:        dbRefreshToken.UserId,
 	})

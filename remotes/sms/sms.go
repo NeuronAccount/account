@@ -142,6 +142,10 @@ func (s *Service) wrapError(code string, message string) (err error) {
 }
 
 func (s *Service) SendSms(phone string, smsCode string, smsCodeId string) (requestId string, err error) {
+	if true {
+		return "", nil
+	}
+
 	urlString, err := s.buildUrl(phone, smsCode, smsCodeId)
 	if err != nil {
 		return "", err

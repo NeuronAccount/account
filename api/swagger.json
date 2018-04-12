@@ -1,0 +1,216 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "description": "",
+    "title": "Account API",
+    "contact": {
+      "name": "mars"
+    },
+    "version": "v1"
+  },
+  "basePath": "/api/v1/users",
+  "schemes": [
+    "http",
+    "https"
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "securityDefinitions": {
+    "Bearer": {
+      "type": "apiKey",
+      "name": "Authorization",
+      "in": "header"
+    }
+  },
+  "parameters": {
+  },
+  "paths": {
+    "/sendLoginSmsCode": {
+      "post": {
+        "summary": "",
+        "operationId": "SendLoginSmsCode",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "phone",
+            "type": "string",
+            "required": true
+          },
+          {
+            "in": "query",
+            "name": "captchaId",
+            "type": "string",
+            "required": true
+          },
+          {
+            "in": "query",
+            "name": "captchaCode",
+            "type": "string",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        }
+      }
+    },
+    "/smsLogin": {
+      "post": {
+        "summary": "sms login",
+        "operationId": "SmsLogin",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "phone",
+            "type": "string",
+            "required": true
+          },
+          {
+            "in": "query",
+            "name": "smsCode",
+            "type": "string",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/userToken"
+            }
+          }
+        }
+      }
+    },
+    "/logout": {
+      "post": {
+        "summary": "",
+        "operationId": "Logout",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "accessToken",
+            "type": "string",
+            "required": true
+          },
+          {
+            "in": "query",
+            "name": "refreshToken",
+            "type": "string",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        }
+      }
+    },
+    "/getOauthState": {
+      "post": {
+        "summary": "",
+        "operationId": "GetOauthState",
+        "parameters": [
+        ],
+        "responses": {
+          "200": {
+            "description": "state",
+            "schema": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "/oauthJump": {
+      "post": {
+        "summary": "",
+        "operationId": "OauthJump",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "redirectUri",
+            "type": "string",
+            "required": true
+          },
+          {
+            "in": "query",
+            "name": "authorizationCode",
+            "type": "string",
+            "required": true
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "type": "string",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ok",
+            "schema": {
+              "$ref": "#/definitions/userToken"
+            }
+          }
+        }
+      }
+    },
+    "/refreshToken": {
+      "post": {
+        "summary": "",
+        "operationId": "RefreshToken",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "refreshToken",
+            "type": "string",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ok",
+            "schema": {
+              "$ref": "#/definitions/userToken"
+            }
+          }
+        }
+      }
+    },
+    "/bindPhone": {
+    },
+    "/unbindPhone": {
+    },
+    "/bindOauthAccount":{
+
+    },
+    "/unbindOauthAccount":{
+
+    }
+  },
+  "definitions": {
+    "userToken": {
+      "type": "object",
+      "properties": {
+        "accessToken": {
+          "type": "string"
+        },
+        "refreshToken": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "accessToken",
+        "refreshToken"
+      ]
+    }
+  }
+}

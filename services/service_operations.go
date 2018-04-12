@@ -9,7 +9,7 @@ import (
 func (s *AccountService) addOperation(ctx *restful.Context, operation *models.Operation) (err error) {
 	operation.UserAgent = ctx.UserAgent
 	dbOperation := toOperation(operation)
-	_, err = s.accountDB.AccountOperation.Insert(ctx, nil, dbOperation)
+	_, err = s.userDB.UserOperation.Insert(ctx, nil, dbOperation)
 	if err != nil {
 		s.logger.Error("addOperation", zap.Error(err))
 		return err

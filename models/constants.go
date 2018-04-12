@@ -1,12 +1,5 @@
 package models
 
-const SmsSceneSignup = "SMS_SIGNUP"
-const SmsSceneLogin = "SMS_LOGIN"
-const SmsSceneResetPassword = "RESET_PASSWORD"
-
-const SmsCodeValidSeconds = 5 * 60 //5m
-
-const MAX_LOGIN_NAME_LENGTH = 24
-const MAX_PHONE_LENGTH = 11
-const MAX_PASSWORD_LENGTH = 20
-const MAX_SMS_CODE_LENGTH = 6
+const SmsCodeValidSeconds = 5 * 60          //验证码有效期5分钟
+const UserAccessTokenExpireSeconds = 5 * 60 //AccessToken有效期5分钟
+const SmsCodeLength = 4                     //验证码长度为4

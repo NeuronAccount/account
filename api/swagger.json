@@ -8,7 +8,7 @@
     },
     "version": "v1"
   },
-  "basePath": "/api/v1/users",
+  "basePath": "/api/v1/accounts",
   "schemes": [
     "http",
     "https"

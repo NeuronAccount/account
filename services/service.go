@@ -2,7 +2,7 @@ package services
 
 import (
 	"github.com/NeuronAccount/account/remotes/sms"
-	"github.com/NeuronAccount/account/storages/user_db"
+	"github.com/NeuronAccount/account/storages/neuron_account_db"
 	"github.com/NeuronFramework/log"
 	"github.com/dgrijalva/jwt-go"
 	"go.uber.org/zap"
@@ -15,7 +15,7 @@ type AccountServiceOptions struct {
 type AccountService struct {
 	logger     *zap.Logger
 	options    *AccountServiceOptions
-	userDB     *user_db.DB
+	userDB     *neuron_account_db.DB
 	smsService *sms.Service
 }
 
@@ -23,7 +23,7 @@ func NewAccountService(options *AccountServiceOptions) (s *AccountService, err e
 	s = &AccountService{}
 	s.logger = log.TypedLogger(s)
 	s.options = options
-	s.userDB, err = user_db.NewDB()
+	s.userDB, err = neuron_account_db.NewDB()
 	if err != nil {
 		return nil, err
 	}

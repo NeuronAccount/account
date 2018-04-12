@@ -5,8 +5,9 @@ import "time"
 type OperationType string
 
 const (
-	OperationSmsLogin = OperationType("SMS_LOGIN")
-	OperationLogout   = OperationType("LOGOUT")
+	OperationSendLoginSmsCode = OperationType("SEND_LOGIN_SMS_CODE")
+	OperationSmsLogin         = OperationType("SMS_LOGIN")
+	OperationLogout           = OperationType("LOGOUT")
 )
 
 type AccountOperation struct {

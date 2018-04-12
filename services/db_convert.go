@@ -2,10 +2,10 @@ package services
 
 import (
 	"github.com/NeuronAccount/account/models"
-	"github.com/NeuronAccount/account/storages/user_db"
+	"github.com/NeuronAccount/account/storages/neuron_account_db"
 )
 
-func fromOperation(p *user_db.AccountOperation) (r *models.AccountOperation) {
+func fromOperation(p *neuron_account_db.AccountOperation) (r *models.AccountOperation) {
 	if p == nil {
 		return nil
 	}
@@ -15,7 +15,7 @@ func fromOperation(p *user_db.AccountOperation) (r *models.AccountOperation) {
 	return r
 }
 
-func fromOperationList(p []*user_db.AccountOperation) (r []*models.AccountOperation) {
+func fromOperationList(p []*neuron_account_db.AccountOperation) (r []*models.AccountOperation) {
 	if p == nil {
 		return nil
 	}
@@ -28,12 +28,12 @@ func fromOperationList(p []*user_db.AccountOperation) (r []*models.AccountOperat
 	return r
 }
 
-func toOperation(p *models.AccountOperation) (r *user_db.AccountOperation) {
+func toOperation(p *models.AccountOperation) (r *neuron_account_db.AccountOperation) {
 	if p == nil {
 		return nil
 	}
 
-	r = &user_db.AccountOperation{}
+	r = &neuron_account_db.AccountOperation{}
 	r.UserId = p.UserId
 	r.OperationType = string(p.OperationType)
 	r.UserAgent = p.UserAgent
@@ -42,7 +42,7 @@ func toOperation(p *models.AccountOperation) (r *user_db.AccountOperation) {
 	return r
 }
 
-func fromUserInfo(p *user_db.User) (r *models.UserInfo) {
+func fromUserInfo(p *neuron_account_db.User) (r *models.UserInfo) {
 	if p == nil {
 		return nil
 	}

@@ -2,7 +2,7 @@ package services
 
 import (
 	"github.com/NeuronAccount/account/models"
-	"github.com/NeuronAccount/account/storages/user_db"
+	"github.com/NeuronAccount/account/storages/neuron_account_db"
 	"github.com/NeuronFramework/errors"
 	"github.com/NeuronFramework/rand"
 	"github.com/NeuronFramework/restful"
@@ -13,7 +13,7 @@ import (
 func (s *AccountService) RefreshToken(ctx *restful.Context, refreshToken string) (userToken *models.UserToken, err error) {
 	//检查RefreshToken是否最新且有效
 	dbRefreshToken, err := s.userDB.RefreshToken.GetQuery().
-		OrderBy(user_db.REFRESH_TOKEN_FIELD_ID, false).
+		OrderBy(neuron_account_db.REFRESH_TOKEN_FIELD_ID, false).
 		Limit(0, 1).
 		QueryOne(ctx, nil)
 	if err != nil {
@@ -49,7 +49,7 @@ func (s *AccountService) RefreshToken(ctx *restful.Context, refreshToken string)
 	if err != nil {
 		return nil, err
 	}
-	dbAccessToken := &user_db.AccessToken{}
+	dbAccessToken := &neuron_account_db.AccessToken{}
 	dbAccessToken.UserId = dbRefreshToken.UserId
 	dbAccessToken.AccessToken = accessToken
 	_, err = s.userDB.AccessToken.Insert(ctx, nil, dbAccessToken)

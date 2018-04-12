@@ -2,7 +2,7 @@ package services
 
 import (
 	"github.com/NeuronAccount/account/models"
-	"github.com/NeuronAccount/account/storages/user_db"
+	"github.com/NeuronAccount/account/storages/neuron_account_db"
 	"github.com/NeuronFramework/errors"
 	"github.com/NeuronFramework/rand"
 	"github.com/NeuronFramework/restful"
@@ -13,7 +13,7 @@ func (s *AccountService) SmsLogin(ctx *restful.Context, phone string, smsCode st
 	//校验验证码
 	dbLoginSmsCode, err := s.userDB.LoginSmsCode.GetQuery().
 		PhoneNumber_Equal(phone).
-		OrderBy(user_db.LOGIN_SMS_CODE_FIELD_ID, false).
+		OrderBy(neuron_account_db.LOGIN_SMS_CODE_FIELD_ID, false).
 		QueryOne(ctx, nil)
 	if err != nil {
 		return nil, err
@@ -33,7 +33,7 @@ func (s *AccountService) SmsLogin(ctx *restful.Context, phone string, smsCode st
 		return nil, err
 	}
 	if dbPhoneAccount == nil {
-		dbUser := &user_db.User{}
+		dbUser := &neuron_account_db.User{}
 		dbUser.UserId = rand.NextHex(16)
 		dbUser.UserName = "用户" + rand.NextNumberFixedLength(8)
 		dbUser.UserIcon = ""
@@ -42,7 +42,7 @@ func (s *AccountService) SmsLogin(ctx *restful.Context, phone string, smsCode st
 			return nil, err
 		}
 
-		dbPhoneAccount = &user_db.PhoneAccount{}
+		dbPhoneAccount = &neuron_account_db.PhoneAccount{}
 		dbPhoneAccount.PhoneNumber = phone
 		dbPhoneAccount.UserId = dbUser.UserId
 		_, err = s.userDB.PhoneAccount.Insert(ctx, nil, dbPhoneAccount)
@@ -56,7 +56,7 @@ func (s *AccountService) SmsLogin(ctx *restful.Context, phone string, smsCode st
 	if err != nil {
 		return nil, err
 	}
-	dbAccessToken := &user_db.AccessToken{}
+	dbAccessToken := &neuron_account_db.AccessToken{}
 	dbAccessToken.UserId = dbPhoneAccount.UserId
 	dbAccessToken.AccessToken = accessToken
 	_, err = s.userDB.AccessToken.Insert(ctx, nil, dbAccessToken)
@@ -65,7 +65,7 @@ func (s *AccountService) SmsLogin(ctx *restful.Context, phone string, smsCode st
 	}
 
 	//生成RefreshToken
-	dbRefreshToken := &user_db.RefreshToken{}
+	dbRefreshToken := &neuron_account_db.RefreshToken{}
 	dbRefreshToken.UserId = dbPhoneAccount.UserId
 	dbRefreshToken.RefreshToken = rand.NextHex(16)
 	dbRefreshToken.IsLogout = 0

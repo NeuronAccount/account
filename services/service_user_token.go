@@ -59,9 +59,10 @@ func (s *AccountService) createUserToken(
 			return nil, err
 		}
 	} else {
-		dbRefreshToken.RefreshToken = refreshToken
-		dbRefreshToken.IsLogout = 0
-		err = s.accountDB.RefreshToken.Update(ctx, nil, dbRefreshToken)
+		err = s.accountDB.RefreshToken.GetUpdate().
+			RefreshToken(refreshToken).
+			IsLogout(0).
+			Update(ctx, nil, dbRefreshToken.Id)
 		if err != nil {
 			return nil, err
 		}

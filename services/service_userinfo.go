@@ -36,8 +36,8 @@ func (s *AccountService) SetUserName(ctx *restful.Context, userId string, userNa
 	if dbUserInfo == nil {
 		return errors.NotFound("用户不存在")
 	}
-	dbUserInfo.UserName = userName
-	err = s.accountDB.UserInfo.Update(ctx, nil, dbUserInfo)
+
+	err = s.accountDB.UserInfo.GetUpdate().UserName(userName).Update(ctx, nil, dbUserInfo.Id)
 	if err != nil {
 		return err
 	}
@@ -54,8 +54,7 @@ func (s *AccountService) SetUserIcon(ctx *restful.Context, userId string, userIc
 		return errors.NotFound("用户不存在")
 	}
 
-	dbUserInfo.UserIcon = userIcon
-	err = s.accountDB.UserInfo.Update(ctx, nil, dbUserInfo)
+	err = s.accountDB.UserInfo.GetUpdate().UserIcon(userIcon).Update(ctx, nil, dbUserInfo.Id)
 	if err != nil {
 		return err
 	}

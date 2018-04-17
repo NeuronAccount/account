@@ -59,6 +59,45 @@ func (q *BaseQuery) buildQueryString() string {
 	return buf.String()
 }
 
+func (q *BaseQuery) groupBy(fields ...string) {
+	q.groupByFields = make([]string, len(fields))
+	for i, v := range fields {
+		q.groupByFields[i] = v
+	}
+}
+
+func (q *BaseQuery) setLimit(startIncluded int64, count int64) {
+	q.limit = fmt.Sprintf(" limit %d,%d", startIncluded, count)
+}
+
+func (q *BaseQuery) orderBy(fieldName string, asc bool) {
+	if q.order != "" {
+		q.order += ","
+	}
+	q.order += fieldName + " "
+	if asc {
+		q.order += "asc"
+	} else {
+		q.order += "desc"
+	}
+}
+
+func (q *BaseQuery) orderByGroupCount(asc bool) {
+	if q.order != "" {
+		q.order += ","
+	}
+	q.order += "count(1) "
+	if asc {
+		q.order += "asc"
+	} else {
+		q.order += "desc"
+	}
+}
+
+func (q *BaseQuery) setWhere(format string, a ...interface{}) {
+	q.where += fmt.Sprintf(format, a...)
+}
+
 const ACCESS_TOKEN_TABLE_NAME = "access_token"
 
 type ACCESS_TOKEN_FIELD string
@@ -70,14 +109,6 @@ const ACCESS_TOKEN_FIELD_CREATE_TIME = ACCESS_TOKEN_FIELD("create_time")
 const ACCESS_TOKEN_FIELD_UPDATE_TIME = ACCESS_TOKEN_FIELD("update_time")
 
 const ACCESS_TOKEN_ALL_FIELDS_STRING = "id,user_id,access_token,create_time,update_time"
-
-var ACCESS_TOKEN_ALL_FIELDS = []string{
-	"id",
-	"user_id",
-	"access_token",
-	"create_time",
-	"update_time",
-}
 
 type AccessToken struct {
 	Id          uint64 //size=20
@@ -134,40 +165,22 @@ func (q *AccessTokenQuery) GroupBy(fields ...ACCESS_TOKEN_FIELD) *AccessTokenQue
 }
 
 func (q *AccessTokenQuery) Limit(startIncluded int64, count int64) *AccessTokenQuery {
-	q.limit = fmt.Sprintf(" limit %d,%d", startIncluded, count)
+	q.setLimit(startIncluded, count)
 	return q
 }
 
 func (q *AccessTokenQuery) OrderBy(fieldName ACCESS_TOKEN_FIELD, asc bool) *AccessTokenQuery {
-	if q.order != "" {
-		q.order += ","
-	}
-	q.order += string(fieldName) + " "
-	if asc {
-		q.order += "asc"
-	} else {
-		q.order += "desc"
-	}
-
+	q.orderBy(string(fieldName), asc)
 	return q
 }
 
 func (q *AccessTokenQuery) OrderByGroupCount(asc bool) *AccessTokenQuery {
-	if q.order != "" {
-		q.order += ","
-	}
-	q.order += "count(1) "
-	if asc {
-		q.order += "asc"
-	} else {
-		q.order += "desc"
-	}
-
+	q.orderByGroupCount(asc)
 	return q
 }
 
 func (q *AccessTokenQuery) w(format string, a ...interface{}) *AccessTokenQuery {
-	q.where += fmt.Sprintf(format, a...)
+	q.setWhere(format, a...)
 	return q
 }
 
@@ -199,35 +212,11 @@ func (q *AccessTokenQuery) UserId_Equal(v string) *AccessTokenQuery {
 func (q *AccessTokenQuery) UserId_NotEqual(v string) *AccessTokenQuery {
 	return q.w("user_id<>'" + fmt.Sprint(v) + "'")
 }
-func (q *AccessTokenQuery) UserId_Less(v string) *AccessTokenQuery {
-	return q.w("user_id<'" + fmt.Sprint(v) + "'")
-}
-func (q *AccessTokenQuery) UserId_LessEqual(v string) *AccessTokenQuery {
-	return q.w("user_id<='" + fmt.Sprint(v) + "'")
-}
-func (q *AccessTokenQuery) UserId_Greater(v string) *AccessTokenQuery {
-	return q.w("user_id>'" + fmt.Sprint(v) + "'")
-}
-func (q *AccessTokenQuery) UserId_GreaterEqual(v string) *AccessTokenQuery {
-	return q.w("user_id>='" + fmt.Sprint(v) + "'")
-}
 func (q *AccessTokenQuery) AccessToken_Equal(v string) *AccessTokenQuery {
 	return q.w("access_token='" + fmt.Sprint(v) + "'")
 }
 func (q *AccessTokenQuery) AccessToken_NotEqual(v string) *AccessTokenQuery {
 	return q.w("access_token<>'" + fmt.Sprint(v) + "'")
-}
-func (q *AccessTokenQuery) AccessToken_Less(v string) *AccessTokenQuery {
-	return q.w("access_token<'" + fmt.Sprint(v) + "'")
-}
-func (q *AccessTokenQuery) AccessToken_LessEqual(v string) *AccessTokenQuery {
-	return q.w("access_token<='" + fmt.Sprint(v) + "'")
-}
-func (q *AccessTokenQuery) AccessToken_Greater(v string) *AccessTokenQuery {
-	return q.w("access_token>'" + fmt.Sprint(v) + "'")
-}
-func (q *AccessTokenQuery) AccessToken_GreaterEqual(v string) *AccessTokenQuery {
-	return q.w("access_token>='" + fmt.Sprint(v) + "'")
 }
 func (q *AccessTokenQuery) CreateTime_Equal(v time.Time) *AccessTokenQuery {
 	return q.w("create_time='" + fmt.Sprint(v) + "'")
@@ -266,11 +255,58 @@ func (q *AccessTokenQuery) UpdateTime_GreaterEqual(v time.Time) *AccessTokenQuer
 	return q.w("update_time>='" + fmt.Sprint(v) + "'")
 }
 
+type AccessTokenUpdate struct {
+	dao    *AccessTokenDao
+	keys   []string
+	values []interface{}
+}
+
+func NewAccessTokenUpdate(dao *AccessTokenDao) *AccessTokenUpdate {
+	q := &AccessTokenUpdate{}
+	q.dao = dao
+	q.keys = make([]string, 0)
+	q.values = make([]interface{}, 0)
+
+	return q
+}
+
+func (u *AccessTokenUpdate) Update(ctx context.Context, tx *wrap.Tx, id uint64) (err error) {
+	if len(u.keys) == 0 {
+		err = fmt.Errorf("AccessTokenUpdate没有设置更新字段")
+		u.dao.logger.Error("AccessTokenUpdate", zap.Error(err))
+		return err
+	}
+	s := "UPDATE access_token SET " + strings.Join(u.keys, ",") + " WHERE id=?"
+	v := append(u.values, id)
+	if tx == nil {
+		_, err = u.dao.db.Exec(ctx, s, v)
+	} else {
+		_, err = tx.Exec(ctx, s, v)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (u *AccessTokenUpdate) UserId(v string) *AccessTokenUpdate {
+	u.keys = append(u.keys, "user_id=?")
+	u.values = append(u.values, v)
+	return u
+}
+
+func (u *AccessTokenUpdate) AccessToken(v string) *AccessTokenUpdate {
+	u.keys = append(u.keys, "access_token=?")
+	u.values = append(u.values, v)
+	return u
+}
+
 type AccessTokenDao struct {
 	logger     *zap.Logger
 	db         *DB
 	insertStmt *wrap.Stmt
-	updateStmt *wrap.Stmt
 	deleteStmt *wrap.Stmt
 }
 
@@ -292,11 +328,6 @@ func (dao *AccessTokenDao) init() (err error) {
 		return err
 	}
 
-	err = dao.prepareUpdateStmt()
-	if err != nil {
-		return err
-	}
-
 	err = dao.prepareDeleteStmt()
 	if err != nil {
 		return err
@@ -307,11 +338,6 @@ func (dao *AccessTokenDao) init() (err error) {
 
 func (dao *AccessTokenDao) prepareInsertStmt() (err error) {
 	dao.insertStmt, err = dao.db.Prepare(context.Background(), "INSERT INTO access_token (user_id,access_token) VALUES (?,?)")
-	return err
-}
-
-func (dao *AccessTokenDao) prepareUpdateStmt() (err error) {
-	dao.updateStmt, err = dao.db.Prepare(context.Background(), "UPDATE access_token SET user_id=?,access_token=? WHERE id=?")
 	return err
 }
 
@@ -337,20 +363,6 @@ func (dao *AccessTokenDao) Insert(ctx context.Context, tx *wrap.Tx, e *AccessTok
 	}
 
 	return id, nil
-}
-
-func (dao *AccessTokenDao) Update(ctx context.Context, tx *wrap.Tx, e *AccessToken) (err error) {
-	stmt := dao.updateStmt
-	if tx != nil {
-		stmt = tx.Stmt(ctx, stmt)
-	}
-
-	_, err = stmt.Exec(ctx, e.UserId, e.AccessToken, e.Id)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func (dao *AccessTokenDao) Delete(ctx context.Context, tx *wrap.Tx, id uint64) (err error) {
@@ -460,6 +472,10 @@ func (dao *AccessTokenDao) GetQuery() *AccessTokenQuery {
 	return NewAccessTokenQuery(dao)
 }
 
+func (dao *AccessTokenDao) GetUpdate() *AccessTokenUpdate {
+	return NewAccessTokenUpdate(dao)
+}
+
 const ACCOUNT_OPERATION_TABLE_NAME = "account_operation"
 
 type ACCOUNT_OPERATION_FIELD string
@@ -474,17 +490,6 @@ const ACCOUNT_OPERATION_FIELD_OTHER_USER_ID = ACCOUNT_OPERATION_FIELD("other_use
 const ACCOUNT_OPERATION_FIELD_CREATE_TIME = ACCOUNT_OPERATION_FIELD("create_time")
 
 const ACCOUNT_OPERATION_ALL_FIELDS_STRING = "id,user_id,operationType,user_agent,phone_encrypted,sms_scene,other_user_id,create_time"
-
-var ACCOUNT_OPERATION_ALL_FIELDS = []string{
-	"id",
-	"user_id",
-	"operationType",
-	"user_agent",
-	"phone_encrypted",
-	"sms_scene",
-	"other_user_id",
-	"create_time",
-}
 
 type AccountOperation struct {
 	Id             uint64 //size=20
@@ -544,40 +549,22 @@ func (q *AccountOperationQuery) GroupBy(fields ...ACCOUNT_OPERATION_FIELD) *Acco
 }
 
 func (q *AccountOperationQuery) Limit(startIncluded int64, count int64) *AccountOperationQuery {
-	q.limit = fmt.Sprintf(" limit %d,%d", startIncluded, count)
+	q.setLimit(startIncluded, count)
 	return q
 }
 
 func (q *AccountOperationQuery) OrderBy(fieldName ACCOUNT_OPERATION_FIELD, asc bool) *AccountOperationQuery {
-	if q.order != "" {
-		q.order += ","
-	}
-	q.order += string(fieldName) + " "
-	if asc {
-		q.order += "asc"
-	} else {
-		q.order += "desc"
-	}
-
+	q.orderBy(string(fieldName), asc)
 	return q
 }
 
 func (q *AccountOperationQuery) OrderByGroupCount(asc bool) *AccountOperationQuery {
-	if q.order != "" {
-		q.order += ","
-	}
-	q.order += "count(1) "
-	if asc {
-		q.order += "asc"
-	} else {
-		q.order += "desc"
-	}
-
+	q.orderByGroupCount(asc)
 	return q
 }
 
 func (q *AccountOperationQuery) w(format string, a ...interface{}) *AccountOperationQuery {
-	q.where += fmt.Sprintf(format, a...)
+	q.setWhere(format, a...)
 	return q
 }
 
@@ -611,35 +598,11 @@ func (q *AccountOperationQuery) UserId_Equal(v string) *AccountOperationQuery {
 func (q *AccountOperationQuery) UserId_NotEqual(v string) *AccountOperationQuery {
 	return q.w("user_id<>'" + fmt.Sprint(v) + "'")
 }
-func (q *AccountOperationQuery) UserId_Less(v string) *AccountOperationQuery {
-	return q.w("user_id<'" + fmt.Sprint(v) + "'")
-}
-func (q *AccountOperationQuery) UserId_LessEqual(v string) *AccountOperationQuery {
-	return q.w("user_id<='" + fmt.Sprint(v) + "'")
-}
-func (q *AccountOperationQuery) UserId_Greater(v string) *AccountOperationQuery {
-	return q.w("user_id>'" + fmt.Sprint(v) + "'")
-}
-func (q *AccountOperationQuery) UserId_GreaterEqual(v string) *AccountOperationQuery {
-	return q.w("user_id>='" + fmt.Sprint(v) + "'")
-}
 func (q *AccountOperationQuery) OperationType_Equal(v string) *AccountOperationQuery {
 	return q.w("operationType='" + fmt.Sprint(v) + "'")
 }
 func (q *AccountOperationQuery) OperationType_NotEqual(v string) *AccountOperationQuery {
 	return q.w("operationType<>'" + fmt.Sprint(v) + "'")
-}
-func (q *AccountOperationQuery) OperationType_Less(v string) *AccountOperationQuery {
-	return q.w("operationType<'" + fmt.Sprint(v) + "'")
-}
-func (q *AccountOperationQuery) OperationType_LessEqual(v string) *AccountOperationQuery {
-	return q.w("operationType<='" + fmt.Sprint(v) + "'")
-}
-func (q *AccountOperationQuery) OperationType_Greater(v string) *AccountOperationQuery {
-	return q.w("operationType>'" + fmt.Sprint(v) + "'")
-}
-func (q *AccountOperationQuery) OperationType_GreaterEqual(v string) *AccountOperationQuery {
-	return q.w("operationType>='" + fmt.Sprint(v) + "'")
 }
 func (q *AccountOperationQuery) UserAgent_Equal(v string) *AccountOperationQuery {
 	return q.w("user_agent='" + fmt.Sprint(v) + "'")
@@ -647,35 +610,11 @@ func (q *AccountOperationQuery) UserAgent_Equal(v string) *AccountOperationQuery
 func (q *AccountOperationQuery) UserAgent_NotEqual(v string) *AccountOperationQuery {
 	return q.w("user_agent<>'" + fmt.Sprint(v) + "'")
 }
-func (q *AccountOperationQuery) UserAgent_Less(v string) *AccountOperationQuery {
-	return q.w("user_agent<'" + fmt.Sprint(v) + "'")
-}
-func (q *AccountOperationQuery) UserAgent_LessEqual(v string) *AccountOperationQuery {
-	return q.w("user_agent<='" + fmt.Sprint(v) + "'")
-}
-func (q *AccountOperationQuery) UserAgent_Greater(v string) *AccountOperationQuery {
-	return q.w("user_agent>'" + fmt.Sprint(v) + "'")
-}
-func (q *AccountOperationQuery) UserAgent_GreaterEqual(v string) *AccountOperationQuery {
-	return q.w("user_agent>='" + fmt.Sprint(v) + "'")
-}
 func (q *AccountOperationQuery) PhoneEncrypted_Equal(v string) *AccountOperationQuery {
 	return q.w("phone_encrypted='" + fmt.Sprint(v) + "'")
 }
 func (q *AccountOperationQuery) PhoneEncrypted_NotEqual(v string) *AccountOperationQuery {
 	return q.w("phone_encrypted<>'" + fmt.Sprint(v) + "'")
-}
-func (q *AccountOperationQuery) PhoneEncrypted_Less(v string) *AccountOperationQuery {
-	return q.w("phone_encrypted<'" + fmt.Sprint(v) + "'")
-}
-func (q *AccountOperationQuery) PhoneEncrypted_LessEqual(v string) *AccountOperationQuery {
-	return q.w("phone_encrypted<='" + fmt.Sprint(v) + "'")
-}
-func (q *AccountOperationQuery) PhoneEncrypted_Greater(v string) *AccountOperationQuery {
-	return q.w("phone_encrypted>'" + fmt.Sprint(v) + "'")
-}
-func (q *AccountOperationQuery) PhoneEncrypted_GreaterEqual(v string) *AccountOperationQuery {
-	return q.w("phone_encrypted>='" + fmt.Sprint(v) + "'")
 }
 func (q *AccountOperationQuery) SmsScene_Equal(v string) *AccountOperationQuery {
 	return q.w("sms_scene='" + fmt.Sprint(v) + "'")
@@ -683,35 +622,11 @@ func (q *AccountOperationQuery) SmsScene_Equal(v string) *AccountOperationQuery 
 func (q *AccountOperationQuery) SmsScene_NotEqual(v string) *AccountOperationQuery {
 	return q.w("sms_scene<>'" + fmt.Sprint(v) + "'")
 }
-func (q *AccountOperationQuery) SmsScene_Less(v string) *AccountOperationQuery {
-	return q.w("sms_scene<'" + fmt.Sprint(v) + "'")
-}
-func (q *AccountOperationQuery) SmsScene_LessEqual(v string) *AccountOperationQuery {
-	return q.w("sms_scene<='" + fmt.Sprint(v) + "'")
-}
-func (q *AccountOperationQuery) SmsScene_Greater(v string) *AccountOperationQuery {
-	return q.w("sms_scene>'" + fmt.Sprint(v) + "'")
-}
-func (q *AccountOperationQuery) SmsScene_GreaterEqual(v string) *AccountOperationQuery {
-	return q.w("sms_scene>='" + fmt.Sprint(v) + "'")
-}
 func (q *AccountOperationQuery) OtherUserId_Equal(v string) *AccountOperationQuery {
 	return q.w("other_user_id='" + fmt.Sprint(v) + "'")
 }
 func (q *AccountOperationQuery) OtherUserId_NotEqual(v string) *AccountOperationQuery {
 	return q.w("other_user_id<>'" + fmt.Sprint(v) + "'")
-}
-func (q *AccountOperationQuery) OtherUserId_Less(v string) *AccountOperationQuery {
-	return q.w("other_user_id<'" + fmt.Sprint(v) + "'")
-}
-func (q *AccountOperationQuery) OtherUserId_LessEqual(v string) *AccountOperationQuery {
-	return q.w("other_user_id<='" + fmt.Sprint(v) + "'")
-}
-func (q *AccountOperationQuery) OtherUserId_Greater(v string) *AccountOperationQuery {
-	return q.w("other_user_id>'" + fmt.Sprint(v) + "'")
-}
-func (q *AccountOperationQuery) OtherUserId_GreaterEqual(v string) *AccountOperationQuery {
-	return q.w("other_user_id>='" + fmt.Sprint(v) + "'")
 }
 func (q *AccountOperationQuery) CreateTime_Equal(v time.Time) *AccountOperationQuery {
 	return q.w("create_time='" + fmt.Sprint(v) + "'")
@@ -736,7 +651,6 @@ type AccountOperationDao struct {
 	logger     *zap.Logger
 	db         *DB
 	insertStmt *wrap.Stmt
-	updateStmt *wrap.Stmt
 	deleteStmt *wrap.Stmt
 }
 
@@ -758,11 +672,6 @@ func (dao *AccountOperationDao) init() (err error) {
 		return err
 	}
 
-	err = dao.prepareUpdateStmt()
-	if err != nil {
-		return err
-	}
-
 	err = dao.prepareDeleteStmt()
 	if err != nil {
 		return err
@@ -773,11 +682,6 @@ func (dao *AccountOperationDao) init() (err error) {
 
 func (dao *AccountOperationDao) prepareInsertStmt() (err error) {
 	dao.insertStmt, err = dao.db.Prepare(context.Background(), "INSERT INTO account_operation (user_id,operationType,user_agent,phone_encrypted,sms_scene,other_user_id) VALUES (?,?,?,?,?,?)")
-	return err
-}
-
-func (dao *AccountOperationDao) prepareUpdateStmt() (err error) {
-	dao.updateStmt, err = dao.db.Prepare(context.Background(), "UPDATE account_operation SET user_id=?,operationType=?,user_agent=?,phone_encrypted=?,sms_scene=?,other_user_id=? WHERE id=?")
 	return err
 }
 
@@ -803,20 +707,6 @@ func (dao *AccountOperationDao) Insert(ctx context.Context, tx *wrap.Tx, e *Acco
 	}
 
 	return id, nil
-}
-
-func (dao *AccountOperationDao) Update(ctx context.Context, tx *wrap.Tx, e *AccountOperation) (err error) {
-	stmt := dao.updateStmt
-	if tx != nil {
-		stmt = tx.Stmt(ctx, stmt)
-	}
-
-	_, err = stmt.Exec(ctx, e.UserId, e.OperationType, e.UserAgent, e.PhoneEncrypted, e.SmsScene, e.OtherUserId, e.Id)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func (dao *AccountOperationDao) Delete(ctx context.Context, tx *wrap.Tx, id uint64) (err error) {
@@ -942,18 +832,6 @@ const OAUTH_ACCOUNT_FIELD_UPDATE_TIME = OAUTH_ACCOUNT_FIELD("update_time")
 
 const OAUTH_ACCOUNT_ALL_FIELDS_STRING = "id,user_id,providerId,provider_name,open_id,user_name,user_icon,create_time,update_time"
 
-var OAUTH_ACCOUNT_ALL_FIELDS = []string{
-	"id",
-	"user_id",
-	"providerId",
-	"provider_name",
-	"open_id",
-	"user_name",
-	"user_icon",
-	"create_time",
-	"update_time",
-}
-
 type OauthAccount struct {
 	Id           uint64 //size=20
 	UserId       string //size=32
@@ -1013,40 +891,22 @@ func (q *OauthAccountQuery) GroupBy(fields ...OAUTH_ACCOUNT_FIELD) *OauthAccount
 }
 
 func (q *OauthAccountQuery) Limit(startIncluded int64, count int64) *OauthAccountQuery {
-	q.limit = fmt.Sprintf(" limit %d,%d", startIncluded, count)
+	q.setLimit(startIncluded, count)
 	return q
 }
 
 func (q *OauthAccountQuery) OrderBy(fieldName OAUTH_ACCOUNT_FIELD, asc bool) *OauthAccountQuery {
-	if q.order != "" {
-		q.order += ","
-	}
-	q.order += string(fieldName) + " "
-	if asc {
-		q.order += "asc"
-	} else {
-		q.order += "desc"
-	}
-
+	q.orderBy(string(fieldName), asc)
 	return q
 }
 
 func (q *OauthAccountQuery) OrderByGroupCount(asc bool) *OauthAccountQuery {
-	if q.order != "" {
-		q.order += ","
-	}
-	q.order += "count(1) "
-	if asc {
-		q.order += "asc"
-	} else {
-		q.order += "desc"
-	}
-
+	q.orderByGroupCount(asc)
 	return q
 }
 
 func (q *OauthAccountQuery) w(format string, a ...interface{}) *OauthAccountQuery {
-	q.where += fmt.Sprintf(format, a...)
+	q.setWhere(format, a...)
 	return q
 }
 
@@ -1080,35 +940,11 @@ func (q *OauthAccountQuery) UserId_Equal(v string) *OauthAccountQuery {
 func (q *OauthAccountQuery) UserId_NotEqual(v string) *OauthAccountQuery {
 	return q.w("user_id<>'" + fmt.Sprint(v) + "'")
 }
-func (q *OauthAccountQuery) UserId_Less(v string) *OauthAccountQuery {
-	return q.w("user_id<'" + fmt.Sprint(v) + "'")
-}
-func (q *OauthAccountQuery) UserId_LessEqual(v string) *OauthAccountQuery {
-	return q.w("user_id<='" + fmt.Sprint(v) + "'")
-}
-func (q *OauthAccountQuery) UserId_Greater(v string) *OauthAccountQuery {
-	return q.w("user_id>'" + fmt.Sprint(v) + "'")
-}
-func (q *OauthAccountQuery) UserId_GreaterEqual(v string) *OauthAccountQuery {
-	return q.w("user_id>='" + fmt.Sprint(v) + "'")
-}
 func (q *OauthAccountQuery) ProviderId_Equal(v string) *OauthAccountQuery {
 	return q.w("providerId='" + fmt.Sprint(v) + "'")
 }
 func (q *OauthAccountQuery) ProviderId_NotEqual(v string) *OauthAccountQuery {
 	return q.w("providerId<>'" + fmt.Sprint(v) + "'")
-}
-func (q *OauthAccountQuery) ProviderId_Less(v string) *OauthAccountQuery {
-	return q.w("providerId<'" + fmt.Sprint(v) + "'")
-}
-func (q *OauthAccountQuery) ProviderId_LessEqual(v string) *OauthAccountQuery {
-	return q.w("providerId<='" + fmt.Sprint(v) + "'")
-}
-func (q *OauthAccountQuery) ProviderId_Greater(v string) *OauthAccountQuery {
-	return q.w("providerId>'" + fmt.Sprint(v) + "'")
-}
-func (q *OauthAccountQuery) ProviderId_GreaterEqual(v string) *OauthAccountQuery {
-	return q.w("providerId>='" + fmt.Sprint(v) + "'")
 }
 func (q *OauthAccountQuery) ProviderName_Equal(v string) *OauthAccountQuery {
 	return q.w("provider_name='" + fmt.Sprint(v) + "'")
@@ -1116,35 +952,11 @@ func (q *OauthAccountQuery) ProviderName_Equal(v string) *OauthAccountQuery {
 func (q *OauthAccountQuery) ProviderName_NotEqual(v string) *OauthAccountQuery {
 	return q.w("provider_name<>'" + fmt.Sprint(v) + "'")
 }
-func (q *OauthAccountQuery) ProviderName_Less(v string) *OauthAccountQuery {
-	return q.w("provider_name<'" + fmt.Sprint(v) + "'")
-}
-func (q *OauthAccountQuery) ProviderName_LessEqual(v string) *OauthAccountQuery {
-	return q.w("provider_name<='" + fmt.Sprint(v) + "'")
-}
-func (q *OauthAccountQuery) ProviderName_Greater(v string) *OauthAccountQuery {
-	return q.w("provider_name>'" + fmt.Sprint(v) + "'")
-}
-func (q *OauthAccountQuery) ProviderName_GreaterEqual(v string) *OauthAccountQuery {
-	return q.w("provider_name>='" + fmt.Sprint(v) + "'")
-}
 func (q *OauthAccountQuery) OpenId_Equal(v string) *OauthAccountQuery {
 	return q.w("open_id='" + fmt.Sprint(v) + "'")
 }
 func (q *OauthAccountQuery) OpenId_NotEqual(v string) *OauthAccountQuery {
 	return q.w("open_id<>'" + fmt.Sprint(v) + "'")
-}
-func (q *OauthAccountQuery) OpenId_Less(v string) *OauthAccountQuery {
-	return q.w("open_id<'" + fmt.Sprint(v) + "'")
-}
-func (q *OauthAccountQuery) OpenId_LessEqual(v string) *OauthAccountQuery {
-	return q.w("open_id<='" + fmt.Sprint(v) + "'")
-}
-func (q *OauthAccountQuery) OpenId_Greater(v string) *OauthAccountQuery {
-	return q.w("open_id>'" + fmt.Sprint(v) + "'")
-}
-func (q *OauthAccountQuery) OpenId_GreaterEqual(v string) *OauthAccountQuery {
-	return q.w("open_id>='" + fmt.Sprint(v) + "'")
 }
 func (q *OauthAccountQuery) UserName_Equal(v string) *OauthAccountQuery {
 	return q.w("user_name='" + fmt.Sprint(v) + "'")
@@ -1152,35 +964,11 @@ func (q *OauthAccountQuery) UserName_Equal(v string) *OauthAccountQuery {
 func (q *OauthAccountQuery) UserName_NotEqual(v string) *OauthAccountQuery {
 	return q.w("user_name<>'" + fmt.Sprint(v) + "'")
 }
-func (q *OauthAccountQuery) UserName_Less(v string) *OauthAccountQuery {
-	return q.w("user_name<'" + fmt.Sprint(v) + "'")
-}
-func (q *OauthAccountQuery) UserName_LessEqual(v string) *OauthAccountQuery {
-	return q.w("user_name<='" + fmt.Sprint(v) + "'")
-}
-func (q *OauthAccountQuery) UserName_Greater(v string) *OauthAccountQuery {
-	return q.w("user_name>'" + fmt.Sprint(v) + "'")
-}
-func (q *OauthAccountQuery) UserName_GreaterEqual(v string) *OauthAccountQuery {
-	return q.w("user_name>='" + fmt.Sprint(v) + "'")
-}
 func (q *OauthAccountQuery) UserIcon_Equal(v string) *OauthAccountQuery {
 	return q.w("user_icon='" + fmt.Sprint(v) + "'")
 }
 func (q *OauthAccountQuery) UserIcon_NotEqual(v string) *OauthAccountQuery {
 	return q.w("user_icon<>'" + fmt.Sprint(v) + "'")
-}
-func (q *OauthAccountQuery) UserIcon_Less(v string) *OauthAccountQuery {
-	return q.w("user_icon<'" + fmt.Sprint(v) + "'")
-}
-func (q *OauthAccountQuery) UserIcon_LessEqual(v string) *OauthAccountQuery {
-	return q.w("user_icon<='" + fmt.Sprint(v) + "'")
-}
-func (q *OauthAccountQuery) UserIcon_Greater(v string) *OauthAccountQuery {
-	return q.w("user_icon>'" + fmt.Sprint(v) + "'")
-}
-func (q *OauthAccountQuery) UserIcon_GreaterEqual(v string) *OauthAccountQuery {
-	return q.w("user_icon>='" + fmt.Sprint(v) + "'")
 }
 func (q *OauthAccountQuery) CreateTime_Equal(v time.Time) *OauthAccountQuery {
 	return q.w("create_time='" + fmt.Sprint(v) + "'")
@@ -1219,11 +1007,82 @@ func (q *OauthAccountQuery) UpdateTime_GreaterEqual(v time.Time) *OauthAccountQu
 	return q.w("update_time>='" + fmt.Sprint(v) + "'")
 }
 
+type OauthAccountUpdate struct {
+	dao    *OauthAccountDao
+	keys   []string
+	values []interface{}
+}
+
+func NewOauthAccountUpdate(dao *OauthAccountDao) *OauthAccountUpdate {
+	q := &OauthAccountUpdate{}
+	q.dao = dao
+	q.keys = make([]string, 0)
+	q.values = make([]interface{}, 0)
+
+	return q
+}
+
+func (u *OauthAccountUpdate) Update(ctx context.Context, tx *wrap.Tx, id uint64) (err error) {
+	if len(u.keys) == 0 {
+		err = fmt.Errorf("OauthAccountUpdate没有设置更新字段")
+		u.dao.logger.Error("OauthAccountUpdate", zap.Error(err))
+		return err
+	}
+	s := "UPDATE oauth_account SET " + strings.Join(u.keys, ",") + " WHERE id=?"
+	v := append(u.values, id)
+	if tx == nil {
+		_, err = u.dao.db.Exec(ctx, s, v)
+	} else {
+		_, err = tx.Exec(ctx, s, v)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (u *OauthAccountUpdate) UserId(v string) *OauthAccountUpdate {
+	u.keys = append(u.keys, "user_id=?")
+	u.values = append(u.values, v)
+	return u
+}
+
+func (u *OauthAccountUpdate) ProviderId(v string) *OauthAccountUpdate {
+	u.keys = append(u.keys, "providerId=?")
+	u.values = append(u.values, v)
+	return u
+}
+
+func (u *OauthAccountUpdate) ProviderName(v string) *OauthAccountUpdate {
+	u.keys = append(u.keys, "provider_name=?")
+	u.values = append(u.values, v)
+	return u
+}
+
+func (u *OauthAccountUpdate) OpenId(v string) *OauthAccountUpdate {
+	u.keys = append(u.keys, "open_id=?")
+	u.values = append(u.values, v)
+	return u
+}
+
+func (u *OauthAccountUpdate) UserName(v string) *OauthAccountUpdate {
+	u.keys = append(u.keys, "user_name=?")
+	u.values = append(u.values, v)
+	return u
+}
+
+func (u *OauthAccountUpdate) UserIcon(v string) *OauthAccountUpdate {
+	u.keys = append(u.keys, "user_icon=?")
+	u.values = append(u.values, v)
+	return u
+}
+
 type OauthAccountDao struct {
 	logger     *zap.Logger
 	db         *DB
 	insertStmt *wrap.Stmt
-	updateStmt *wrap.Stmt
 	deleteStmt *wrap.Stmt
 }
 
@@ -1245,11 +1104,6 @@ func (dao *OauthAccountDao) init() (err error) {
 		return err
 	}
 
-	err = dao.prepareUpdateStmt()
-	if err != nil {
-		return err
-	}
-
 	err = dao.prepareDeleteStmt()
 	if err != nil {
 		return err
@@ -1260,11 +1114,6 @@ func (dao *OauthAccountDao) init() (err error) {
 
 func (dao *OauthAccountDao) prepareInsertStmt() (err error) {
 	dao.insertStmt, err = dao.db.Prepare(context.Background(), "INSERT INTO oauth_account (user_id,providerId,provider_name,open_id,user_name,user_icon) VALUES (?,?,?,?,?,?)")
-	return err
-}
-
-func (dao *OauthAccountDao) prepareUpdateStmt() (err error) {
-	dao.updateStmt, err = dao.db.Prepare(context.Background(), "UPDATE oauth_account SET user_id=?,providerId=?,provider_name=?,open_id=?,user_name=?,user_icon=? WHERE id=?")
 	return err
 }
 
@@ -1290,20 +1139,6 @@ func (dao *OauthAccountDao) Insert(ctx context.Context, tx *wrap.Tx, e *OauthAcc
 	}
 
 	return id, nil
-}
-
-func (dao *OauthAccountDao) Update(ctx context.Context, tx *wrap.Tx, e *OauthAccount) (err error) {
-	stmt := dao.updateStmt
-	if tx != nil {
-		stmt = tx.Stmt(ctx, stmt)
-	}
-
-	_, err = stmt.Exec(ctx, e.UserId, e.ProviderId, e.ProviderName, e.OpenId, e.UserName, e.UserIcon, e.Id)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func (dao *OauthAccountDao) Delete(ctx context.Context, tx *wrap.Tx, id uint64) (err error) {
@@ -1413,6 +1248,10 @@ func (dao *OauthAccountDao) GetQuery() *OauthAccountQuery {
 	return NewOauthAccountQuery(dao)
 }
 
+func (dao *OauthAccountDao) GetUpdate() *OauthAccountUpdate {
+	return NewOauthAccountUpdate(dao)
+}
+
 const OAUTH_STATE_TABLE_NAME = "oauth_state"
 
 type OAUTH_STATE_FIELD string
@@ -1425,15 +1264,6 @@ const OAUTH_STATE_FIELD_CREATE_TIME = OAUTH_STATE_FIELD("create_time")
 const OAUTH_STATE_FIELD_UPDATE_TIME = OAUTH_STATE_FIELD("update_time")
 
 const OAUTH_STATE_ALL_FIELDS_STRING = "id,oauth_state,is_used,user_agent,create_time,update_time"
-
-var OAUTH_STATE_ALL_FIELDS = []string{
-	"id",
-	"oauth_state",
-	"is_used",
-	"user_agent",
-	"create_time",
-	"update_time",
-}
 
 type OauthState struct {
 	Id         uint64 //size=20
@@ -1491,40 +1321,22 @@ func (q *OauthStateQuery) GroupBy(fields ...OAUTH_STATE_FIELD) *OauthStateQuery 
 }
 
 func (q *OauthStateQuery) Limit(startIncluded int64, count int64) *OauthStateQuery {
-	q.limit = fmt.Sprintf(" limit %d,%d", startIncluded, count)
+	q.setLimit(startIncluded, count)
 	return q
 }
 
 func (q *OauthStateQuery) OrderBy(fieldName OAUTH_STATE_FIELD, asc bool) *OauthStateQuery {
-	if q.order != "" {
-		q.order += ","
-	}
-	q.order += string(fieldName) + " "
-	if asc {
-		q.order += "asc"
-	} else {
-		q.order += "desc"
-	}
-
+	q.orderBy(string(fieldName), asc)
 	return q
 }
 
 func (q *OauthStateQuery) OrderByGroupCount(asc bool) *OauthStateQuery {
-	if q.order != "" {
-		q.order += ","
-	}
-	q.order += "count(1) "
-	if asc {
-		q.order += "asc"
-	} else {
-		q.order += "desc"
-	}
-
+	q.orderByGroupCount(asc)
 	return q
 }
 
 func (q *OauthStateQuery) w(format string, a ...interface{}) *OauthStateQuery {
-	q.where += fmt.Sprintf(format, a...)
+	q.setWhere(format, a...)
 	return q
 }
 
@@ -1554,18 +1366,6 @@ func (q *OauthStateQuery) OauthState_Equal(v string) *OauthStateQuery {
 func (q *OauthStateQuery) OauthState_NotEqual(v string) *OauthStateQuery {
 	return q.w("oauth_state<>'" + fmt.Sprint(v) + "'")
 }
-func (q *OauthStateQuery) OauthState_Less(v string) *OauthStateQuery {
-	return q.w("oauth_state<'" + fmt.Sprint(v) + "'")
-}
-func (q *OauthStateQuery) OauthState_LessEqual(v string) *OauthStateQuery {
-	return q.w("oauth_state<='" + fmt.Sprint(v) + "'")
-}
-func (q *OauthStateQuery) OauthState_Greater(v string) *OauthStateQuery {
-	return q.w("oauth_state>'" + fmt.Sprint(v) + "'")
-}
-func (q *OauthStateQuery) OauthState_GreaterEqual(v string) *OauthStateQuery {
-	return q.w("oauth_state>='" + fmt.Sprint(v) + "'")
-}
 func (q *OauthStateQuery) IsUsed_Equal(v int32) *OauthStateQuery {
 	return q.w("is_used='" + fmt.Sprint(v) + "'")
 }
@@ -1589,18 +1389,6 @@ func (q *OauthStateQuery) UserAgent_Equal(v string) *OauthStateQuery {
 }
 func (q *OauthStateQuery) UserAgent_NotEqual(v string) *OauthStateQuery {
 	return q.w("user_agent<>'" + fmt.Sprint(v) + "'")
-}
-func (q *OauthStateQuery) UserAgent_Less(v string) *OauthStateQuery {
-	return q.w("user_agent<'" + fmt.Sprint(v) + "'")
-}
-func (q *OauthStateQuery) UserAgent_LessEqual(v string) *OauthStateQuery {
-	return q.w("user_agent<='" + fmt.Sprint(v) + "'")
-}
-func (q *OauthStateQuery) UserAgent_Greater(v string) *OauthStateQuery {
-	return q.w("user_agent>'" + fmt.Sprint(v) + "'")
-}
-func (q *OauthStateQuery) UserAgent_GreaterEqual(v string) *OauthStateQuery {
-	return q.w("user_agent>='" + fmt.Sprint(v) + "'")
 }
 func (q *OauthStateQuery) CreateTime_Equal(v time.Time) *OauthStateQuery {
 	return q.w("create_time='" + fmt.Sprint(v) + "'")
@@ -1639,11 +1427,64 @@ func (q *OauthStateQuery) UpdateTime_GreaterEqual(v time.Time) *OauthStateQuery 
 	return q.w("update_time>='" + fmt.Sprint(v) + "'")
 }
 
+type OauthStateUpdate struct {
+	dao    *OauthStateDao
+	keys   []string
+	values []interface{}
+}
+
+func NewOauthStateUpdate(dao *OauthStateDao) *OauthStateUpdate {
+	q := &OauthStateUpdate{}
+	q.dao = dao
+	q.keys = make([]string, 0)
+	q.values = make([]interface{}, 0)
+
+	return q
+}
+
+func (u *OauthStateUpdate) Update(ctx context.Context, tx *wrap.Tx, id uint64) (err error) {
+	if len(u.keys) == 0 {
+		err = fmt.Errorf("OauthStateUpdate没有设置更新字段")
+		u.dao.logger.Error("OauthStateUpdate", zap.Error(err))
+		return err
+	}
+	s := "UPDATE oauth_state SET " + strings.Join(u.keys, ",") + " WHERE id=?"
+	v := append(u.values, id)
+	if tx == nil {
+		_, err = u.dao.db.Exec(ctx, s, v)
+	} else {
+		_, err = tx.Exec(ctx, s, v)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (u *OauthStateUpdate) OauthState(v string) *OauthStateUpdate {
+	u.keys = append(u.keys, "oauth_state=?")
+	u.values = append(u.values, v)
+	return u
+}
+
+func (u *OauthStateUpdate) IsUsed(v int32) *OauthStateUpdate {
+	u.keys = append(u.keys, "is_used=?")
+	u.values = append(u.values, v)
+	return u
+}
+
+func (u *OauthStateUpdate) UserAgent(v string) *OauthStateUpdate {
+	u.keys = append(u.keys, "user_agent=?")
+	u.values = append(u.values, v)
+	return u
+}
+
 type OauthStateDao struct {
 	logger     *zap.Logger
 	db         *DB
 	insertStmt *wrap.Stmt
-	updateStmt *wrap.Stmt
 	deleteStmt *wrap.Stmt
 }
 
@@ -1665,11 +1506,6 @@ func (dao *OauthStateDao) init() (err error) {
 		return err
 	}
 
-	err = dao.prepareUpdateStmt()
-	if err != nil {
-		return err
-	}
-
 	err = dao.prepareDeleteStmt()
 	if err != nil {
 		return err
@@ -1680,11 +1516,6 @@ func (dao *OauthStateDao) init() (err error) {
 
 func (dao *OauthStateDao) prepareInsertStmt() (err error) {
 	dao.insertStmt, err = dao.db.Prepare(context.Background(), "INSERT INTO oauth_state (oauth_state,is_used,user_agent) VALUES (?,?,?)")
-	return err
-}
-
-func (dao *OauthStateDao) prepareUpdateStmt() (err error) {
-	dao.updateStmt, err = dao.db.Prepare(context.Background(), "UPDATE oauth_state SET oauth_state=?,is_used=?,user_agent=? WHERE id=?")
 	return err
 }
 
@@ -1710,20 +1541,6 @@ func (dao *OauthStateDao) Insert(ctx context.Context, tx *wrap.Tx, e *OauthState
 	}
 
 	return id, nil
-}
-
-func (dao *OauthStateDao) Update(ctx context.Context, tx *wrap.Tx, e *OauthState) (err error) {
-	stmt := dao.updateStmt
-	if tx != nil {
-		stmt = tx.Stmt(ctx, stmt)
-	}
-
-	_, err = stmt.Exec(ctx, e.OauthState, e.IsUsed, e.UserAgent, e.Id)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func (dao *OauthStateDao) Delete(ctx context.Context, tx *wrap.Tx, id uint64) (err error) {
@@ -1833,6 +1650,10 @@ func (dao *OauthStateDao) GetQuery() *OauthStateQuery {
 	return NewOauthStateQuery(dao)
 }
 
+func (dao *OauthStateDao) GetUpdate() *OauthStateUpdate {
+	return NewOauthStateUpdate(dao)
+}
+
 const PHONE_ACCOUNT_TABLE_NAME = "phone_account"
 
 type PHONE_ACCOUNT_FIELD string
@@ -1844,14 +1665,6 @@ const PHONE_ACCOUNT_FIELD_CREATE_TIME = PHONE_ACCOUNT_FIELD("create_time")
 const PHONE_ACCOUNT_FIELD_UPDATE_TIME = PHONE_ACCOUNT_FIELD("update_time")
 
 const PHONE_ACCOUNT_ALL_FIELDS_STRING = "id,user_id,phone_encrypted,create_time,update_time"
-
-var PHONE_ACCOUNT_ALL_FIELDS = []string{
-	"id",
-	"user_id",
-	"phone_encrypted",
-	"create_time",
-	"update_time",
-}
 
 type PhoneAccount struct {
 	Id             uint64 //size=20
@@ -1908,40 +1721,22 @@ func (q *PhoneAccountQuery) GroupBy(fields ...PHONE_ACCOUNT_FIELD) *PhoneAccount
 }
 
 func (q *PhoneAccountQuery) Limit(startIncluded int64, count int64) *PhoneAccountQuery {
-	q.limit = fmt.Sprintf(" limit %d,%d", startIncluded, count)
+	q.setLimit(startIncluded, count)
 	return q
 }
 
 func (q *PhoneAccountQuery) OrderBy(fieldName PHONE_ACCOUNT_FIELD, asc bool) *PhoneAccountQuery {
-	if q.order != "" {
-		q.order += ","
-	}
-	q.order += string(fieldName) + " "
-	if asc {
-		q.order += "asc"
-	} else {
-		q.order += "desc"
-	}
-
+	q.orderBy(string(fieldName), asc)
 	return q
 }
 
 func (q *PhoneAccountQuery) OrderByGroupCount(asc bool) *PhoneAccountQuery {
-	if q.order != "" {
-		q.order += ","
-	}
-	q.order += "count(1) "
-	if asc {
-		q.order += "asc"
-	} else {
-		q.order += "desc"
-	}
-
+	q.orderByGroupCount(asc)
 	return q
 }
 
 func (q *PhoneAccountQuery) w(format string, a ...interface{}) *PhoneAccountQuery {
-	q.where += fmt.Sprintf(format, a...)
+	q.setWhere(format, a...)
 	return q
 }
 
@@ -1975,35 +1770,11 @@ func (q *PhoneAccountQuery) UserId_Equal(v string) *PhoneAccountQuery {
 func (q *PhoneAccountQuery) UserId_NotEqual(v string) *PhoneAccountQuery {
 	return q.w("user_id<>'" + fmt.Sprint(v) + "'")
 }
-func (q *PhoneAccountQuery) UserId_Less(v string) *PhoneAccountQuery {
-	return q.w("user_id<'" + fmt.Sprint(v) + "'")
-}
-func (q *PhoneAccountQuery) UserId_LessEqual(v string) *PhoneAccountQuery {
-	return q.w("user_id<='" + fmt.Sprint(v) + "'")
-}
-func (q *PhoneAccountQuery) UserId_Greater(v string) *PhoneAccountQuery {
-	return q.w("user_id>'" + fmt.Sprint(v) + "'")
-}
-func (q *PhoneAccountQuery) UserId_GreaterEqual(v string) *PhoneAccountQuery {
-	return q.w("user_id>='" + fmt.Sprint(v) + "'")
-}
 func (q *PhoneAccountQuery) PhoneEncrypted_Equal(v string) *PhoneAccountQuery {
 	return q.w("phone_encrypted='" + fmt.Sprint(v) + "'")
 }
 func (q *PhoneAccountQuery) PhoneEncrypted_NotEqual(v string) *PhoneAccountQuery {
 	return q.w("phone_encrypted<>'" + fmt.Sprint(v) + "'")
-}
-func (q *PhoneAccountQuery) PhoneEncrypted_Less(v string) *PhoneAccountQuery {
-	return q.w("phone_encrypted<'" + fmt.Sprint(v) + "'")
-}
-func (q *PhoneAccountQuery) PhoneEncrypted_LessEqual(v string) *PhoneAccountQuery {
-	return q.w("phone_encrypted<='" + fmt.Sprint(v) + "'")
-}
-func (q *PhoneAccountQuery) PhoneEncrypted_Greater(v string) *PhoneAccountQuery {
-	return q.w("phone_encrypted>'" + fmt.Sprint(v) + "'")
-}
-func (q *PhoneAccountQuery) PhoneEncrypted_GreaterEqual(v string) *PhoneAccountQuery {
-	return q.w("phone_encrypted>='" + fmt.Sprint(v) + "'")
 }
 func (q *PhoneAccountQuery) CreateTime_Equal(v time.Time) *PhoneAccountQuery {
 	return q.w("create_time='" + fmt.Sprint(v) + "'")
@@ -2042,11 +1813,58 @@ func (q *PhoneAccountQuery) UpdateTime_GreaterEqual(v time.Time) *PhoneAccountQu
 	return q.w("update_time>='" + fmt.Sprint(v) + "'")
 }
 
+type PhoneAccountUpdate struct {
+	dao    *PhoneAccountDao
+	keys   []string
+	values []interface{}
+}
+
+func NewPhoneAccountUpdate(dao *PhoneAccountDao) *PhoneAccountUpdate {
+	q := &PhoneAccountUpdate{}
+	q.dao = dao
+	q.keys = make([]string, 0)
+	q.values = make([]interface{}, 0)
+
+	return q
+}
+
+func (u *PhoneAccountUpdate) Update(ctx context.Context, tx *wrap.Tx, id uint64) (err error) {
+	if len(u.keys) == 0 {
+		err = fmt.Errorf("PhoneAccountUpdate没有设置更新字段")
+		u.dao.logger.Error("PhoneAccountUpdate", zap.Error(err))
+		return err
+	}
+	s := "UPDATE phone_account SET " + strings.Join(u.keys, ",") + " WHERE id=?"
+	v := append(u.values, id)
+	if tx == nil {
+		_, err = u.dao.db.Exec(ctx, s, v)
+	} else {
+		_, err = tx.Exec(ctx, s, v)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (u *PhoneAccountUpdate) UserId(v string) *PhoneAccountUpdate {
+	u.keys = append(u.keys, "user_id=?")
+	u.values = append(u.values, v)
+	return u
+}
+
+func (u *PhoneAccountUpdate) PhoneEncrypted(v string) *PhoneAccountUpdate {
+	u.keys = append(u.keys, "phone_encrypted=?")
+	u.values = append(u.values, v)
+	return u
+}
+
 type PhoneAccountDao struct {
 	logger     *zap.Logger
 	db         *DB
 	insertStmt *wrap.Stmt
-	updateStmt *wrap.Stmt
 	deleteStmt *wrap.Stmt
 }
 
@@ -2068,11 +1886,6 @@ func (dao *PhoneAccountDao) init() (err error) {
 		return err
 	}
 
-	err = dao.prepareUpdateStmt()
-	if err != nil {
-		return err
-	}
-
 	err = dao.prepareDeleteStmt()
 	if err != nil {
 		return err
@@ -2083,11 +1896,6 @@ func (dao *PhoneAccountDao) init() (err error) {
 
 func (dao *PhoneAccountDao) prepareInsertStmt() (err error) {
 	dao.insertStmt, err = dao.db.Prepare(context.Background(), "INSERT INTO phone_account (user_id,phone_encrypted) VALUES (?,?)")
-	return err
-}
-
-func (dao *PhoneAccountDao) prepareUpdateStmt() (err error) {
-	dao.updateStmt, err = dao.db.Prepare(context.Background(), "UPDATE phone_account SET user_id=?,phone_encrypted=? WHERE id=?")
 	return err
 }
 
@@ -2113,20 +1921,6 @@ func (dao *PhoneAccountDao) Insert(ctx context.Context, tx *wrap.Tx, e *PhoneAcc
 	}
 
 	return id, nil
-}
-
-func (dao *PhoneAccountDao) Update(ctx context.Context, tx *wrap.Tx, e *PhoneAccount) (err error) {
-	stmt := dao.updateStmt
-	if tx != nil {
-		stmt = tx.Stmt(ctx, stmt)
-	}
-
-	_, err = stmt.Exec(ctx, e.UserId, e.PhoneEncrypted, e.Id)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func (dao *PhoneAccountDao) Delete(ctx context.Context, tx *wrap.Tx, id uint64) (err error) {
@@ -2236,6 +2030,10 @@ func (dao *PhoneAccountDao) GetQuery() *PhoneAccountQuery {
 	return NewPhoneAccountQuery(dao)
 }
 
+func (dao *PhoneAccountDao) GetUpdate() *PhoneAccountUpdate {
+	return NewPhoneAccountUpdate(dao)
+}
+
 const REFRESH_TOKEN_TABLE_NAME = "refresh_token"
 
 type REFRESH_TOKEN_FIELD string
@@ -2249,16 +2047,6 @@ const REFRESH_TOKEN_FIELD_CREATE_TIME = REFRESH_TOKEN_FIELD("create_time")
 const REFRESH_TOKEN_FIELD_UPDATE_TIME = REFRESH_TOKEN_FIELD("update_time")
 
 const REFRESH_TOKEN_ALL_FIELDS_STRING = "id,user_id,refresh_token,is_logout,logout_time,create_time,update_time"
-
-var REFRESH_TOKEN_ALL_FIELDS = []string{
-	"id",
-	"user_id",
-	"refresh_token",
-	"is_logout",
-	"logout_time",
-	"create_time",
-	"update_time",
-}
 
 type RefreshToken struct {
 	Id           uint64 //size=20
@@ -2317,40 +2105,22 @@ func (q *RefreshTokenQuery) GroupBy(fields ...REFRESH_TOKEN_FIELD) *RefreshToken
 }
 
 func (q *RefreshTokenQuery) Limit(startIncluded int64, count int64) *RefreshTokenQuery {
-	q.limit = fmt.Sprintf(" limit %d,%d", startIncluded, count)
+	q.setLimit(startIncluded, count)
 	return q
 }
 
 func (q *RefreshTokenQuery) OrderBy(fieldName REFRESH_TOKEN_FIELD, asc bool) *RefreshTokenQuery {
-	if q.order != "" {
-		q.order += ","
-	}
-	q.order += string(fieldName) + " "
-	if asc {
-		q.order += "asc"
-	} else {
-		q.order += "desc"
-	}
-
+	q.orderBy(string(fieldName), asc)
 	return q
 }
 
 func (q *RefreshTokenQuery) OrderByGroupCount(asc bool) *RefreshTokenQuery {
-	if q.order != "" {
-		q.order += ","
-	}
-	q.order += "count(1) "
-	if asc {
-		q.order += "asc"
-	} else {
-		q.order += "desc"
-	}
-
+	q.orderByGroupCount(asc)
 	return q
 }
 
 func (q *RefreshTokenQuery) w(format string, a ...interface{}) *RefreshTokenQuery {
-	q.where += fmt.Sprintf(format, a...)
+	q.setWhere(format, a...)
 	return q
 }
 
@@ -2384,35 +2154,11 @@ func (q *RefreshTokenQuery) UserId_Equal(v string) *RefreshTokenQuery {
 func (q *RefreshTokenQuery) UserId_NotEqual(v string) *RefreshTokenQuery {
 	return q.w("user_id<>'" + fmt.Sprint(v) + "'")
 }
-func (q *RefreshTokenQuery) UserId_Less(v string) *RefreshTokenQuery {
-	return q.w("user_id<'" + fmt.Sprint(v) + "'")
-}
-func (q *RefreshTokenQuery) UserId_LessEqual(v string) *RefreshTokenQuery {
-	return q.w("user_id<='" + fmt.Sprint(v) + "'")
-}
-func (q *RefreshTokenQuery) UserId_Greater(v string) *RefreshTokenQuery {
-	return q.w("user_id>'" + fmt.Sprint(v) + "'")
-}
-func (q *RefreshTokenQuery) UserId_GreaterEqual(v string) *RefreshTokenQuery {
-	return q.w("user_id>='" + fmt.Sprint(v) + "'")
-}
 func (q *RefreshTokenQuery) RefreshToken_Equal(v string) *RefreshTokenQuery {
 	return q.w("refresh_token='" + fmt.Sprint(v) + "'")
 }
 func (q *RefreshTokenQuery) RefreshToken_NotEqual(v string) *RefreshTokenQuery {
 	return q.w("refresh_token<>'" + fmt.Sprint(v) + "'")
-}
-func (q *RefreshTokenQuery) RefreshToken_Less(v string) *RefreshTokenQuery {
-	return q.w("refresh_token<'" + fmt.Sprint(v) + "'")
-}
-func (q *RefreshTokenQuery) RefreshToken_LessEqual(v string) *RefreshTokenQuery {
-	return q.w("refresh_token<='" + fmt.Sprint(v) + "'")
-}
-func (q *RefreshTokenQuery) RefreshToken_Greater(v string) *RefreshTokenQuery {
-	return q.w("refresh_token>'" + fmt.Sprint(v) + "'")
-}
-func (q *RefreshTokenQuery) RefreshToken_GreaterEqual(v string) *RefreshTokenQuery {
-	return q.w("refresh_token>='" + fmt.Sprint(v) + "'")
 }
 func (q *RefreshTokenQuery) IsLogout_Equal(v int32) *RefreshTokenQuery {
 	return q.w("is_logout='" + fmt.Sprint(v) + "'")
@@ -2487,11 +2233,70 @@ func (q *RefreshTokenQuery) UpdateTime_GreaterEqual(v time.Time) *RefreshTokenQu
 	return q.w("update_time>='" + fmt.Sprint(v) + "'")
 }
 
+type RefreshTokenUpdate struct {
+	dao    *RefreshTokenDao
+	keys   []string
+	values []interface{}
+}
+
+func NewRefreshTokenUpdate(dao *RefreshTokenDao) *RefreshTokenUpdate {
+	q := &RefreshTokenUpdate{}
+	q.dao = dao
+	q.keys = make([]string, 0)
+	q.values = make([]interface{}, 0)
+
+	return q
+}
+
+func (u *RefreshTokenUpdate) Update(ctx context.Context, tx *wrap.Tx, id uint64) (err error) {
+	if len(u.keys) == 0 {
+		err = fmt.Errorf("RefreshTokenUpdate没有设置更新字段")
+		u.dao.logger.Error("RefreshTokenUpdate", zap.Error(err))
+		return err
+	}
+	s := "UPDATE refresh_token SET " + strings.Join(u.keys, ",") + " WHERE id=?"
+	v := append(u.values, id)
+	if tx == nil {
+		_, err = u.dao.db.Exec(ctx, s, v)
+	} else {
+		_, err = tx.Exec(ctx, s, v)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (u *RefreshTokenUpdate) UserId(v string) *RefreshTokenUpdate {
+	u.keys = append(u.keys, "user_id=?")
+	u.values = append(u.values, v)
+	return u
+}
+
+func (u *RefreshTokenUpdate) RefreshToken(v string) *RefreshTokenUpdate {
+	u.keys = append(u.keys, "refresh_token=?")
+	u.values = append(u.values, v)
+	return u
+}
+
+func (u *RefreshTokenUpdate) IsLogout(v int32) *RefreshTokenUpdate {
+	u.keys = append(u.keys, "is_logout=?")
+	u.values = append(u.values, v)
+	return u
+}
+
+func (u *RefreshTokenUpdate) LogoutTime(v time.Time) *RefreshTokenUpdate {
+	u.keys = append(u.keys, "logout_time=?")
+	u.values = append(u.values, v)
+	return u
+}
+
 type RefreshTokenDao struct {
 	logger     *zap.Logger
 	db         *DB
 	insertStmt *wrap.Stmt
-	updateStmt *wrap.Stmt
 	deleteStmt *wrap.Stmt
 }
 
@@ -2513,11 +2318,6 @@ func (dao *RefreshTokenDao) init() (err error) {
 		return err
 	}
 
-	err = dao.prepareUpdateStmt()
-	if err != nil {
-		return err
-	}
-
 	err = dao.prepareDeleteStmt()
 	if err != nil {
 		return err
@@ -2528,11 +2328,6 @@ func (dao *RefreshTokenDao) init() (err error) {
 
 func (dao *RefreshTokenDao) prepareInsertStmt() (err error) {
 	dao.insertStmt, err = dao.db.Prepare(context.Background(), "INSERT INTO refresh_token (user_id,refresh_token,is_logout,logout_time) VALUES (?,?,?,?)")
-	return err
-}
-
-func (dao *RefreshTokenDao) prepareUpdateStmt() (err error) {
-	dao.updateStmt, err = dao.db.Prepare(context.Background(), "UPDATE refresh_token SET user_id=?,refresh_token=?,is_logout=?,logout_time=? WHERE id=?")
 	return err
 }
 
@@ -2558,20 +2353,6 @@ func (dao *RefreshTokenDao) Insert(ctx context.Context, tx *wrap.Tx, e *RefreshT
 	}
 
 	return id, nil
-}
-
-func (dao *RefreshTokenDao) Update(ctx context.Context, tx *wrap.Tx, e *RefreshToken) (err error) {
-	stmt := dao.updateStmt
-	if tx != nil {
-		stmt = tx.Stmt(ctx, stmt)
-	}
-
-	_, err = stmt.Exec(ctx, e.UserId, e.RefreshToken, e.IsLogout, e.LogoutTime, e.Id)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func (dao *RefreshTokenDao) Delete(ctx context.Context, tx *wrap.Tx, id uint64) (err error) {
@@ -2681,6 +2462,10 @@ func (dao *RefreshTokenDao) GetQuery() *RefreshTokenQuery {
 	return NewRefreshTokenQuery(dao)
 }
 
+func (dao *RefreshTokenDao) GetUpdate() *RefreshTokenUpdate {
+	return NewRefreshTokenUpdate(dao)
+}
+
 const SMS_CODE_TABLE_NAME = "sms_code"
 
 type SMS_CODE_FIELD string
@@ -2694,16 +2479,6 @@ const SMS_CODE_FIELD_CREATE_TIME = SMS_CODE_FIELD("create_time")
 const SMS_CODE_FIELD_UPDATE_TIME = SMS_CODE_FIELD("update_time")
 
 const SMS_CODE_ALL_FIELDS_STRING = "id,sms_scene,phone_encrypted,sms_code,user_id,create_time,update_time"
-
-var SMS_CODE_ALL_FIELDS = []string{
-	"id",
-	"sms_scene",
-	"phone_encrypted",
-	"sms_code",
-	"user_id",
-	"create_time",
-	"update_time",
-}
 
 type SmsCode struct {
 	Id             uint64 //size=20
@@ -2762,40 +2537,22 @@ func (q *SmsCodeQuery) GroupBy(fields ...SMS_CODE_FIELD) *SmsCodeQuery {
 }
 
 func (q *SmsCodeQuery) Limit(startIncluded int64, count int64) *SmsCodeQuery {
-	q.limit = fmt.Sprintf(" limit %d,%d", startIncluded, count)
+	q.setLimit(startIncluded, count)
 	return q
 }
 
 func (q *SmsCodeQuery) OrderBy(fieldName SMS_CODE_FIELD, asc bool) *SmsCodeQuery {
-	if q.order != "" {
-		q.order += ","
-	}
-	q.order += string(fieldName) + " "
-	if asc {
-		q.order += "asc"
-	} else {
-		q.order += "desc"
-	}
-
+	q.orderBy(string(fieldName), asc)
 	return q
 }
 
 func (q *SmsCodeQuery) OrderByGroupCount(asc bool) *SmsCodeQuery {
-	if q.order != "" {
-		q.order += ","
-	}
-	q.order += "count(1) "
-	if asc {
-		q.order += "asc"
-	} else {
-		q.order += "desc"
-	}
-
+	q.orderByGroupCount(asc)
 	return q
 }
 
 func (q *SmsCodeQuery) w(format string, a ...interface{}) *SmsCodeQuery {
-	q.where += fmt.Sprintf(format, a...)
+	q.setWhere(format, a...)
 	return q
 }
 
@@ -2819,35 +2576,11 @@ func (q *SmsCodeQuery) SmsScene_Equal(v string) *SmsCodeQuery {
 func (q *SmsCodeQuery) SmsScene_NotEqual(v string) *SmsCodeQuery {
 	return q.w("sms_scene<>'" + fmt.Sprint(v) + "'")
 }
-func (q *SmsCodeQuery) SmsScene_Less(v string) *SmsCodeQuery {
-	return q.w("sms_scene<'" + fmt.Sprint(v) + "'")
-}
-func (q *SmsCodeQuery) SmsScene_LessEqual(v string) *SmsCodeQuery {
-	return q.w("sms_scene<='" + fmt.Sprint(v) + "'")
-}
-func (q *SmsCodeQuery) SmsScene_Greater(v string) *SmsCodeQuery {
-	return q.w("sms_scene>'" + fmt.Sprint(v) + "'")
-}
-func (q *SmsCodeQuery) SmsScene_GreaterEqual(v string) *SmsCodeQuery {
-	return q.w("sms_scene>='" + fmt.Sprint(v) + "'")
-}
 func (q *SmsCodeQuery) PhoneEncrypted_Equal(v string) *SmsCodeQuery {
 	return q.w("phone_encrypted='" + fmt.Sprint(v) + "'")
 }
 func (q *SmsCodeQuery) PhoneEncrypted_NotEqual(v string) *SmsCodeQuery {
 	return q.w("phone_encrypted<>'" + fmt.Sprint(v) + "'")
-}
-func (q *SmsCodeQuery) PhoneEncrypted_Less(v string) *SmsCodeQuery {
-	return q.w("phone_encrypted<'" + fmt.Sprint(v) + "'")
-}
-func (q *SmsCodeQuery) PhoneEncrypted_LessEqual(v string) *SmsCodeQuery {
-	return q.w("phone_encrypted<='" + fmt.Sprint(v) + "'")
-}
-func (q *SmsCodeQuery) PhoneEncrypted_Greater(v string) *SmsCodeQuery {
-	return q.w("phone_encrypted>'" + fmt.Sprint(v) + "'")
-}
-func (q *SmsCodeQuery) PhoneEncrypted_GreaterEqual(v string) *SmsCodeQuery {
-	return q.w("phone_encrypted>='" + fmt.Sprint(v) + "'")
 }
 func (q *SmsCodeQuery) SmsCode_Equal(v string) *SmsCodeQuery {
 	return q.w("sms_code='" + fmt.Sprint(v) + "'")
@@ -2855,35 +2588,11 @@ func (q *SmsCodeQuery) SmsCode_Equal(v string) *SmsCodeQuery {
 func (q *SmsCodeQuery) SmsCode_NotEqual(v string) *SmsCodeQuery {
 	return q.w("sms_code<>'" + fmt.Sprint(v) + "'")
 }
-func (q *SmsCodeQuery) SmsCode_Less(v string) *SmsCodeQuery {
-	return q.w("sms_code<'" + fmt.Sprint(v) + "'")
-}
-func (q *SmsCodeQuery) SmsCode_LessEqual(v string) *SmsCodeQuery {
-	return q.w("sms_code<='" + fmt.Sprint(v) + "'")
-}
-func (q *SmsCodeQuery) SmsCode_Greater(v string) *SmsCodeQuery {
-	return q.w("sms_code>'" + fmt.Sprint(v) + "'")
-}
-func (q *SmsCodeQuery) SmsCode_GreaterEqual(v string) *SmsCodeQuery {
-	return q.w("sms_code>='" + fmt.Sprint(v) + "'")
-}
 func (q *SmsCodeQuery) UserId_Equal(v string) *SmsCodeQuery {
 	return q.w("user_id='" + fmt.Sprint(v) + "'")
 }
 func (q *SmsCodeQuery) UserId_NotEqual(v string) *SmsCodeQuery {
 	return q.w("user_id<>'" + fmt.Sprint(v) + "'")
-}
-func (q *SmsCodeQuery) UserId_Less(v string) *SmsCodeQuery {
-	return q.w("user_id<'" + fmt.Sprint(v) + "'")
-}
-func (q *SmsCodeQuery) UserId_LessEqual(v string) *SmsCodeQuery {
-	return q.w("user_id<='" + fmt.Sprint(v) + "'")
-}
-func (q *SmsCodeQuery) UserId_Greater(v string) *SmsCodeQuery {
-	return q.w("user_id>'" + fmt.Sprint(v) + "'")
-}
-func (q *SmsCodeQuery) UserId_GreaterEqual(v string) *SmsCodeQuery {
-	return q.w("user_id>='" + fmt.Sprint(v) + "'")
 }
 func (q *SmsCodeQuery) CreateTime_Equal(v time.Time) *SmsCodeQuery {
 	return q.w("create_time='" + fmt.Sprint(v) + "'")
@@ -2922,11 +2631,70 @@ func (q *SmsCodeQuery) UpdateTime_GreaterEqual(v time.Time) *SmsCodeQuery {
 	return q.w("update_time>='" + fmt.Sprint(v) + "'")
 }
 
+type SmsCodeUpdate struct {
+	dao    *SmsCodeDao
+	keys   []string
+	values []interface{}
+}
+
+func NewSmsCodeUpdate(dao *SmsCodeDao) *SmsCodeUpdate {
+	q := &SmsCodeUpdate{}
+	q.dao = dao
+	q.keys = make([]string, 0)
+	q.values = make([]interface{}, 0)
+
+	return q
+}
+
+func (u *SmsCodeUpdate) Update(ctx context.Context, tx *wrap.Tx, id uint64) (err error) {
+	if len(u.keys) == 0 {
+		err = fmt.Errorf("SmsCodeUpdate没有设置更新字段")
+		u.dao.logger.Error("SmsCodeUpdate", zap.Error(err))
+		return err
+	}
+	s := "UPDATE sms_code SET " + strings.Join(u.keys, ",") + " WHERE id=?"
+	v := append(u.values, id)
+	if tx == nil {
+		_, err = u.dao.db.Exec(ctx, s, v)
+	} else {
+		_, err = tx.Exec(ctx, s, v)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (u *SmsCodeUpdate) SmsScene(v string) *SmsCodeUpdate {
+	u.keys = append(u.keys, "sms_scene=?")
+	u.values = append(u.values, v)
+	return u
+}
+
+func (u *SmsCodeUpdate) PhoneEncrypted(v string) *SmsCodeUpdate {
+	u.keys = append(u.keys, "phone_encrypted=?")
+	u.values = append(u.values, v)
+	return u
+}
+
+func (u *SmsCodeUpdate) SmsCode(v string) *SmsCodeUpdate {
+	u.keys = append(u.keys, "sms_code=?")
+	u.values = append(u.values, v)
+	return u
+}
+
+func (u *SmsCodeUpdate) UserId(v string) *SmsCodeUpdate {
+	u.keys = append(u.keys, "user_id=?")
+	u.values = append(u.values, v)
+	return u
+}
+
 type SmsCodeDao struct {
 	logger     *zap.Logger
 	db         *DB
 	insertStmt *wrap.Stmt
-	updateStmt *wrap.Stmt
 	deleteStmt *wrap.Stmt
 }
 
@@ -2948,11 +2716,6 @@ func (dao *SmsCodeDao) init() (err error) {
 		return err
 	}
 
-	err = dao.prepareUpdateStmt()
-	if err != nil {
-		return err
-	}
-
 	err = dao.prepareDeleteStmt()
 	if err != nil {
 		return err
@@ -2963,11 +2726,6 @@ func (dao *SmsCodeDao) init() (err error) {
 
 func (dao *SmsCodeDao) prepareInsertStmt() (err error) {
 	dao.insertStmt, err = dao.db.Prepare(context.Background(), "INSERT INTO sms_code (sms_scene,phone_encrypted,sms_code,user_id) VALUES (?,?,?,?)")
-	return err
-}
-
-func (dao *SmsCodeDao) prepareUpdateStmt() (err error) {
-	dao.updateStmt, err = dao.db.Prepare(context.Background(), "UPDATE sms_code SET sms_scene=?,phone_encrypted=?,sms_code=?,user_id=? WHERE id=?")
 	return err
 }
 
@@ -2993,20 +2751,6 @@ func (dao *SmsCodeDao) Insert(ctx context.Context, tx *wrap.Tx, e *SmsCode) (id 
 	}
 
 	return id, nil
-}
-
-func (dao *SmsCodeDao) Update(ctx context.Context, tx *wrap.Tx, e *SmsCode) (err error) {
-	stmt := dao.updateStmt
-	if tx != nil {
-		stmt = tx.Stmt(ctx, stmt)
-	}
-
-	_, err = stmt.Exec(ctx, e.SmsScene, e.PhoneEncrypted, e.SmsCode, e.UserId, e.Id)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func (dao *SmsCodeDao) Delete(ctx context.Context, tx *wrap.Tx, id uint64) (err error) {
@@ -3116,6 +2860,10 @@ func (dao *SmsCodeDao) GetQuery() *SmsCodeQuery {
 	return NewSmsCodeQuery(dao)
 }
 
+func (dao *SmsCodeDao) GetUpdate() *SmsCodeUpdate {
+	return NewSmsCodeUpdate(dao)
+}
+
 const USER_INFO_TABLE_NAME = "user_info"
 
 type USER_INFO_FIELD string
@@ -3128,15 +2876,6 @@ const USER_INFO_FIELD_CREATE_TIME = USER_INFO_FIELD("create_time")
 const USER_INFO_FIELD_UPDATE_TIME = USER_INFO_FIELD("update_time")
 
 const USER_INFO_ALL_FIELDS_STRING = "id,user_id,user_name,user_icon,create_time,update_time"
-
-var USER_INFO_ALL_FIELDS = []string{
-	"id",
-	"user_id",
-	"user_name",
-	"user_icon",
-	"create_time",
-	"update_time",
-}
 
 type UserInfo struct {
 	Id         uint64 //size=20
@@ -3194,40 +2933,22 @@ func (q *UserInfoQuery) GroupBy(fields ...USER_INFO_FIELD) *UserInfoQuery {
 }
 
 func (q *UserInfoQuery) Limit(startIncluded int64, count int64) *UserInfoQuery {
-	q.limit = fmt.Sprintf(" limit %d,%d", startIncluded, count)
+	q.setLimit(startIncluded, count)
 	return q
 }
 
 func (q *UserInfoQuery) OrderBy(fieldName USER_INFO_FIELD, asc bool) *UserInfoQuery {
-	if q.order != "" {
-		q.order += ","
-	}
-	q.order += string(fieldName) + " "
-	if asc {
-		q.order += "asc"
-	} else {
-		q.order += "desc"
-	}
-
+	q.orderBy(string(fieldName), asc)
 	return q
 }
 
 func (q *UserInfoQuery) OrderByGroupCount(asc bool) *UserInfoQuery {
-	if q.order != "" {
-		q.order += ","
-	}
-	q.order += "count(1) "
-	if asc {
-		q.order += "asc"
-	} else {
-		q.order += "desc"
-	}
-
+	q.orderByGroupCount(asc)
 	return q
 }
 
 func (q *UserInfoQuery) w(format string, a ...interface{}) *UserInfoQuery {
-	q.where += fmt.Sprintf(format, a...)
+	q.setWhere(format, a...)
 	return q
 }
 
@@ -3251,53 +2972,17 @@ func (q *UserInfoQuery) UserId_Equal(v string) *UserInfoQuery {
 func (q *UserInfoQuery) UserId_NotEqual(v string) *UserInfoQuery {
 	return q.w("user_id<>'" + fmt.Sprint(v) + "'")
 }
-func (q *UserInfoQuery) UserId_Less(v string) *UserInfoQuery {
-	return q.w("user_id<'" + fmt.Sprint(v) + "'")
-}
-func (q *UserInfoQuery) UserId_LessEqual(v string) *UserInfoQuery {
-	return q.w("user_id<='" + fmt.Sprint(v) + "'")
-}
-func (q *UserInfoQuery) UserId_Greater(v string) *UserInfoQuery {
-	return q.w("user_id>'" + fmt.Sprint(v) + "'")
-}
-func (q *UserInfoQuery) UserId_GreaterEqual(v string) *UserInfoQuery {
-	return q.w("user_id>='" + fmt.Sprint(v) + "'")
-}
 func (q *UserInfoQuery) UserName_Equal(v string) *UserInfoQuery {
 	return q.w("user_name='" + fmt.Sprint(v) + "'")
 }
 func (q *UserInfoQuery) UserName_NotEqual(v string) *UserInfoQuery {
 	return q.w("user_name<>'" + fmt.Sprint(v) + "'")
 }
-func (q *UserInfoQuery) UserName_Less(v string) *UserInfoQuery {
-	return q.w("user_name<'" + fmt.Sprint(v) + "'")
-}
-func (q *UserInfoQuery) UserName_LessEqual(v string) *UserInfoQuery {
-	return q.w("user_name<='" + fmt.Sprint(v) + "'")
-}
-func (q *UserInfoQuery) UserName_Greater(v string) *UserInfoQuery {
-	return q.w("user_name>'" + fmt.Sprint(v) + "'")
-}
-func (q *UserInfoQuery) UserName_GreaterEqual(v string) *UserInfoQuery {
-	return q.w("user_name>='" + fmt.Sprint(v) + "'")
-}
 func (q *UserInfoQuery) UserIcon_Equal(v string) *UserInfoQuery {
 	return q.w("user_icon='" + fmt.Sprint(v) + "'")
 }
 func (q *UserInfoQuery) UserIcon_NotEqual(v string) *UserInfoQuery {
 	return q.w("user_icon<>'" + fmt.Sprint(v) + "'")
-}
-func (q *UserInfoQuery) UserIcon_Less(v string) *UserInfoQuery {
-	return q.w("user_icon<'" + fmt.Sprint(v) + "'")
-}
-func (q *UserInfoQuery) UserIcon_LessEqual(v string) *UserInfoQuery {
-	return q.w("user_icon<='" + fmt.Sprint(v) + "'")
-}
-func (q *UserInfoQuery) UserIcon_Greater(v string) *UserInfoQuery {
-	return q.w("user_icon>'" + fmt.Sprint(v) + "'")
-}
-func (q *UserInfoQuery) UserIcon_GreaterEqual(v string) *UserInfoQuery {
-	return q.w("user_icon>='" + fmt.Sprint(v) + "'")
 }
 func (q *UserInfoQuery) CreateTime_Equal(v time.Time) *UserInfoQuery {
 	return q.w("create_time='" + fmt.Sprint(v) + "'")
@@ -3336,11 +3021,64 @@ func (q *UserInfoQuery) UpdateTime_GreaterEqual(v time.Time) *UserInfoQuery {
 	return q.w("update_time>='" + fmt.Sprint(v) + "'")
 }
 
+type UserInfoUpdate struct {
+	dao    *UserInfoDao
+	keys   []string
+	values []interface{}
+}
+
+func NewUserInfoUpdate(dao *UserInfoDao) *UserInfoUpdate {
+	q := &UserInfoUpdate{}
+	q.dao = dao
+	q.keys = make([]string, 0)
+	q.values = make([]interface{}, 0)
+
+	return q
+}
+
+func (u *UserInfoUpdate) Update(ctx context.Context, tx *wrap.Tx, id uint64) (err error) {
+	if len(u.keys) == 0 {
+		err = fmt.Errorf("UserInfoUpdate没有设置更新字段")
+		u.dao.logger.Error("UserInfoUpdate", zap.Error(err))
+		return err
+	}
+	s := "UPDATE user_info SET " + strings.Join(u.keys, ",") + " WHERE id=?"
+	v := append(u.values, id)
+	if tx == nil {
+		_, err = u.dao.db.Exec(ctx, s, v)
+	} else {
+		_, err = tx.Exec(ctx, s, v)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (u *UserInfoUpdate) UserId(v string) *UserInfoUpdate {
+	u.keys = append(u.keys, "user_id=?")
+	u.values = append(u.values, v)
+	return u
+}
+
+func (u *UserInfoUpdate) UserName(v string) *UserInfoUpdate {
+	u.keys = append(u.keys, "user_name=?")
+	u.values = append(u.values, v)
+	return u
+}
+
+func (u *UserInfoUpdate) UserIcon(v string) *UserInfoUpdate {
+	u.keys = append(u.keys, "user_icon=?")
+	u.values = append(u.values, v)
+	return u
+}
+
 type UserInfoDao struct {
 	logger     *zap.Logger
 	db         *DB
 	insertStmt *wrap.Stmt
-	updateStmt *wrap.Stmt
 	deleteStmt *wrap.Stmt
 }
 
@@ -3362,11 +3100,6 @@ func (dao *UserInfoDao) init() (err error) {
 		return err
 	}
 
-	err = dao.prepareUpdateStmt()
-	if err != nil {
-		return err
-	}
-
 	err = dao.prepareDeleteStmt()
 	if err != nil {
 		return err
@@ -3377,11 +3110,6 @@ func (dao *UserInfoDao) init() (err error) {
 
 func (dao *UserInfoDao) prepareInsertStmt() (err error) {
 	dao.insertStmt, err = dao.db.Prepare(context.Background(), "INSERT INTO user_info (user_id,user_name,user_icon) VALUES (?,?,?)")
-	return err
-}
-
-func (dao *UserInfoDao) prepareUpdateStmt() (err error) {
-	dao.updateStmt, err = dao.db.Prepare(context.Background(), "UPDATE user_info SET user_id=?,user_name=?,user_icon=? WHERE id=?")
 	return err
 }
 
@@ -3407,20 +3135,6 @@ func (dao *UserInfoDao) Insert(ctx context.Context, tx *wrap.Tx, e *UserInfo) (i
 	}
 
 	return id, nil
-}
-
-func (dao *UserInfoDao) Update(ctx context.Context, tx *wrap.Tx, e *UserInfo) (err error) {
-	stmt := dao.updateStmt
-	if tx != nil {
-		stmt = tx.Stmt(ctx, stmt)
-	}
-
-	_, err = stmt.Exec(ctx, e.UserId, e.UserName, e.UserIcon, e.Id)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func (dao *UserInfoDao) Delete(ctx context.Context, tx *wrap.Tx, id uint64) (err error) {
@@ -3528,6 +3242,10 @@ func (dao *UserInfoDao) QueryGroupBy(ctx context.Context, tx *wrap.Tx, groupByFi
 
 func (dao *UserInfoDao) GetQuery() *UserInfoQuery {
 	return NewUserInfoQuery(dao)
+}
+
+func (dao *UserInfoDao) GetUpdate() *UserInfoUpdate {
+	return NewUserInfoUpdate(dao)
 }
 
 type DB struct {

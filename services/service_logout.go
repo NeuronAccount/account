@@ -6,6 +6,7 @@ import (
 	"time"
 )
 
+//可重入
 func (s *AccountService) Logout(ctx *restful.Context, accessToken string, refreshToken string) (err error) {
 	dbRefreshToken, err := s.accountDB.RefreshToken.GetQuery().RefreshToken_Equal(refreshToken).QueryOne(ctx, nil)
 	if err != nil {
@@ -19,9 +20,10 @@ func (s *AccountService) Logout(ctx *restful.Context, accessToken string, refres
 		return nil
 	}
 
-	dbRefreshToken.IsLogout = 1
-	dbRefreshToken.LogoutTime = time.Now().UTC()
-	err = s.accountDB.RefreshToken.Update(ctx, nil, dbRefreshToken)
+	err = s.accountDB.RefreshToken.GetUpdate().
+		IsLogout(1).
+		LogoutTime(time.Now().UTC()).
+		Update(ctx, nil, dbRefreshToken.Id)
 	if err != nil {
 		return err
 	}

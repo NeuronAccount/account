@@ -32,7 +32,7 @@ CREATE TABLE `access_token` (
   UNIQUE KEY `idx_access_token` (`access_token`),
   KEY `idx_user_id` (`user_id`),
   KEY `idx_update` (`update_time`)
-) ENGINE=InnoDB AUTO_INCREMENT=201 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=208 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -55,7 +55,7 @@ CREATE TABLE `account_operation` (
   KEY `idx_user_id` (`user_id`),
   KEY `idx_create_time` (`create_time`),
   KEY `idx_phone` (`phone_encrypted`)
-) ENGINE=InnoDB AUTO_INCREMENT=197 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=199 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -141,7 +141,7 @@ CREATE TABLE `refresh_token` (
   UNIQUE KEY `idx_refresh_token` (`refresh_token`),
   KEY `idx_user_id` (`user_id`),
   KEY `idx_update` (`update_time`)
-) ENGINE=InnoDB AUTO_INCREMENT=186 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=187 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -163,7 +163,7 @@ CREATE TABLE `sms_code` (
   KEY `idx_update` (`update_time`),
   KEY `idx_scene_phone` (`sms_scene`,`phone_encrypted`),
   KEY `idx_phone` (`phone_encrypted`)
-) ENGINE=InnoDB AUTO_INCREMENT=20 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -196,4 +196,4 @@ CREATE TABLE `user_info` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2018-04-17  8:47:16
+-- Dump completed on 2018-04-17 13:04:00

@@ -4,10 +4,10 @@ import (
 	"github.com/NeuronAccount/account/models"
 	"github.com/NeuronAccount/account/storages/neuron_account_db"
 	"github.com/NeuronFramework/errors"
-	"github.com/NeuronFramework/restful"
+	"github.com/NeuronFramework/rest"
 )
 
-func (s *AccountService) RefreshToken(ctx *restful.Context, refreshToken string) (userToken *models.UserToken, err error) {
+func (s *AccountService) RefreshToken(ctx *rest.Context, refreshToken string) (userToken *models.UserToken, err error) {
 	//检查RefreshToken是否最新且有效
 	dbRefreshToken, err := s.accountDB.RefreshToken.GetQuery().
 		OrderBy(neuron_account_db.REFRESH_TOKEN_FIELD_ID, false).

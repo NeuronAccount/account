@@ -3,10 +3,10 @@ package services
 import (
 	"github.com/NeuronAccount/account/models"
 	"github.com/NeuronFramework/errors"
-	"github.com/NeuronFramework/restful"
+	"github.com/NeuronFramework/rest"
 )
 
-func (s *AccountService) GetUserInfo(ctx *restful.Context, userId string) (userInfo *models.UserInfo, err error) {
+func (s *AccountService) GetUserInfo(ctx *rest.Context, userId string) (userInfo *models.UserInfo, err error) {
 	dbUserInfo, err := s.accountDB.UserInfo.GetQuery().UserId_Equal(userId).QueryOne(ctx, nil)
 	if err != nil {
 		return nil, err
@@ -18,7 +18,7 @@ func (s *AccountService) GetUserInfo(ctx *restful.Context, userId string) (userI
 	return fromUserInfo(dbUserInfo), nil
 }
 
-func (s *AccountService) SetUserName(ctx *restful.Context, userId string, userName string) (err error) {
+func (s *AccountService) SetUserName(ctx *rest.Context, userId string, userName string) (err error) {
 	//检查名称是否已被使用
 	dbOtherUserInfo, err := s.accountDB.UserInfo.GetQuery().UserName_Equal(userName).QueryOne(ctx, nil)
 	if err != nil {
@@ -45,7 +45,7 @@ func (s *AccountService) SetUserName(ctx *restful.Context, userId string, userNa
 	return nil
 }
 
-func (s *AccountService) SetUserIcon(ctx *restful.Context, userId string, userIcon string) (err error) {
+func (s *AccountService) SetUserIcon(ctx *rest.Context, userId string, userIcon string) (err error) {
 	dbUserInfo, err := s.accountDB.UserInfo.GetQuery().UserId_Equal(userId).QueryOne(ctx, nil)
 	if err != nil {
 		return err

@@ -4,11 +4,11 @@ import (
 	"github.com/NeuronAccount/account/models"
 	"github.com/NeuronAccount/account/storages/neuron_account_db"
 	"github.com/NeuronFramework/errors"
-	"github.com/NeuronFramework/restful"
+	"github.com/NeuronFramework/rest"
 	"go.uber.org/zap"
 )
 
-func (s *AccountService) GetAccountInfo(ctx *restful.Context, userId string) (accountInfo *models.AccountInfo, err error) {
+func (s *AccountService) GetAccountInfo(ctx *rest.Context, userId string) (accountInfo *models.AccountInfo, err error) {
 	accountInfo = &models.AccountInfo{UserId: userId}
 
 	//基本信息
@@ -41,7 +41,7 @@ func (s *AccountService) GetAccountInfo(ctx *restful.Context, userId string) (ac
 	return accountInfo, nil
 }
 
-func (s *AccountService) ValidateBindPhone(ctx *restful.Context, userId string, phone string) (err error) {
+func (s *AccountService) ValidateBindPhone(ctx *rest.Context, userId string, phone string) (err error) {
 	phoneEncrypted, err := s.encryptPhone(phone)
 	if err != nil {
 		return err
@@ -80,7 +80,7 @@ func (s *AccountService) ValidateBindPhone(ctx *restful.Context, userId string, 
 		"该用户已绑定到帐号"+s.maskString(dbUserInfo.UserName, 2, 2))
 }
 
-func (s *AccountService) BindPhone(ctx *restful.Context, userId string, phone string, smsCode string) (err error) {
+func (s *AccountService) BindPhone(ctx *rest.Context, userId string, phone string, smsCode string) (err error) {
 	phoneEncrypted, err := s.encryptPhone(phone)
 	if err != nil {
 		return err
@@ -136,7 +136,7 @@ func (s *AccountService) BindPhone(ctx *restful.Context, userId string, phone st
 	return nil
 }
 
-func (s *AccountService) UnbindPhone(ctx *restful.Context, userId string, phone string, smsCode string) (err error) {
+func (s *AccountService) UnbindPhone(ctx *rest.Context, userId string, phone string, smsCode string) (err error) {
 	phoneEncrypted, err := s.encryptPhone(phone)
 	if err != nil {
 		return err
@@ -169,10 +169,10 @@ func (s *AccountService) UnbindPhone(ctx *restful.Context, userId string, phone 
 	return nil
 }
 
-func (s *AccountService) BindOauthAccount(ctx *restful.Context, userId string) (err error) {
+func (s *AccountService) BindOauthAccount(ctx *rest.Context, userId string) (err error) {
 	return nil
 }
 
-func (s *AccountService) UnbindOauthAccount(ctx *restful.Context, userId string) (err error) {
+func (s *AccountService) UnbindOauthAccount(ctx *rest.Context, userId string) (err error) {
 	return nil
 }

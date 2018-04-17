@@ -5,11 +5,11 @@ import (
 	"github.com/NeuronAccount/account/storages/neuron_account_db"
 	"github.com/NeuronFramework/errors"
 	"github.com/NeuronFramework/rand"
-	"github.com/NeuronFramework/restful"
+	"github.com/NeuronFramework/rest"
 	"time"
 )
 
-func (s *AccountService) SendSmsCode(ctx *restful.Context, p *models.SendSmsCodeParams) (err error) {
+func (s *AccountService) SendSmsCode(ctx *rest.Context, p *models.SendSmsCodeParams) (err error) {
 	phoneEncrypted, err := s.encryptPhone(p.Phone)
 	if err != nil {
 		return err
@@ -43,7 +43,7 @@ func (s *AccountService) SendSmsCode(ctx *restful.Context, p *models.SendSmsCode
 }
 
 func (s *AccountService) validateSmsCode(
-	ctx *restful.Context,
+	ctx *rest.Context,
 	scene models.SmsScene,
 	phoneEncrypted string,
 	smsCode string,

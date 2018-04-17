@@ -7,7 +7,7 @@ import (
 	"github.com/NeuronAccount/account/services"
 	"github.com/NeuronFramework/errors"
 	"github.com/NeuronFramework/log"
-	"github.com/NeuronFramework/restful"
+	"github.com/NeuronFramework/rest"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/go-openapi/runtime/middleware"
 	"go.uber.org/zap"
@@ -50,7 +50,7 @@ func (h *AccountHandler) BearerAuth(token string) (userId interface{}, err error
 }
 
 func (h *AccountHandler) SendLoginSmsCode(p operations.SendLoginSmsCodeParams) middleware.Responder {
-	err := h.service.SendSmsCode(restful.NewContext(p.HTTPRequest), &models.SendSmsCodeParams{
+	err := h.service.SendSmsCode(rest.NewContext(p.HTTPRequest), &models.SendSmsCodeParams{
 		UserId:      "",
 		Scene:       models.SmsSceneSmsLogin,
 		Phone:       p.Phone,
@@ -65,7 +65,7 @@ func (h *AccountHandler) SendLoginSmsCode(p operations.SendLoginSmsCodeParams) m
 }
 
 func (h *AccountHandler) SendSmsCode(p operations.SendSmsCodeParams, userId interface{}) middleware.Responder {
-	err := h.service.SendSmsCode(restful.NewContext(p.HTTPRequest), &models.SendSmsCodeParams{
+	err := h.service.SendSmsCode(rest.NewContext(p.HTTPRequest), &models.SendSmsCodeParams{
 		UserId:      userId.(string),
 		Scene:       models.SmsScene(p.Scene),
 		Phone:       p.Phone,
@@ -80,7 +80,7 @@ func (h *AccountHandler) SendSmsCode(p operations.SendSmsCodeParams, userId inte
 }
 
 func (h *AccountHandler) SmsLogin(p operations.SmsLoginParams) middleware.Responder {
-	userToken, err := h.service.SmsLogin(restful.NewContext(p.HTTPRequest), p.Phone, p.SmsCode)
+	userToken, err := h.service.SmsLogin(rest.NewContext(p.HTTPRequest), p.Phone, p.SmsCode)
 	if err != nil {
 		return errors.Wrap(err)
 	}
@@ -89,7 +89,7 @@ func (h *AccountHandler) SmsLogin(p operations.SmsLoginParams) middleware.Respon
 }
 
 func (h *AccountHandler) Logout(p operations.LogoutParams) middleware.Responder {
-	err := h.service.Logout(restful.NewContext(p.HTTPRequest), p.AccessToken, p.RefreshToken)
+	err := h.service.Logout(rest.NewContext(p.HTTPRequest), p.AccessToken, p.RefreshToken)
 	if err != nil {
 		return errors.Wrap(err)
 	}
@@ -98,7 +98,7 @@ func (h *AccountHandler) Logout(p operations.LogoutParams) middleware.Responder 
 }
 
 func (h *AccountHandler) RefreshToken(p operations.RefreshTokenParams) middleware.Responder {
-	userToken, err := h.service.RefreshToken(restful.NewContext(p.HTTPRequest), p.RefreshToken)
+	userToken, err := h.service.RefreshToken(rest.NewContext(p.HTTPRequest), p.RefreshToken)
 	if err != nil {
 		return errors.Wrap(err)
 	}
@@ -107,7 +107,7 @@ func (h *AccountHandler) RefreshToken(p operations.RefreshTokenParams) middlewar
 }
 
 func (h *AccountHandler) OauthState(p operations.OauthStateParams) middleware.Responder {
-	state, err := h.service.OauthState(restful.NewContext(p.HTTPRequest))
+	state, err := h.service.OauthState(rest.NewContext(p.HTTPRequest))
 	if err != nil {
 		return errors.Wrap(err)
 	}
@@ -117,7 +117,7 @@ func (h *AccountHandler) OauthState(p operations.OauthStateParams) middleware.Re
 
 func (h *AccountHandler) OauthJump(p operations.OauthJumpParams) middleware.Responder {
 	userToken, err := h.service.OauthJump(
-		restful.NewContext(p.HTTPRequest),
+		rest.NewContext(p.HTTPRequest),
 		&models.OauthJumpParams{
 			RedirectUri:       p.RedirectURI,
 			AuthorizationCode: p.AuthorizationCode,
@@ -132,7 +132,7 @@ func (h *AccountHandler) OauthJump(p operations.OauthJumpParams) middleware.Resp
 }
 
 func (h *AccountHandler) GetUserInfo(p operations.GetUserInfoParams, userId interface{}) middleware.Responder {
-	userInfo, err := h.service.GetUserInfo(restful.NewContext(p.HTTPRequest), userId.(string))
+	userInfo, err := h.service.GetUserInfo(rest.NewContext(p.HTTPRequest), userId.(string))
 	if err != nil {
 		return errors.Wrap(err)
 	}
@@ -141,7 +141,7 @@ func (h *AccountHandler) GetUserInfo(p operations.GetUserInfoParams, userId inte
 }
 
 func (h *AccountHandler) SetUserName(p operations.SetUserNameParams, userId interface{}) middleware.Responder {
-	err := h.service.SetUserName(restful.NewContext(p.HTTPRequest), userId.(string), p.UserName)
+	err := h.service.SetUserName(rest.NewContext(p.HTTPRequest), userId.(string), p.UserName)
 	if err != nil {
 		return errors.Wrap(err)
 	}
@@ -150,7 +150,7 @@ func (h *AccountHandler) SetUserName(p operations.SetUserNameParams, userId inte
 }
 
 func (h *AccountHandler) SetUserIcon(p operations.SetUserIconParams, userId interface{}) middleware.Responder {
-	err := h.service.SetUserIcon(restful.NewContext(p.HTTPRequest), userId.(string), p.UserIcon)
+	err := h.service.SetUserIcon(rest.NewContext(p.HTTPRequest), userId.(string), p.UserIcon)
 	if err != nil {
 		return errors.Wrap(err)
 	}
@@ -159,7 +159,7 @@ func (h *AccountHandler) SetUserIcon(p operations.SetUserIconParams, userId inte
 }
 
 func (h *AccountHandler) GetAccountInfo(p operations.GetAccountInfoParams, userId interface{}) middleware.Responder {
-	accountInfo, err := h.service.GetAccountInfo(restful.NewContext(p.HTTPRequest), userId.(string))
+	accountInfo, err := h.service.GetAccountInfo(rest.NewContext(p.HTTPRequest), userId.(string))
 	if err != nil {
 		return errors.Wrap(err)
 	}
@@ -168,7 +168,7 @@ func (h *AccountHandler) GetAccountInfo(p operations.GetAccountInfoParams, userI
 }
 
 func (h *AccountHandler) BindPhone(p operations.BindPhoneParams, userId interface{}) middleware.Responder {
-	err := h.service.BindPhone(restful.NewContext(p.HTTPRequest), userId.(string), p.Phone, p.SmsCode)
+	err := h.service.BindPhone(rest.NewContext(p.HTTPRequest), userId.(string), p.Phone, p.SmsCode)
 	if err != nil {
 		return errors.Wrap(err)
 	}
@@ -177,7 +177,7 @@ func (h *AccountHandler) BindPhone(p operations.BindPhoneParams, userId interfac
 }
 
 func (h *AccountHandler) UnbindPhone(p operations.UnbindPhoneParams, userId interface{}) middleware.Responder {
-	err := h.service.BindPhone(restful.NewContext(p.HTTPRequest), userId.(string), p.Phone, p.SmsCode)
+	err := h.service.BindPhone(rest.NewContext(p.HTTPRequest), userId.(string), p.Phone, p.SmsCode)
 	if err != nil {
 		return errors.Wrap(err)
 	}
@@ -186,7 +186,7 @@ func (h *AccountHandler) UnbindPhone(p operations.UnbindPhoneParams, userId inte
 }
 
 func (h *AccountHandler) BindOauthAccount(p operations.BindOauthAccountParams, userId interface{}) middleware.Responder {
-	err := h.service.BindOauthAccount(restful.NewContext(p.HTTPRequest), userId.(string))
+	err := h.service.BindOauthAccount(rest.NewContext(p.HTTPRequest), userId.(string))
 	if err != nil {
 		return errors.Wrap(err)
 	}
@@ -195,7 +195,7 @@ func (h *AccountHandler) BindOauthAccount(p operations.BindOauthAccountParams, u
 }
 
 func (h *AccountHandler) UnbindOauthAccount(p operations.UnbindOauthAccountParams, userId interface{}) middleware.Responder {
-	err := h.service.UnbindOauthAccount(restful.NewContext(p.HTTPRequest), userId.(string))
+	err := h.service.UnbindOauthAccount(rest.NewContext(p.HTTPRequest), userId.(string))
 	if err != nil {
 		return errors.Wrap(err)
 	}
@@ -215,7 +215,7 @@ func (h *AccountHandler) GetOperationList(p operations.GetOperationListParams, u
 		query.PageSize = *p.PageSize
 	}
 
-	items, nextPageToken, err := h.service.GetOperationList(restful.NewContext(p.HTTPRequest), userId.(string), query)
+	items, nextPageToken, err := h.service.GetOperationList(rest.NewContext(p.HTTPRequest), userId.(string), query)
 	if err != nil {
 		return errors.Wrap(err)
 	}

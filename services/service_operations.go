@@ -3,12 +3,12 @@ package services
 import (
 	"github.com/NeuronAccount/account/models"
 	"github.com/NeuronFramework/errors"
-	"github.com/NeuronFramework/restful"
+	"github.com/NeuronFramework/rest"
 	"go.uber.org/zap"
 	"strconv"
 )
 
-func (s *AccountService) addOperation(ctx *restful.Context, operation *models.AccountOperation) (err error) {
+func (s *AccountService) addOperation(ctx *rest.Context, operation *models.AccountOperation) (err error) {
 	operation.UserAgent = ctx.UserAgent
 	dbOperation := toOperation(operation)
 	_, err = s.accountDB.AccountOperation.Insert(ctx, nil, dbOperation)
@@ -20,7 +20,7 @@ func (s *AccountService) addOperation(ctx *restful.Context, operation *models.Ac
 	return nil
 }
 
-func (s *AccountService) GetOperationList(ctx *restful.Context, userId string, query *models.OperationQuery) (items []*models.AccountOperation, nextPageToken string, err error) {
+func (s *AccountService) GetOperationList(ctx *rest.Context, userId string, query *models.OperationQuery) (items []*models.AccountOperation, nextPageToken string, err error) {
 	q := s.accountDB.AccountOperation.GetQuery()
 	if query.OperationType != "" {
 		q.OperationType_Equal(query.OperationType)

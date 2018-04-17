@@ -4,13 +4,13 @@ import (
 	"github.com/NeuronAccount/account/api/gen/restapi"
 	"github.com/NeuronAccount/account/api/gen/restapi/operations"
 	"github.com/NeuronAccount/account/cmd/account-api/handler"
-	"github.com/NeuronFramework/restful"
+	"github.com/NeuronFramework/rest"
 	"github.com/go-openapi/loads"
 	"net/http"
 )
 
 func main() {
-	restful.Run(func() (http.Handler, error) {
+	rest.Run(func() (http.Handler, error) {
 		h, err := handler.NewAccountHandler()
 		if err != nil {
 			return nil, err

@@ -4,10 +4,10 @@ import (
 	"github.com/NeuronAccount/account/models"
 	"github.com/NeuronAccount/account/storages/neuron_account_db"
 	"github.com/NeuronFramework/rand"
-	"github.com/NeuronFramework/restful"
+	"github.com/NeuronFramework/rest"
 )
 
-func (s *AccountService) SmsLogin(ctx *restful.Context, phone string, smsCode string) (userToken *models.UserToken, err error) {
+func (s *AccountService) SmsLogin(ctx *rest.Context, phone string, smsCode string) (userToken *models.UserToken, err error) {
 	//加密手机号
 	phoneEncrypted, err := s.encryptPhone(phone)
 	if err != nil {

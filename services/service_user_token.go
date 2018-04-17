@@ -5,13 +5,13 @@ import (
 	"github.com/NeuronAccount/account/storages/neuron_account_db"
 	"github.com/NeuronFramework/errors"
 	"github.com/NeuronFramework/rand"
-	"github.com/NeuronFramework/restful"
+	"github.com/NeuronFramework/rest"
 	"github.com/dgrijalva/jwt-go"
 	"time"
 )
 
 func (s *AccountService) createUserToken(
-	ctx *restful.Context,
+	ctx *rest.Context,
 	userId string,
 	dbRefreshToken *neuron_account_db.RefreshToken) (
 	userToken *models.UserToken, err error) {

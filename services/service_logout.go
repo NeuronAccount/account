@@ -2,12 +2,12 @@ package services
 
 import (
 	"github.com/NeuronAccount/account/models"
-	"github.com/NeuronFramework/restful"
+	"github.com/NeuronFramework/rest"
 	"time"
 )
 
 //可重入
-func (s *AccountService) Logout(ctx *restful.Context, accessToken string, refreshToken string) (err error) {
+func (s *AccountService) Logout(ctx *rest.Context, accessToken string, refreshToken string) (err error) {
 	dbRefreshToken, err := s.accountDB.RefreshToken.GetQuery().RefreshToken_Equal(refreshToken).QueryOne(ctx, nil)
 	if err != nil {
 		return err

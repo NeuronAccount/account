@@ -279,7 +279,7 @@ func (u *AccessTokenUpdate) Update(ctx context.Context, tx *wrap.Tx, id uint64) 
 	s := "UPDATE access_token SET " + strings.Join(u.keys, ",") + " WHERE id=?"
 	v := append(u.values, id)
 	if tx == nil {
-		_, err = u.dao.db.Exec(ctx, s, v)
+		_, err = u.dao.db.Exec(ctx, s, v...)
 	} else {
 		_, err = tx.Exec(ctx, s, v)
 	}
@@ -1031,7 +1031,7 @@ func (u *OauthAccountUpdate) Update(ctx context.Context, tx *wrap.Tx, id uint64)
 	s := "UPDATE oauth_account SET " + strings.Join(u.keys, ",") + " WHERE id=?"
 	v := append(u.values, id)
 	if tx == nil {
-		_, err = u.dao.db.Exec(ctx, s, v)
+		_, err = u.dao.db.Exec(ctx, s, v...)
 	} else {
 		_, err = tx.Exec(ctx, s, v)
 	}
@@ -1451,7 +1451,7 @@ func (u *OauthStateUpdate) Update(ctx context.Context, tx *wrap.Tx, id uint64) (
 	s := "UPDATE oauth_state SET " + strings.Join(u.keys, ",") + " WHERE id=?"
 	v := append(u.values, id)
 	if tx == nil {
-		_, err = u.dao.db.Exec(ctx, s, v)
+		_, err = u.dao.db.Exec(ctx, s, v...)
 	} else {
 		_, err = tx.Exec(ctx, s, v)
 	}
@@ -1837,7 +1837,7 @@ func (u *PhoneAccountUpdate) Update(ctx context.Context, tx *wrap.Tx, id uint64)
 	s := "UPDATE phone_account SET " + strings.Join(u.keys, ",") + " WHERE id=?"
 	v := append(u.values, id)
 	if tx == nil {
-		_, err = u.dao.db.Exec(ctx, s, v)
+		_, err = u.dao.db.Exec(ctx, s, v...)
 	} else {
 		_, err = tx.Exec(ctx, s, v)
 	}
@@ -2257,7 +2257,7 @@ func (u *RefreshTokenUpdate) Update(ctx context.Context, tx *wrap.Tx, id uint64)
 	s := "UPDATE refresh_token SET " + strings.Join(u.keys, ",") + " WHERE id=?"
 	v := append(u.values, id)
 	if tx == nil {
-		_, err = u.dao.db.Exec(ctx, s, v)
+		_, err = u.dao.db.Exec(ctx, s, v...)
 	} else {
 		_, err = tx.Exec(ctx, s, v)
 	}
@@ -2655,7 +2655,7 @@ func (u *SmsCodeUpdate) Update(ctx context.Context, tx *wrap.Tx, id uint64) (err
 	s := "UPDATE sms_code SET " + strings.Join(u.keys, ",") + " WHERE id=?"
 	v := append(u.values, id)
 	if tx == nil {
-		_, err = u.dao.db.Exec(ctx, s, v)
+		_, err = u.dao.db.Exec(ctx, s, v...)
 	} else {
 		_, err = tx.Exec(ctx, s, v)
 	}
@@ -3045,7 +3045,7 @@ func (u *UserInfoUpdate) Update(ctx context.Context, tx *wrap.Tx, id uint64) (er
 	s := "UPDATE user_info SET " + strings.Join(u.keys, ",") + " WHERE id=?"
 	v := append(u.values, id)
 	if tx == nil {
-		_, err = u.dao.db.Exec(ctx, s, v)
+		_, err = u.dao.db.Exec(ctx, s, v...)
 	} else {
 		_, err = tx.Exec(ctx, s, v)
 	}

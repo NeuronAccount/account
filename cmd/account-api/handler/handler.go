@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"fmt"
 	api "github.com/NeuronAccount/account/api/gen/models"
 	"github.com/NeuronAccount/account/api/gen/restapi/operations"
 	"github.com/NeuronAccount/account/models"
@@ -31,8 +30,6 @@ func NewAccountHandler() (h *AccountHandler, err error) {
 }
 
 func (h *AccountHandler) BearerAuth(token string) (userId interface{}, err error) {
-	fmt.Println("BearerAuth", token)
-
 	if token == "" {
 		return "", nil
 	}

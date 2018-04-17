@@ -468,27 +468,33 @@ const ACCOUNT_OPERATION_FIELD_ID = ACCOUNT_OPERATION_FIELD("id")
 const ACCOUNT_OPERATION_FIELD_USER_ID = ACCOUNT_OPERATION_FIELD("user_id")
 const ACCOUNT_OPERATION_FIELD_OPERATIONTYPE = ACCOUNT_OPERATION_FIELD("operationType")
 const ACCOUNT_OPERATION_FIELD_USER_AGENT = ACCOUNT_OPERATION_FIELD("user_agent")
-const ACCOUNT_OPERATION_FIELD_PHONE_NUMBER = ACCOUNT_OPERATION_FIELD("phone_number")
+const ACCOUNT_OPERATION_FIELD_PHONE_ENCRYPTED = ACCOUNT_OPERATION_FIELD("phone_encrypted")
+const ACCOUNT_OPERATION_FIELD_SMS_SCENE = ACCOUNT_OPERATION_FIELD("sms_scene")
+const ACCOUNT_OPERATION_FIELD_OTHER_USER_ID = ACCOUNT_OPERATION_FIELD("other_user_id")
 const ACCOUNT_OPERATION_FIELD_CREATE_TIME = ACCOUNT_OPERATION_FIELD("create_time")
 
-const ACCOUNT_OPERATION_ALL_FIELDS_STRING = "id,user_id,operationType,user_agent,phone_number,create_time"
+const ACCOUNT_OPERATION_ALL_FIELDS_STRING = "id,user_id,operationType,user_agent,phone_encrypted,sms_scene,other_user_id,create_time"
 
 var ACCOUNT_OPERATION_ALL_FIELDS = []string{
 	"id",
 	"user_id",
 	"operationType",
 	"user_agent",
-	"phone_number",
+	"phone_encrypted",
+	"sms_scene",
+	"other_user_id",
 	"create_time",
 }
 
 type AccountOperation struct {
-	Id            uint64 //size=20
-	UserId        string //size=32
-	OperationType string //size=32
-	UserAgent     string //size=256
-	PhoneNumber   string //size=32
-	CreateTime    time.Time
+	Id             uint64 //size=20
+	UserId         string //size=32
+	OperationType  string //size=32
+	UserAgent      string //size=256
+	PhoneEncrypted string //size=32
+	SmsScene       string //size=32
+	OtherUserId    string //size=32
+	CreateTime     time.Time
 }
 
 type AccountOperationQuery struct {
@@ -653,23 +659,59 @@ func (q *AccountOperationQuery) UserAgent_Greater(v string) *AccountOperationQue
 func (q *AccountOperationQuery) UserAgent_GreaterEqual(v string) *AccountOperationQuery {
 	return q.w("user_agent>='" + fmt.Sprint(v) + "'")
 }
-func (q *AccountOperationQuery) PhoneNumber_Equal(v string) *AccountOperationQuery {
-	return q.w("phone_number='" + fmt.Sprint(v) + "'")
+func (q *AccountOperationQuery) PhoneEncrypted_Equal(v string) *AccountOperationQuery {
+	return q.w("phone_encrypted='" + fmt.Sprint(v) + "'")
 }
-func (q *AccountOperationQuery) PhoneNumber_NotEqual(v string) *AccountOperationQuery {
-	return q.w("phone_number<>'" + fmt.Sprint(v) + "'")
+func (q *AccountOperationQuery) PhoneEncrypted_NotEqual(v string) *AccountOperationQuery {
+	return q.w("phone_encrypted<>'" + fmt.Sprint(v) + "'")
 }
-func (q *AccountOperationQuery) PhoneNumber_Less(v string) *AccountOperationQuery {
-	return q.w("phone_number<'" + fmt.Sprint(v) + "'")
+func (q *AccountOperationQuery) PhoneEncrypted_Less(v string) *AccountOperationQuery {
+	return q.w("phone_encrypted<'" + fmt.Sprint(v) + "'")
 }
-func (q *AccountOperationQuery) PhoneNumber_LessEqual(v string) *AccountOperationQuery {
-	return q.w("phone_number<='" + fmt.Sprint(v) + "'")
+func (q *AccountOperationQuery) PhoneEncrypted_LessEqual(v string) *AccountOperationQuery {
+	return q.w("phone_encrypted<='" + fmt.Sprint(v) + "'")
 }
-func (q *AccountOperationQuery) PhoneNumber_Greater(v string) *AccountOperationQuery {
-	return q.w("phone_number>'" + fmt.Sprint(v) + "'")
+func (q *AccountOperationQuery) PhoneEncrypted_Greater(v string) *AccountOperationQuery {
+	return q.w("phone_encrypted>'" + fmt.Sprint(v) + "'")
 }
-func (q *AccountOperationQuery) PhoneNumber_GreaterEqual(v string) *AccountOperationQuery {
-	return q.w("phone_number>='" + fmt.Sprint(v) + "'")
+func (q *AccountOperationQuery) PhoneEncrypted_GreaterEqual(v string) *AccountOperationQuery {
+	return q.w("phone_encrypted>='" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) SmsScene_Equal(v string) *AccountOperationQuery {
+	return q.w("sms_scene='" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) SmsScene_NotEqual(v string) *AccountOperationQuery {
+	return q.w("sms_scene<>'" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) SmsScene_Less(v string) *AccountOperationQuery {
+	return q.w("sms_scene<'" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) SmsScene_LessEqual(v string) *AccountOperationQuery {
+	return q.w("sms_scene<='" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) SmsScene_Greater(v string) *AccountOperationQuery {
+	return q.w("sms_scene>'" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) SmsScene_GreaterEqual(v string) *AccountOperationQuery {
+	return q.w("sms_scene>='" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) OtherUserId_Equal(v string) *AccountOperationQuery {
+	return q.w("other_user_id='" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) OtherUserId_NotEqual(v string) *AccountOperationQuery {
+	return q.w("other_user_id<>'" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) OtherUserId_Less(v string) *AccountOperationQuery {
+	return q.w("other_user_id<'" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) OtherUserId_LessEqual(v string) *AccountOperationQuery {
+	return q.w("other_user_id<='" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) OtherUserId_Greater(v string) *AccountOperationQuery {
+	return q.w("other_user_id>'" + fmt.Sprint(v) + "'")
+}
+func (q *AccountOperationQuery) OtherUserId_GreaterEqual(v string) *AccountOperationQuery {
+	return q.w("other_user_id>='" + fmt.Sprint(v) + "'")
 }
 func (q *AccountOperationQuery) CreateTime_Equal(v time.Time) *AccountOperationQuery {
 	return q.w("create_time='" + fmt.Sprint(v) + "'")
@@ -730,12 +772,12 @@ func (dao *AccountOperationDao) init() (err error) {
 }
 
 func (dao *AccountOperationDao) prepareInsertStmt() (err error) {
-	dao.insertStmt, err = dao.db.Prepare(context.Background(), "INSERT INTO account_operation (user_id,operationType,user_agent,phone_number) VALUES (?,?,?,?)")
+	dao.insertStmt, err = dao.db.Prepare(context.Background(), "INSERT INTO account_operation (user_id,operationType,user_agent,phone_encrypted,sms_scene,other_user_id) VALUES (?,?,?,?,?,?)")
 	return err
 }
 
 func (dao *AccountOperationDao) prepareUpdateStmt() (err error) {
-	dao.updateStmt, err = dao.db.Prepare(context.Background(), "UPDATE account_operation SET user_id=?,operationType=?,user_agent=?,phone_number=? WHERE id=?")
+	dao.updateStmt, err = dao.db.Prepare(context.Background(), "UPDATE account_operation SET user_id=?,operationType=?,user_agent=?,phone_encrypted=?,sms_scene=?,other_user_id=? WHERE id=?")
 	return err
 }
 
@@ -750,7 +792,7 @@ func (dao *AccountOperationDao) Insert(ctx context.Context, tx *wrap.Tx, e *Acco
 		stmt = tx.Stmt(ctx, stmt)
 	}
 
-	result, err := stmt.Exec(ctx, e.UserId, e.OperationType, e.UserAgent, e.PhoneNumber)
+	result, err := stmt.Exec(ctx, e.UserId, e.OperationType, e.UserAgent, e.PhoneEncrypted, e.SmsScene, e.OtherUserId)
 	if err != nil {
 		return 0, err
 	}
@@ -769,7 +811,7 @@ func (dao *AccountOperationDao) Update(ctx context.Context, tx *wrap.Tx, e *Acco
 		stmt = tx.Stmt(ctx, stmt)
 	}
 
-	_, err = stmt.Exec(ctx, e.UserId, e.OperationType, e.UserAgent, e.PhoneNumber, e.Id)
+	_, err = stmt.Exec(ctx, e.UserId, e.OperationType, e.UserAgent, e.PhoneEncrypted, e.SmsScene, e.OtherUserId, e.Id)
 	if err != nil {
 		return err
 	}
@@ -793,7 +835,7 @@ func (dao *AccountOperationDao) Delete(ctx context.Context, tx *wrap.Tx, id uint
 
 func (dao *AccountOperationDao) scanRow(row *wrap.Row) (*AccountOperation, error) {
 	e := &AccountOperation{}
-	err := row.Scan(&e.Id, &e.UserId, &e.OperationType, &e.UserAgent, &e.PhoneNumber, &e.CreateTime)
+	err := row.Scan(&e.Id, &e.UserId, &e.OperationType, &e.UserAgent, &e.PhoneEncrypted, &e.SmsScene, &e.OtherUserId, &e.CreateTime)
 	if err != nil {
 		if err == wrap.ErrNoRows {
 			return nil, nil
@@ -809,7 +851,7 @@ func (dao *AccountOperationDao) scanRows(rows *wrap.Rows) (list []*AccountOperat
 	list = make([]*AccountOperation, 0)
 	for rows.Next() {
 		e := AccountOperation{}
-		err = rows.Scan(&e.Id, &e.UserId, &e.OperationType, &e.UserAgent, &e.PhoneNumber, &e.CreateTime)
+		err = rows.Scan(&e.Id, &e.UserId, &e.OperationType, &e.UserAgent, &e.PhoneEncrypted, &e.SmsScene, &e.OtherUserId, &e.CreateTime)
 		if err != nil {
 			return nil, err
 		}
@@ -884,444 +926,44 @@ func (dao *AccountOperationDao) GetQuery() *AccountOperationQuery {
 	return NewAccountOperationQuery(dao)
 }
 
-const LOGIN_SMS_CODE_TABLE_NAME = "login_sms_code"
-
-type LOGIN_SMS_CODE_FIELD string
-
-const LOGIN_SMS_CODE_FIELD_ID = LOGIN_SMS_CODE_FIELD("id")
-const LOGIN_SMS_CODE_FIELD_PHONE_NUMBER = LOGIN_SMS_CODE_FIELD("phone_number")
-const LOGIN_SMS_CODE_FIELD_SMS_CODE = LOGIN_SMS_CODE_FIELD("sms_code")
-const LOGIN_SMS_CODE_FIELD_CREATE_TIME = LOGIN_SMS_CODE_FIELD("create_time")
-const LOGIN_SMS_CODE_FIELD_UPDATE_TIME = LOGIN_SMS_CODE_FIELD("update_time")
-
-const LOGIN_SMS_CODE_ALL_FIELDS_STRING = "id,phone_number,sms_code,create_time,update_time"
-
-var LOGIN_SMS_CODE_ALL_FIELDS = []string{
-	"id",
-	"phone_number",
-	"sms_code",
-	"create_time",
-	"update_time",
-}
-
-type LoginSmsCode struct {
-	Id          uint64 //size=20
-	PhoneNumber string //size=32
-	SmsCode     string //size=8
-	CreateTime  time.Time
-	UpdateTime  time.Time
-}
-
-type LoginSmsCodeQuery struct {
-	BaseQuery
-	dao *LoginSmsCodeDao
-}
-
-func NewLoginSmsCodeQuery(dao *LoginSmsCodeDao) *LoginSmsCodeQuery {
-	q := &LoginSmsCodeQuery{}
-	q.dao = dao
-
-	return q
-}
-
-func (q *LoginSmsCodeQuery) QueryOne(ctx context.Context, tx *wrap.Tx) (*LoginSmsCode, error) {
-	return q.dao.QueryOne(ctx, tx, q.buildQueryString())
-}
-
-func (q *LoginSmsCodeQuery) QueryList(ctx context.Context, tx *wrap.Tx) (list []*LoginSmsCode, err error) {
-	return q.dao.QueryList(ctx, tx, q.buildQueryString())
-}
-
-func (q *LoginSmsCodeQuery) QueryCount(ctx context.Context, tx *wrap.Tx) (count int64, err error) {
-	return q.dao.QueryCount(ctx, tx, q.buildQueryString())
-}
-
-func (q *LoginSmsCodeQuery) QueryGroupBy(ctx context.Context, tx *wrap.Tx) (rows *wrap.Rows, err error) {
-	return q.dao.QueryGroupBy(ctx, tx, q.groupByFields, q.buildQueryString())
-}
-
-func (q *LoginSmsCodeQuery) ForUpdate() *LoginSmsCodeQuery {
-	q.forUpdate = true
-	return q
-}
-
-func (q *LoginSmsCodeQuery) ForShare() *LoginSmsCodeQuery {
-	q.forShare = true
-	return q
-}
-
-func (q *LoginSmsCodeQuery) GroupBy(fields ...LOGIN_SMS_CODE_FIELD) *LoginSmsCodeQuery {
-	q.groupByFields = make([]string, len(fields))
-	for i, v := range fields {
-		q.groupByFields[i] = string(v)
-	}
-	return q
-}
-
-func (q *LoginSmsCodeQuery) Limit(startIncluded int64, count int64) *LoginSmsCodeQuery {
-	q.limit = fmt.Sprintf(" limit %d,%d", startIncluded, count)
-	return q
-}
-
-func (q *LoginSmsCodeQuery) OrderBy(fieldName LOGIN_SMS_CODE_FIELD, asc bool) *LoginSmsCodeQuery {
-	if q.order != "" {
-		q.order += ","
-	}
-	q.order += string(fieldName) + " "
-	if asc {
-		q.order += "asc"
-	} else {
-		q.order += "desc"
-	}
-
-	return q
-}
-
-func (q *LoginSmsCodeQuery) OrderByGroupCount(asc bool) *LoginSmsCodeQuery {
-	if q.order != "" {
-		q.order += ","
-	}
-	q.order += "count(1) "
-	if asc {
-		q.order += "asc"
-	} else {
-		q.order += "desc"
-	}
-
-	return q
-}
-
-func (q *LoginSmsCodeQuery) w(format string, a ...interface{}) *LoginSmsCodeQuery {
-	q.where += fmt.Sprintf(format, a...)
-	return q
-}
-
-func (q *LoginSmsCodeQuery) Left() *LoginSmsCodeQuery  { return q.w(" ( ") }
-func (q *LoginSmsCodeQuery) Right() *LoginSmsCodeQuery { return q.w(" ) ") }
-func (q *LoginSmsCodeQuery) And() *LoginSmsCodeQuery   { return q.w(" AND ") }
-func (q *LoginSmsCodeQuery) Or() *LoginSmsCodeQuery    { return q.w(" OR ") }
-func (q *LoginSmsCodeQuery) Not() *LoginSmsCodeQuery   { return q.w(" NOT ") }
-
-func (q *LoginSmsCodeQuery) Id_Equal(v uint64) *LoginSmsCodeQuery {
-	return q.w("id='" + fmt.Sprint(v) + "'")
-}
-func (q *LoginSmsCodeQuery) Id_NotEqual(v uint64) *LoginSmsCodeQuery {
-	return q.w("id<>'" + fmt.Sprint(v) + "'")
-}
-func (q *LoginSmsCodeQuery) Id_Less(v uint64) *LoginSmsCodeQuery {
-	return q.w("id<'" + fmt.Sprint(v) + "'")
-}
-func (q *LoginSmsCodeQuery) Id_LessEqual(v uint64) *LoginSmsCodeQuery {
-	return q.w("id<='" + fmt.Sprint(v) + "'")
-}
-func (q *LoginSmsCodeQuery) Id_Greater(v uint64) *LoginSmsCodeQuery {
-	return q.w("id>'" + fmt.Sprint(v) + "'")
-}
-func (q *LoginSmsCodeQuery) Id_GreaterEqual(v uint64) *LoginSmsCodeQuery {
-	return q.w("id>='" + fmt.Sprint(v) + "'")
-}
-func (q *LoginSmsCodeQuery) PhoneNumber_Equal(v string) *LoginSmsCodeQuery {
-	return q.w("phone_number='" + fmt.Sprint(v) + "'")
-}
-func (q *LoginSmsCodeQuery) PhoneNumber_NotEqual(v string) *LoginSmsCodeQuery {
-	return q.w("phone_number<>'" + fmt.Sprint(v) + "'")
-}
-func (q *LoginSmsCodeQuery) PhoneNumber_Less(v string) *LoginSmsCodeQuery {
-	return q.w("phone_number<'" + fmt.Sprint(v) + "'")
-}
-func (q *LoginSmsCodeQuery) PhoneNumber_LessEqual(v string) *LoginSmsCodeQuery {
-	return q.w("phone_number<='" + fmt.Sprint(v) + "'")
-}
-func (q *LoginSmsCodeQuery) PhoneNumber_Greater(v string) *LoginSmsCodeQuery {
-	return q.w("phone_number>'" + fmt.Sprint(v) + "'")
-}
-func (q *LoginSmsCodeQuery) PhoneNumber_GreaterEqual(v string) *LoginSmsCodeQuery {
-	return q.w("phone_number>='" + fmt.Sprint(v) + "'")
-}
-func (q *LoginSmsCodeQuery) SmsCode_Equal(v string) *LoginSmsCodeQuery {
-	return q.w("sms_code='" + fmt.Sprint(v) + "'")
-}
-func (q *LoginSmsCodeQuery) SmsCode_NotEqual(v string) *LoginSmsCodeQuery {
-	return q.w("sms_code<>'" + fmt.Sprint(v) + "'")
-}
-func (q *LoginSmsCodeQuery) SmsCode_Less(v string) *LoginSmsCodeQuery {
-	return q.w("sms_code<'" + fmt.Sprint(v) + "'")
-}
-func (q *LoginSmsCodeQuery) SmsCode_LessEqual(v string) *LoginSmsCodeQuery {
-	return q.w("sms_code<='" + fmt.Sprint(v) + "'")
-}
-func (q *LoginSmsCodeQuery) SmsCode_Greater(v string) *LoginSmsCodeQuery {
-	return q.w("sms_code>'" + fmt.Sprint(v) + "'")
-}
-func (q *LoginSmsCodeQuery) SmsCode_GreaterEqual(v string) *LoginSmsCodeQuery {
-	return q.w("sms_code>='" + fmt.Sprint(v) + "'")
-}
-func (q *LoginSmsCodeQuery) CreateTime_Equal(v time.Time) *LoginSmsCodeQuery {
-	return q.w("create_time='" + fmt.Sprint(v) + "'")
-}
-func (q *LoginSmsCodeQuery) CreateTime_NotEqual(v time.Time) *LoginSmsCodeQuery {
-	return q.w("create_time<>'" + fmt.Sprint(v) + "'")
-}
-func (q *LoginSmsCodeQuery) CreateTime_Less(v time.Time) *LoginSmsCodeQuery {
-	return q.w("create_time<'" + fmt.Sprint(v) + "'")
-}
-func (q *LoginSmsCodeQuery) CreateTime_LessEqual(v time.Time) *LoginSmsCodeQuery {
-	return q.w("create_time<='" + fmt.Sprint(v) + "'")
-}
-func (q *LoginSmsCodeQuery) CreateTime_Greater(v time.Time) *LoginSmsCodeQuery {
-	return q.w("create_time>'" + fmt.Sprint(v) + "'")
-}
-func (q *LoginSmsCodeQuery) CreateTime_GreaterEqual(v time.Time) *LoginSmsCodeQuery {
-	return q.w("create_time>='" + fmt.Sprint(v) + "'")
-}
-func (q *LoginSmsCodeQuery) UpdateTime_Equal(v time.Time) *LoginSmsCodeQuery {
-	return q.w("update_time='" + fmt.Sprint(v) + "'")
-}
-func (q *LoginSmsCodeQuery) UpdateTime_NotEqual(v time.Time) *LoginSmsCodeQuery {
-	return q.w("update_time<>'" + fmt.Sprint(v) + "'")
-}
-func (q *LoginSmsCodeQuery) UpdateTime_Less(v time.Time) *LoginSmsCodeQuery {
-	return q.w("update_time<'" + fmt.Sprint(v) + "'")
-}
-func (q *LoginSmsCodeQuery) UpdateTime_LessEqual(v time.Time) *LoginSmsCodeQuery {
-	return q.w("update_time<='" + fmt.Sprint(v) + "'")
-}
-func (q *LoginSmsCodeQuery) UpdateTime_Greater(v time.Time) *LoginSmsCodeQuery {
-	return q.w("update_time>'" + fmt.Sprint(v) + "'")
-}
-func (q *LoginSmsCodeQuery) UpdateTime_GreaterEqual(v time.Time) *LoginSmsCodeQuery {
-	return q.w("update_time>='" + fmt.Sprint(v) + "'")
-}
-
-type LoginSmsCodeDao struct {
-	logger     *zap.Logger
-	db         *DB
-	insertStmt *wrap.Stmt
-	updateStmt *wrap.Stmt
-	deleteStmt *wrap.Stmt
-}
-
-func NewLoginSmsCodeDao(db *DB) (t *LoginSmsCodeDao, err error) {
-	t = &LoginSmsCodeDao{}
-	t.logger = log.TypedLogger(t)
-	t.db = db
-	err = t.init()
-	if err != nil {
-		return nil, err
-	}
-
-	return t, nil
-}
-
-func (dao *LoginSmsCodeDao) init() (err error) {
-	err = dao.prepareInsertStmt()
-	if err != nil {
-		return err
-	}
-
-	err = dao.prepareUpdateStmt()
-	if err != nil {
-		return err
-	}
-
-	err = dao.prepareDeleteStmt()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (dao *LoginSmsCodeDao) prepareInsertStmt() (err error) {
-	dao.insertStmt, err = dao.db.Prepare(context.Background(), "INSERT INTO login_sms_code (phone_number,sms_code) VALUES (?,?)")
-	return err
-}
-
-func (dao *LoginSmsCodeDao) prepareUpdateStmt() (err error) {
-	dao.updateStmt, err = dao.db.Prepare(context.Background(), "UPDATE login_sms_code SET phone_number=?,sms_code=? WHERE id=?")
-	return err
-}
-
-func (dao *LoginSmsCodeDao) prepareDeleteStmt() (err error) {
-	dao.deleteStmt, err = dao.db.Prepare(context.Background(), "DELETE FROM login_sms_code WHERE id=?")
-	return err
-}
-
-func (dao *LoginSmsCodeDao) Insert(ctx context.Context, tx *wrap.Tx, e *LoginSmsCode) (id int64, err error) {
-	stmt := dao.insertStmt
-	if tx != nil {
-		stmt = tx.Stmt(ctx, stmt)
-	}
-
-	result, err := stmt.Exec(ctx, e.PhoneNumber, e.SmsCode)
-	if err != nil {
-		return 0, err
-	}
-
-	id, err = result.LastInsertId()
-	if err != nil {
-		return 0, err
-	}
-
-	return id, nil
-}
-
-func (dao *LoginSmsCodeDao) Update(ctx context.Context, tx *wrap.Tx, e *LoginSmsCode) (err error) {
-	stmt := dao.updateStmt
-	if tx != nil {
-		stmt = tx.Stmt(ctx, stmt)
-	}
-
-	_, err = stmt.Exec(ctx, e.PhoneNumber, e.SmsCode, e.Id)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (dao *LoginSmsCodeDao) Delete(ctx context.Context, tx *wrap.Tx, id uint64) (err error) {
-	stmt := dao.deleteStmt
-	if tx != nil {
-		stmt = tx.Stmt(ctx, stmt)
-	}
-
-	_, err = stmt.Exec(ctx, id)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (dao *LoginSmsCodeDao) scanRow(row *wrap.Row) (*LoginSmsCode, error) {
-	e := &LoginSmsCode{}
-	err := row.Scan(&e.Id, &e.PhoneNumber, &e.SmsCode, &e.CreateTime, &e.UpdateTime)
-	if err != nil {
-		if err == wrap.ErrNoRows {
-			return nil, nil
-		} else {
-			return nil, err
-		}
-	}
-
-	return e, nil
-}
-
-func (dao *LoginSmsCodeDao) scanRows(rows *wrap.Rows) (list []*LoginSmsCode, err error) {
-	list = make([]*LoginSmsCode, 0)
-	for rows.Next() {
-		e := LoginSmsCode{}
-		err = rows.Scan(&e.Id, &e.PhoneNumber, &e.SmsCode, &e.CreateTime, &e.UpdateTime)
-		if err != nil {
-			return nil, err
-		}
-		list = append(list, &e)
-	}
-	if rows.Err() != nil {
-		err = rows.Err()
-		return nil, err
-	}
-
-	return list, nil
-}
-
-func (dao *LoginSmsCodeDao) QueryOne(ctx context.Context, tx *wrap.Tx, query string) (*LoginSmsCode, error) {
-	querySql := "SELECT " + LOGIN_SMS_CODE_ALL_FIELDS_STRING + " FROM login_sms_code " + query
-	var row *wrap.Row
-	if tx == nil {
-		row = dao.db.QueryRow(ctx, querySql)
-	} else {
-		row = tx.QueryRow(ctx, querySql)
-	}
-	return dao.scanRow(row)
-}
-
-func (dao *LoginSmsCodeDao) QueryList(ctx context.Context, tx *wrap.Tx, query string) (list []*LoginSmsCode, err error) {
-	querySql := "SELECT " + LOGIN_SMS_CODE_ALL_FIELDS_STRING + " FROM login_sms_code " + query
-	var rows *wrap.Rows
-	if tx == nil {
-		rows, err = dao.db.Query(ctx, querySql)
-	} else {
-		rows, err = tx.Query(ctx, querySql)
-	}
-	if err != nil {
-		dao.logger.Error("sqlDriver", zap.Error(err))
-		return nil, err
-	}
-
-	return dao.scanRows(rows)
-}
-
-func (dao *LoginSmsCodeDao) QueryCount(ctx context.Context, tx *wrap.Tx, query string) (count int64, err error) {
-	querySql := "SELECT COUNT(1) FROM login_sms_code " + query
-	var row *wrap.Row
-	if tx == nil {
-		row = dao.db.QueryRow(ctx, querySql)
-	} else {
-		row = tx.QueryRow(ctx, querySql)
-	}
-	if err != nil {
-		dao.logger.Error("sqlDriver", zap.Error(err))
-		return 0, err
-	}
-
-	err = row.Scan(&count)
-	if err != nil {
-		return 0, err
-	}
-
-	return count, nil
-}
-
-func (dao *LoginSmsCodeDao) QueryGroupBy(ctx context.Context, tx *wrap.Tx, groupByFields []string, query string) (rows *wrap.Rows, err error) {
-	querySql := "SELECT " + strings.Join(groupByFields, ",") + ",count(1) FROM login_sms_code " + query
-	if tx == nil {
-		return dao.db.Query(ctx, querySql)
-	} else {
-		return tx.Query(ctx, querySql)
-	}
-}
-
-func (dao *LoginSmsCodeDao) GetQuery() *LoginSmsCodeQuery {
-	return NewLoginSmsCodeQuery(dao)
-}
-
 const OAUTH_ACCOUNT_TABLE_NAME = "oauth_account"
 
 type OAUTH_ACCOUNT_FIELD string
 
 const OAUTH_ACCOUNT_FIELD_ID = OAUTH_ACCOUNT_FIELD("id")
 const OAUTH_ACCOUNT_FIELD_USER_ID = OAUTH_ACCOUNT_FIELD("user_id")
-const OAUTH_ACCOUNT_FIELD_OAUTH_PROVIDER = OAUTH_ACCOUNT_FIELD("oauth_provider")
-const OAUTH_ACCOUNT_FIELD_OAUTH_OPEN_ID = OAUTH_ACCOUNT_FIELD("oauth_open_id")
-const OAUTH_ACCOUNT_FIELD_OAUTH_NAME = OAUTH_ACCOUNT_FIELD("oauth_name")
-const OAUTH_ACCOUNT_FIELD_OAUTH_ICON = OAUTH_ACCOUNT_FIELD("oauth_icon")
+const OAUTH_ACCOUNT_FIELD_PROVIDERID = OAUTH_ACCOUNT_FIELD("providerId")
+const OAUTH_ACCOUNT_FIELD_PROVIDER_NAME = OAUTH_ACCOUNT_FIELD("provider_name")
+const OAUTH_ACCOUNT_FIELD_OPEN_ID = OAUTH_ACCOUNT_FIELD("open_id")
+const OAUTH_ACCOUNT_FIELD_USER_NAME = OAUTH_ACCOUNT_FIELD("user_name")
+const OAUTH_ACCOUNT_FIELD_USER_ICON = OAUTH_ACCOUNT_FIELD("user_icon")
 const OAUTH_ACCOUNT_FIELD_CREATE_TIME = OAUTH_ACCOUNT_FIELD("create_time")
 const OAUTH_ACCOUNT_FIELD_UPDATE_TIME = OAUTH_ACCOUNT_FIELD("update_time")
 
-const OAUTH_ACCOUNT_ALL_FIELDS_STRING = "id,user_id,oauth_provider,oauth_open_id,oauth_name,oauth_icon,create_time,update_time"
+const OAUTH_ACCOUNT_ALL_FIELDS_STRING = "id,user_id,providerId,provider_name,open_id,user_name,user_icon,create_time,update_time"
 
 var OAUTH_ACCOUNT_ALL_FIELDS = []string{
 	"id",
 	"user_id",
-	"oauth_provider",
-	"oauth_open_id",
-	"oauth_name",
-	"oauth_icon",
+	"providerId",
+	"provider_name",
+	"open_id",
+	"user_name",
+	"user_icon",
 	"create_time",
 	"update_time",
 }
 
 type OauthAccount struct {
-	Id            uint64 //size=20
-	UserId        string //size=32
-	OauthProvider string //size=32
-	OauthOpenId   string //size=128
-	OauthName     string //size=32
-	OauthIcon     string //size=256
-	CreateTime    time.Time
-	UpdateTime    mysql.NullTime
+	Id           uint64 //size=20
+	UserId       string //size=32
+	ProviderId   string //size=32
+	ProviderName string //size=32
+	OpenId       string //size=128
+	UserName     string //size=32
+	UserIcon     string //size=256
+	CreateTime   time.Time
+	UpdateTime   time.Time
 }
 
 type OauthAccountQuery struct {
@@ -1450,77 +1092,95 @@ func (q *OauthAccountQuery) UserId_Greater(v string) *OauthAccountQuery {
 func (q *OauthAccountQuery) UserId_GreaterEqual(v string) *OauthAccountQuery {
 	return q.w("user_id>='" + fmt.Sprint(v) + "'")
 }
-func (q *OauthAccountQuery) OauthProvider_Equal(v string) *OauthAccountQuery {
-	return q.w("oauth_provider='" + fmt.Sprint(v) + "'")
+func (q *OauthAccountQuery) ProviderId_Equal(v string) *OauthAccountQuery {
+	return q.w("providerId='" + fmt.Sprint(v) + "'")
 }
-func (q *OauthAccountQuery) OauthProvider_NotEqual(v string) *OauthAccountQuery {
-	return q.w("oauth_provider<>'" + fmt.Sprint(v) + "'")
+func (q *OauthAccountQuery) ProviderId_NotEqual(v string) *OauthAccountQuery {
+	return q.w("providerId<>'" + fmt.Sprint(v) + "'")
 }
-func (q *OauthAccountQuery) OauthProvider_Less(v string) *OauthAccountQuery {
-	return q.w("oauth_provider<'" + fmt.Sprint(v) + "'")
+func (q *OauthAccountQuery) ProviderId_Less(v string) *OauthAccountQuery {
+	return q.w("providerId<'" + fmt.Sprint(v) + "'")
 }
-func (q *OauthAccountQuery) OauthProvider_LessEqual(v string) *OauthAccountQuery {
-	return q.w("oauth_provider<='" + fmt.Sprint(v) + "'")
+func (q *OauthAccountQuery) ProviderId_LessEqual(v string) *OauthAccountQuery {
+	return q.w("providerId<='" + fmt.Sprint(v) + "'")
 }
-func (q *OauthAccountQuery) OauthProvider_Greater(v string) *OauthAccountQuery {
-	return q.w("oauth_provider>'" + fmt.Sprint(v) + "'")
+func (q *OauthAccountQuery) ProviderId_Greater(v string) *OauthAccountQuery {
+	return q.w("providerId>'" + fmt.Sprint(v) + "'")
 }
-func (q *OauthAccountQuery) OauthProvider_GreaterEqual(v string) *OauthAccountQuery {
-	return q.w("oauth_provider>='" + fmt.Sprint(v) + "'")
+func (q *OauthAccountQuery) ProviderId_GreaterEqual(v string) *OauthAccountQuery {
+	return q.w("providerId>='" + fmt.Sprint(v) + "'")
 }
-func (q *OauthAccountQuery) OauthOpenId_Equal(v string) *OauthAccountQuery {
-	return q.w("oauth_open_id='" + fmt.Sprint(v) + "'")
+func (q *OauthAccountQuery) ProviderName_Equal(v string) *OauthAccountQuery {
+	return q.w("provider_name='" + fmt.Sprint(v) + "'")
 }
-func (q *OauthAccountQuery) OauthOpenId_NotEqual(v string) *OauthAccountQuery {
-	return q.w("oauth_open_id<>'" + fmt.Sprint(v) + "'")
+func (q *OauthAccountQuery) ProviderName_NotEqual(v string) *OauthAccountQuery {
+	return q.w("provider_name<>'" + fmt.Sprint(v) + "'")
 }
-func (q *OauthAccountQuery) OauthOpenId_Less(v string) *OauthAccountQuery {
-	return q.w("oauth_open_id<'" + fmt.Sprint(v) + "'")
+func (q *OauthAccountQuery) ProviderName_Less(v string) *OauthAccountQuery {
+	return q.w("provider_name<'" + fmt.Sprint(v) + "'")
 }
-func (q *OauthAccountQuery) OauthOpenId_LessEqual(v string) *OauthAccountQuery {
-	return q.w("oauth_open_id<='" + fmt.Sprint(v) + "'")
+func (q *OauthAccountQuery) ProviderName_LessEqual(v string) *OauthAccountQuery {
+	return q.w("provider_name<='" + fmt.Sprint(v) + "'")
 }
-func (q *OauthAccountQuery) OauthOpenId_Greater(v string) *OauthAccountQuery {
-	return q.w("oauth_open_id>'" + fmt.Sprint(v) + "'")
+func (q *OauthAccountQuery) ProviderName_Greater(v string) *OauthAccountQuery {
+	return q.w("provider_name>'" + fmt.Sprint(v) + "'")
 }
-func (q *OauthAccountQuery) OauthOpenId_GreaterEqual(v string) *OauthAccountQuery {
-	return q.w("oauth_open_id>='" + fmt.Sprint(v) + "'")
+func (q *OauthAccountQuery) ProviderName_GreaterEqual(v string) *OauthAccountQuery {
+	return q.w("provider_name>='" + fmt.Sprint(v) + "'")
 }
-func (q *OauthAccountQuery) OauthName_Equal(v string) *OauthAccountQuery {
-	return q.w("oauth_name='" + fmt.Sprint(v) + "'")
+func (q *OauthAccountQuery) OpenId_Equal(v string) *OauthAccountQuery {
+	return q.w("open_id='" + fmt.Sprint(v) + "'")
 }
-func (q *OauthAccountQuery) OauthName_NotEqual(v string) *OauthAccountQuery {
-	return q.w("oauth_name<>'" + fmt.Sprint(v) + "'")
+func (q *OauthAccountQuery) OpenId_NotEqual(v string) *OauthAccountQuery {
+	return q.w("open_id<>'" + fmt.Sprint(v) + "'")
 }
-func (q *OauthAccountQuery) OauthName_Less(v string) *OauthAccountQuery {
-	return q.w("oauth_name<'" + fmt.Sprint(v) + "'")
+func (q *OauthAccountQuery) OpenId_Less(v string) *OauthAccountQuery {
+	return q.w("open_id<'" + fmt.Sprint(v) + "'")
 }
-func (q *OauthAccountQuery) OauthName_LessEqual(v string) *OauthAccountQuery {
-	return q.w("oauth_name<='" + fmt.Sprint(v) + "'")
+func (q *OauthAccountQuery) OpenId_LessEqual(v string) *OauthAccountQuery {
+	return q.w("open_id<='" + fmt.Sprint(v) + "'")
 }
-func (q *OauthAccountQuery) OauthName_Greater(v string) *OauthAccountQuery {
-	return q.w("oauth_name>'" + fmt.Sprint(v) + "'")
+func (q *OauthAccountQuery) OpenId_Greater(v string) *OauthAccountQuery {
+	return q.w("open_id>'" + fmt.Sprint(v) + "'")
 }
-func (q *OauthAccountQuery) OauthName_GreaterEqual(v string) *OauthAccountQuery {
-	return q.w("oauth_name>='" + fmt.Sprint(v) + "'")
+func (q *OauthAccountQuery) OpenId_GreaterEqual(v string) *OauthAccountQuery {
+	return q.w("open_id>='" + fmt.Sprint(v) + "'")
 }
-func (q *OauthAccountQuery) OauthIcon_Equal(v string) *OauthAccountQuery {
-	return q.w("oauth_icon='" + fmt.Sprint(v) + "'")
+func (q *OauthAccountQuery) UserName_Equal(v string) *OauthAccountQuery {
+	return q.w("user_name='" + fmt.Sprint(v) + "'")
 }
-func (q *OauthAccountQuery) OauthIcon_NotEqual(v string) *OauthAccountQuery {
-	return q.w("oauth_icon<>'" + fmt.Sprint(v) + "'")
+func (q *OauthAccountQuery) UserName_NotEqual(v string) *OauthAccountQuery {
+	return q.w("user_name<>'" + fmt.Sprint(v) + "'")
 }
-func (q *OauthAccountQuery) OauthIcon_Less(v string) *OauthAccountQuery {
-	return q.w("oauth_icon<'" + fmt.Sprint(v) + "'")
+func (q *OauthAccountQuery) UserName_Less(v string) *OauthAccountQuery {
+	return q.w("user_name<'" + fmt.Sprint(v) + "'")
 }
-func (q *OauthAccountQuery) OauthIcon_LessEqual(v string) *OauthAccountQuery {
-	return q.w("oauth_icon<='" + fmt.Sprint(v) + "'")
+func (q *OauthAccountQuery) UserName_LessEqual(v string) *OauthAccountQuery {
+	return q.w("user_name<='" + fmt.Sprint(v) + "'")
 }
-func (q *OauthAccountQuery) OauthIcon_Greater(v string) *OauthAccountQuery {
-	return q.w("oauth_icon>'" + fmt.Sprint(v) + "'")
+func (q *OauthAccountQuery) UserName_Greater(v string) *OauthAccountQuery {
+	return q.w("user_name>'" + fmt.Sprint(v) + "'")
 }
-func (q *OauthAccountQuery) OauthIcon_GreaterEqual(v string) *OauthAccountQuery {
-	return q.w("oauth_icon>='" + fmt.Sprint(v) + "'")
+func (q *OauthAccountQuery) UserName_GreaterEqual(v string) *OauthAccountQuery {
+	return q.w("user_name>='" + fmt.Sprint(v) + "'")
+}
+func (q *OauthAccountQuery) UserIcon_Equal(v string) *OauthAccountQuery {
+	return q.w("user_icon='" + fmt.Sprint(v) + "'")
+}
+func (q *OauthAccountQuery) UserIcon_NotEqual(v string) *OauthAccountQuery {
+	return q.w("user_icon<>'" + fmt.Sprint(v) + "'")
+}
+func (q *OauthAccountQuery) UserIcon_Less(v string) *OauthAccountQuery {
+	return q.w("user_icon<'" + fmt.Sprint(v) + "'")
+}
+func (q *OauthAccountQuery) UserIcon_LessEqual(v string) *OauthAccountQuery {
+	return q.w("user_icon<='" + fmt.Sprint(v) + "'")
+}
+func (q *OauthAccountQuery) UserIcon_Greater(v string) *OauthAccountQuery {
+	return q.w("user_icon>'" + fmt.Sprint(v) + "'")
+}
+func (q *OauthAccountQuery) UserIcon_GreaterEqual(v string) *OauthAccountQuery {
+	return q.w("user_icon>='" + fmt.Sprint(v) + "'")
 }
 func (q *OauthAccountQuery) CreateTime_Equal(v time.Time) *OauthAccountQuery {
 	return q.w("create_time='" + fmt.Sprint(v) + "'")
@@ -1557,10 +1217,6 @@ func (q *OauthAccountQuery) UpdateTime_Greater(v time.Time) *OauthAccountQuery {
 }
 func (q *OauthAccountQuery) UpdateTime_GreaterEqual(v time.Time) *OauthAccountQuery {
 	return q.w("update_time>='" + fmt.Sprint(v) + "'")
-}
-func (q *OauthAccountQuery) UpdateTime_IsNull() *OauthAccountQuery { return q.w("update_time IS NULL") }
-func (q *OauthAccountQuery) UpdateTime_NotNull() *OauthAccountQuery {
-	return q.w("update_time IS NOT NULL")
 }
 
 type OauthAccountDao struct {
@@ -1603,12 +1259,12 @@ func (dao *OauthAccountDao) init() (err error) {
 }
 
 func (dao *OauthAccountDao) prepareInsertStmt() (err error) {
-	dao.insertStmt, err = dao.db.Prepare(context.Background(), "INSERT INTO oauth_account (user_id,oauth_provider,oauth_open_id,oauth_name,oauth_icon) VALUES (?,?,?,?,?)")
+	dao.insertStmt, err = dao.db.Prepare(context.Background(), "INSERT INTO oauth_account (user_id,providerId,provider_name,open_id,user_name,user_icon) VALUES (?,?,?,?,?,?)")
 	return err
 }
 
 func (dao *OauthAccountDao) prepareUpdateStmt() (err error) {
-	dao.updateStmt, err = dao.db.Prepare(context.Background(), "UPDATE oauth_account SET user_id=?,oauth_provider=?,oauth_open_id=?,oauth_name=?,oauth_icon=? WHERE id=?")
+	dao.updateStmt, err = dao.db.Prepare(context.Background(), "UPDATE oauth_account SET user_id=?,providerId=?,provider_name=?,open_id=?,user_name=?,user_icon=? WHERE id=?")
 	return err
 }
 
@@ -1623,7 +1279,7 @@ func (dao *OauthAccountDao) Insert(ctx context.Context, tx *wrap.Tx, e *OauthAcc
 		stmt = tx.Stmt(ctx, stmt)
 	}
 
-	result, err := stmt.Exec(ctx, e.UserId, e.OauthProvider, e.OauthOpenId, e.OauthName, e.OauthIcon)
+	result, err := stmt.Exec(ctx, e.UserId, e.ProviderId, e.ProviderName, e.OpenId, e.UserName, e.UserIcon)
 	if err != nil {
 		return 0, err
 	}
@@ -1642,7 +1298,7 @@ func (dao *OauthAccountDao) Update(ctx context.Context, tx *wrap.Tx, e *OauthAcc
 		stmt = tx.Stmt(ctx, stmt)
 	}
 
-	_, err = stmt.Exec(ctx, e.UserId, e.OauthProvider, e.OauthOpenId, e.OauthName, e.OauthIcon, e.Id)
+	_, err = stmt.Exec(ctx, e.UserId, e.ProviderId, e.ProviderName, e.OpenId, e.UserName, e.UserIcon, e.Id)
 	if err != nil {
 		return err
 	}
@@ -1666,7 +1322,7 @@ func (dao *OauthAccountDao) Delete(ctx context.Context, tx *wrap.Tx, id uint64) 
 
 func (dao *OauthAccountDao) scanRow(row *wrap.Row) (*OauthAccount, error) {
 	e := &OauthAccount{}
-	err := row.Scan(&e.Id, &e.UserId, &e.OauthProvider, &e.OauthOpenId, &e.OauthName, &e.OauthIcon, &e.CreateTime, &e.UpdateTime)
+	err := row.Scan(&e.Id, &e.UserId, &e.ProviderId, &e.ProviderName, &e.OpenId, &e.UserName, &e.UserIcon, &e.CreateTime, &e.UpdateTime)
 	if err != nil {
 		if err == wrap.ErrNoRows {
 			return nil, nil
@@ -1682,7 +1338,7 @@ func (dao *OauthAccountDao) scanRows(rows *wrap.Rows) (list []*OauthAccount, err
 	list = make([]*OauthAccount, 0)
 	for rows.Next() {
 		e := OauthAccount{}
-		err = rows.Scan(&e.Id, &e.UserId, &e.OauthProvider, &e.OauthOpenId, &e.OauthName, &e.OauthIcon, &e.CreateTime, &e.UpdateTime)
+		err = rows.Scan(&e.Id, &e.UserId, &e.ProviderId, &e.ProviderName, &e.OpenId, &e.UserName, &e.UserIcon, &e.CreateTime, &e.UpdateTime)
 		if err != nil {
 			return nil, err
 		}
@@ -2183,26 +1839,26 @@ type PHONE_ACCOUNT_FIELD string
 
 const PHONE_ACCOUNT_FIELD_ID = PHONE_ACCOUNT_FIELD("id")
 const PHONE_ACCOUNT_FIELD_USER_ID = PHONE_ACCOUNT_FIELD("user_id")
-const PHONE_ACCOUNT_FIELD_PHONE_NUMBER = PHONE_ACCOUNT_FIELD("phone_number")
+const PHONE_ACCOUNT_FIELD_PHONE_ENCRYPTED = PHONE_ACCOUNT_FIELD("phone_encrypted")
 const PHONE_ACCOUNT_FIELD_CREATE_TIME = PHONE_ACCOUNT_FIELD("create_time")
 const PHONE_ACCOUNT_FIELD_UPDATE_TIME = PHONE_ACCOUNT_FIELD("update_time")
 
-const PHONE_ACCOUNT_ALL_FIELDS_STRING = "id,user_id,phone_number,create_time,update_time"
+const PHONE_ACCOUNT_ALL_FIELDS_STRING = "id,user_id,phone_encrypted,create_time,update_time"
 
 var PHONE_ACCOUNT_ALL_FIELDS = []string{
 	"id",
 	"user_id",
-	"phone_number",
+	"phone_encrypted",
 	"create_time",
 	"update_time",
 }
 
 type PhoneAccount struct {
-	Id          uint64 //size=20
-	UserId      string //size=32
-	PhoneNumber string //size=32
-	CreateTime  time.Time
-	UpdateTime  time.Time
+	Id             uint64 //size=20
+	UserId         string //size=32
+	PhoneEncrypted string //size=32
+	CreateTime     time.Time
+	UpdateTime     time.Time
 }
 
 type PhoneAccountQuery struct {
@@ -2331,23 +1987,23 @@ func (q *PhoneAccountQuery) UserId_Greater(v string) *PhoneAccountQuery {
 func (q *PhoneAccountQuery) UserId_GreaterEqual(v string) *PhoneAccountQuery {
 	return q.w("user_id>='" + fmt.Sprint(v) + "'")
 }
-func (q *PhoneAccountQuery) PhoneNumber_Equal(v string) *PhoneAccountQuery {
-	return q.w("phone_number='" + fmt.Sprint(v) + "'")
+func (q *PhoneAccountQuery) PhoneEncrypted_Equal(v string) *PhoneAccountQuery {
+	return q.w("phone_encrypted='" + fmt.Sprint(v) + "'")
 }
-func (q *PhoneAccountQuery) PhoneNumber_NotEqual(v string) *PhoneAccountQuery {
-	return q.w("phone_number<>'" + fmt.Sprint(v) + "'")
+func (q *PhoneAccountQuery) PhoneEncrypted_NotEqual(v string) *PhoneAccountQuery {
+	return q.w("phone_encrypted<>'" + fmt.Sprint(v) + "'")
 }
-func (q *PhoneAccountQuery) PhoneNumber_Less(v string) *PhoneAccountQuery {
-	return q.w("phone_number<'" + fmt.Sprint(v) + "'")
+func (q *PhoneAccountQuery) PhoneEncrypted_Less(v string) *PhoneAccountQuery {
+	return q.w("phone_encrypted<'" + fmt.Sprint(v) + "'")
 }
-func (q *PhoneAccountQuery) PhoneNumber_LessEqual(v string) *PhoneAccountQuery {
-	return q.w("phone_number<='" + fmt.Sprint(v) + "'")
+func (q *PhoneAccountQuery) PhoneEncrypted_LessEqual(v string) *PhoneAccountQuery {
+	return q.w("phone_encrypted<='" + fmt.Sprint(v) + "'")
 }
-func (q *PhoneAccountQuery) PhoneNumber_Greater(v string) *PhoneAccountQuery {
-	return q.w("phone_number>'" + fmt.Sprint(v) + "'")
+func (q *PhoneAccountQuery) PhoneEncrypted_Greater(v string) *PhoneAccountQuery {
+	return q.w("phone_encrypted>'" + fmt.Sprint(v) + "'")
 }
-func (q *PhoneAccountQuery) PhoneNumber_GreaterEqual(v string) *PhoneAccountQuery {
-	return q.w("phone_number>='" + fmt.Sprint(v) + "'")
+func (q *PhoneAccountQuery) PhoneEncrypted_GreaterEqual(v string) *PhoneAccountQuery {
+	return q.w("phone_encrypted>='" + fmt.Sprint(v) + "'")
 }
 func (q *PhoneAccountQuery) CreateTime_Equal(v time.Time) *PhoneAccountQuery {
 	return q.w("create_time='" + fmt.Sprint(v) + "'")
@@ -2426,12 +2082,12 @@ func (dao *PhoneAccountDao) init() (err error) {
 }
 
 func (dao *PhoneAccountDao) prepareInsertStmt() (err error) {
-	dao.insertStmt, err = dao.db.Prepare(context.Background(), "INSERT INTO phone_account (user_id,phone_number) VALUES (?,?)")
+	dao.insertStmt, err = dao.db.Prepare(context.Background(), "INSERT INTO phone_account (user_id,phone_encrypted) VALUES (?,?)")
 	return err
 }
 
 func (dao *PhoneAccountDao) prepareUpdateStmt() (err error) {
-	dao.updateStmt, err = dao.db.Prepare(context.Background(), "UPDATE phone_account SET user_id=?,phone_number=? WHERE id=?")
+	dao.updateStmt, err = dao.db.Prepare(context.Background(), "UPDATE phone_account SET user_id=?,phone_encrypted=? WHERE id=?")
 	return err
 }
 
@@ -2446,7 +2102,7 @@ func (dao *PhoneAccountDao) Insert(ctx context.Context, tx *wrap.Tx, e *PhoneAcc
 		stmt = tx.Stmt(ctx, stmt)
 	}
 
-	result, err := stmt.Exec(ctx, e.UserId, e.PhoneNumber)
+	result, err := stmt.Exec(ctx, e.UserId, e.PhoneEncrypted)
 	if err != nil {
 		return 0, err
 	}
@@ -2465,7 +2121,7 @@ func (dao *PhoneAccountDao) Update(ctx context.Context, tx *wrap.Tx, e *PhoneAcc
 		stmt = tx.Stmt(ctx, stmt)
 	}
 
-	_, err = stmt.Exec(ctx, e.UserId, e.PhoneNumber, e.Id)
+	_, err = stmt.Exec(ctx, e.UserId, e.PhoneEncrypted, e.Id)
 	if err != nil {
 		return err
 	}
@@ -2489,7 +2145,7 @@ func (dao *PhoneAccountDao) Delete(ctx context.Context, tx *wrap.Tx, id uint64) 
 
 func (dao *PhoneAccountDao) scanRow(row *wrap.Row) (*PhoneAccount, error) {
 	e := &PhoneAccount{}
-	err := row.Scan(&e.Id, &e.UserId, &e.PhoneNumber, &e.CreateTime, &e.UpdateTime)
+	err := row.Scan(&e.Id, &e.UserId, &e.PhoneEncrypted, &e.CreateTime, &e.UpdateTime)
 	if err != nil {
 		if err == wrap.ErrNoRows {
 			return nil, nil
@@ -2505,7 +2161,7 @@ func (dao *PhoneAccountDao) scanRows(rows *wrap.Rows) (list []*PhoneAccount, err
 	list = make([]*PhoneAccount, 0)
 	for rows.Next() {
 		e := PhoneAccount{}
-		err = rows.Scan(&e.Id, &e.UserId, &e.PhoneNumber, &e.CreateTime, &e.UpdateTime)
+		err = rows.Scan(&e.Id, &e.UserId, &e.PhoneEncrypted, &e.CreateTime, &e.UpdateTime)
 		if err != nil {
 			return nil, err
 		}
@@ -3025,76 +2681,79 @@ func (dao *RefreshTokenDao) GetQuery() *RefreshTokenQuery {
 	return NewRefreshTokenQuery(dao)
 }
 
-const USER_TABLE_NAME = "user"
+const SMS_CODE_TABLE_NAME = "sms_code"
 
-type USER_FIELD string
+type SMS_CODE_FIELD string
 
-const USER_FIELD_ID = USER_FIELD("id")
-const USER_FIELD_USER_ID = USER_FIELD("user_id")
-const USER_FIELD_USER_NAME = USER_FIELD("user_name")
-const USER_FIELD_USER_ICON = USER_FIELD("user_icon")
-const USER_FIELD_CREATE_TIME = USER_FIELD("create_time")
-const USER_FIELD_UPDATE_TIME = USER_FIELD("update_time")
+const SMS_CODE_FIELD_ID = SMS_CODE_FIELD("id")
+const SMS_CODE_FIELD_SMS_SCENE = SMS_CODE_FIELD("sms_scene")
+const SMS_CODE_FIELD_PHONE_ENCRYPTED = SMS_CODE_FIELD("phone_encrypted")
+const SMS_CODE_FIELD_SMS_CODE = SMS_CODE_FIELD("sms_code")
+const SMS_CODE_FIELD_USER_ID = SMS_CODE_FIELD("user_id")
+const SMS_CODE_FIELD_CREATE_TIME = SMS_CODE_FIELD("create_time")
+const SMS_CODE_FIELD_UPDATE_TIME = SMS_CODE_FIELD("update_time")
 
-const USER_ALL_FIELDS_STRING = "id,user_id,user_name,user_icon,create_time,update_time"
+const SMS_CODE_ALL_FIELDS_STRING = "id,sms_scene,phone_encrypted,sms_code,user_id,create_time,update_time"
 
-var USER_ALL_FIELDS = []string{
+var SMS_CODE_ALL_FIELDS = []string{
 	"id",
+	"sms_scene",
+	"phone_encrypted",
+	"sms_code",
 	"user_id",
-	"user_name",
-	"user_icon",
 	"create_time",
 	"update_time",
 }
 
-type User struct {
-	Id         uint64 //size=20
-	UserId     string //size=32
-	UserName   string //size=32
-	UserIcon   string //size=256
-	CreateTime time.Time
-	UpdateTime time.Time
+type SmsCode struct {
+	Id             uint64 //size=20
+	SmsScene       string //size=32
+	PhoneEncrypted string //size=32
+	SmsCode        string //size=8
+	UserId         string //size=32
+	CreateTime     time.Time
+	UpdateTime     time.Time
 }
 
-type UserQuery struct {
+type SmsCodeQuery struct {
 	BaseQuery
-	dao *UserDao
+	dao *SmsCodeDao
 }
 
-func NewUserQuery(dao *UserDao) *UserQuery {
-	q := &UserQuery{}
+func NewSmsCodeQuery(dao *SmsCodeDao) *SmsCodeQuery {
+	q := &SmsCodeQuery{}
 	q.dao = dao
 
 	return q
 }
 
-func (q *UserQuery) QueryOne(ctx context.Context, tx *wrap.Tx) (*User, error) {
+func (q *SmsCodeQuery) QueryOne(ctx context.Context, tx *wrap.Tx) (*SmsCode, error) {
 	return q.dao.QueryOne(ctx, tx, q.buildQueryString())
 }
 
-func (q *UserQuery) QueryList(ctx context.Context, tx *wrap.Tx) (list []*User, err error) {
+func (q *SmsCodeQuery) QueryList(ctx context.Context, tx *wrap.Tx) (list []*SmsCode, err error) {
 	return q.dao.QueryList(ctx, tx, q.buildQueryString())
 }
 
-func (q *UserQuery) QueryCount(ctx context.Context, tx *wrap.Tx) (count int64, err error) {
+func (q *SmsCodeQuery) QueryCount(ctx context.Context, tx *wrap.Tx) (count int64, err error) {
 	return q.dao.QueryCount(ctx, tx, q.buildQueryString())
 }
 
-func (q *UserQuery) QueryGroupBy(ctx context.Context, tx *wrap.Tx) (rows *wrap.Rows, err error) {
+func (q *SmsCodeQuery) QueryGroupBy(ctx context.Context, tx *wrap.Tx) (rows *wrap.Rows, err error) {
 	return q.dao.QueryGroupBy(ctx, tx, q.groupByFields, q.buildQueryString())
 }
 
-func (q *UserQuery) ForUpdate() *UserQuery {
+func (q *SmsCodeQuery) ForUpdate() *SmsCodeQuery {
 	q.forUpdate = true
 	return q
 }
 
-func (q *UserQuery) ForShare() *UserQuery {
+func (q *SmsCodeQuery) ForShare() *SmsCodeQuery {
 	q.forShare = true
 	return q
 }
 
-func (q *UserQuery) GroupBy(fields ...USER_FIELD) *UserQuery {
+func (q *SmsCodeQuery) GroupBy(fields ...SMS_CODE_FIELD) *SmsCodeQuery {
 	q.groupByFields = make([]string, len(fields))
 	for i, v := range fields {
 		q.groupByFields[i] = string(v)
@@ -3102,12 +2761,12 @@ func (q *UserQuery) GroupBy(fields ...USER_FIELD) *UserQuery {
 	return q
 }
 
-func (q *UserQuery) Limit(startIncluded int64, count int64) *UserQuery {
+func (q *SmsCodeQuery) Limit(startIncluded int64, count int64) *SmsCodeQuery {
 	q.limit = fmt.Sprintf(" limit %d,%d", startIncluded, count)
 	return q
 }
 
-func (q *UserQuery) OrderBy(fieldName USER_FIELD, asc bool) *UserQuery {
+func (q *SmsCodeQuery) OrderBy(fieldName SMS_CODE_FIELD, asc bool) *SmsCodeQuery {
 	if q.order != "" {
 		q.order += ","
 	}
@@ -3121,7 +2780,7 @@ func (q *UserQuery) OrderBy(fieldName USER_FIELD, asc bool) *UserQuery {
 	return q
 }
 
-func (q *UserQuery) OrderByGroupCount(asc bool) *UserQuery {
+func (q *SmsCodeQuery) OrderByGroupCount(asc bool) *SmsCodeQuery {
 	if q.order != "" {
 		q.order += ","
 	}
@@ -3135,99 +2794,135 @@ func (q *UserQuery) OrderByGroupCount(asc bool) *UserQuery {
 	return q
 }
 
-func (q *UserQuery) w(format string, a ...interface{}) *UserQuery {
+func (q *SmsCodeQuery) w(format string, a ...interface{}) *SmsCodeQuery {
 	q.where += fmt.Sprintf(format, a...)
 	return q
 }
 
-func (q *UserQuery) Left() *UserQuery  { return q.w(" ( ") }
-func (q *UserQuery) Right() *UserQuery { return q.w(" ) ") }
-func (q *UserQuery) And() *UserQuery   { return q.w(" AND ") }
-func (q *UserQuery) Or() *UserQuery    { return q.w(" OR ") }
-func (q *UserQuery) Not() *UserQuery   { return q.w(" NOT ") }
+func (q *SmsCodeQuery) Left() *SmsCodeQuery  { return q.w(" ( ") }
+func (q *SmsCodeQuery) Right() *SmsCodeQuery { return q.w(" ) ") }
+func (q *SmsCodeQuery) And() *SmsCodeQuery   { return q.w(" AND ") }
+func (q *SmsCodeQuery) Or() *SmsCodeQuery    { return q.w(" OR ") }
+func (q *SmsCodeQuery) Not() *SmsCodeQuery   { return q.w(" NOT ") }
 
-func (q *UserQuery) Id_Equal(v uint64) *UserQuery        { return q.w("id='" + fmt.Sprint(v) + "'") }
-func (q *UserQuery) Id_NotEqual(v uint64) *UserQuery     { return q.w("id<>'" + fmt.Sprint(v) + "'") }
-func (q *UserQuery) Id_Less(v uint64) *UserQuery         { return q.w("id<'" + fmt.Sprint(v) + "'") }
-func (q *UserQuery) Id_LessEqual(v uint64) *UserQuery    { return q.w("id<='" + fmt.Sprint(v) + "'") }
-func (q *UserQuery) Id_Greater(v uint64) *UserQuery      { return q.w("id>'" + fmt.Sprint(v) + "'") }
-func (q *UserQuery) Id_GreaterEqual(v uint64) *UserQuery { return q.w("id>='" + fmt.Sprint(v) + "'") }
-func (q *UserQuery) UserId_Equal(v string) *UserQuery    { return q.w("user_id='" + fmt.Sprint(v) + "'") }
-func (q *UserQuery) UserId_NotEqual(v string) *UserQuery { return q.w("user_id<>'" + fmt.Sprint(v) + "'") }
-func (q *UserQuery) UserId_Less(v string) *UserQuery     { return q.w("user_id<'" + fmt.Sprint(v) + "'") }
-func (q *UserQuery) UserId_LessEqual(v string) *UserQuery {
+func (q *SmsCodeQuery) Id_Equal(v uint64) *SmsCodeQuery     { return q.w("id='" + fmt.Sprint(v) + "'") }
+func (q *SmsCodeQuery) Id_NotEqual(v uint64) *SmsCodeQuery  { return q.w("id<>'" + fmt.Sprint(v) + "'") }
+func (q *SmsCodeQuery) Id_Less(v uint64) *SmsCodeQuery      { return q.w("id<'" + fmt.Sprint(v) + "'") }
+func (q *SmsCodeQuery) Id_LessEqual(v uint64) *SmsCodeQuery { return q.w("id<='" + fmt.Sprint(v) + "'") }
+func (q *SmsCodeQuery) Id_Greater(v uint64) *SmsCodeQuery   { return q.w("id>'" + fmt.Sprint(v) + "'") }
+func (q *SmsCodeQuery) Id_GreaterEqual(v uint64) *SmsCodeQuery {
+	return q.w("id>='" + fmt.Sprint(v) + "'")
+}
+func (q *SmsCodeQuery) SmsScene_Equal(v string) *SmsCodeQuery {
+	return q.w("sms_scene='" + fmt.Sprint(v) + "'")
+}
+func (q *SmsCodeQuery) SmsScene_NotEqual(v string) *SmsCodeQuery {
+	return q.w("sms_scene<>'" + fmt.Sprint(v) + "'")
+}
+func (q *SmsCodeQuery) SmsScene_Less(v string) *SmsCodeQuery {
+	return q.w("sms_scene<'" + fmt.Sprint(v) + "'")
+}
+func (q *SmsCodeQuery) SmsScene_LessEqual(v string) *SmsCodeQuery {
+	return q.w("sms_scene<='" + fmt.Sprint(v) + "'")
+}
+func (q *SmsCodeQuery) SmsScene_Greater(v string) *SmsCodeQuery {
+	return q.w("sms_scene>'" + fmt.Sprint(v) + "'")
+}
+func (q *SmsCodeQuery) SmsScene_GreaterEqual(v string) *SmsCodeQuery {
+	return q.w("sms_scene>='" + fmt.Sprint(v) + "'")
+}
+func (q *SmsCodeQuery) PhoneEncrypted_Equal(v string) *SmsCodeQuery {
+	return q.w("phone_encrypted='" + fmt.Sprint(v) + "'")
+}
+func (q *SmsCodeQuery) PhoneEncrypted_NotEqual(v string) *SmsCodeQuery {
+	return q.w("phone_encrypted<>'" + fmt.Sprint(v) + "'")
+}
+func (q *SmsCodeQuery) PhoneEncrypted_Less(v string) *SmsCodeQuery {
+	return q.w("phone_encrypted<'" + fmt.Sprint(v) + "'")
+}
+func (q *SmsCodeQuery) PhoneEncrypted_LessEqual(v string) *SmsCodeQuery {
+	return q.w("phone_encrypted<='" + fmt.Sprint(v) + "'")
+}
+func (q *SmsCodeQuery) PhoneEncrypted_Greater(v string) *SmsCodeQuery {
+	return q.w("phone_encrypted>'" + fmt.Sprint(v) + "'")
+}
+func (q *SmsCodeQuery) PhoneEncrypted_GreaterEqual(v string) *SmsCodeQuery {
+	return q.w("phone_encrypted>='" + fmt.Sprint(v) + "'")
+}
+func (q *SmsCodeQuery) SmsCode_Equal(v string) *SmsCodeQuery {
+	return q.w("sms_code='" + fmt.Sprint(v) + "'")
+}
+func (q *SmsCodeQuery) SmsCode_NotEqual(v string) *SmsCodeQuery {
+	return q.w("sms_code<>'" + fmt.Sprint(v) + "'")
+}
+func (q *SmsCodeQuery) SmsCode_Less(v string) *SmsCodeQuery {
+	return q.w("sms_code<'" + fmt.Sprint(v) + "'")
+}
+func (q *SmsCodeQuery) SmsCode_LessEqual(v string) *SmsCodeQuery {
+	return q.w("sms_code<='" + fmt.Sprint(v) + "'")
+}
+func (q *SmsCodeQuery) SmsCode_Greater(v string) *SmsCodeQuery {
+	return q.w("sms_code>'" + fmt.Sprint(v) + "'")
+}
+func (q *SmsCodeQuery) SmsCode_GreaterEqual(v string) *SmsCodeQuery {
+	return q.w("sms_code>='" + fmt.Sprint(v) + "'")
+}
+func (q *SmsCodeQuery) UserId_Equal(v string) *SmsCodeQuery {
+	return q.w("user_id='" + fmt.Sprint(v) + "'")
+}
+func (q *SmsCodeQuery) UserId_NotEqual(v string) *SmsCodeQuery {
+	return q.w("user_id<>'" + fmt.Sprint(v) + "'")
+}
+func (q *SmsCodeQuery) UserId_Less(v string) *SmsCodeQuery {
+	return q.w("user_id<'" + fmt.Sprint(v) + "'")
+}
+func (q *SmsCodeQuery) UserId_LessEqual(v string) *SmsCodeQuery {
 	return q.w("user_id<='" + fmt.Sprint(v) + "'")
 }
-func (q *UserQuery) UserId_Greater(v string) *UserQuery { return q.w("user_id>'" + fmt.Sprint(v) + "'") }
-func (q *UserQuery) UserId_GreaterEqual(v string) *UserQuery {
+func (q *SmsCodeQuery) UserId_Greater(v string) *SmsCodeQuery {
+	return q.w("user_id>'" + fmt.Sprint(v) + "'")
+}
+func (q *SmsCodeQuery) UserId_GreaterEqual(v string) *SmsCodeQuery {
 	return q.w("user_id>='" + fmt.Sprint(v) + "'")
 }
-func (q *UserQuery) UserName_Equal(v string) *UserQuery { return q.w("user_name='" + fmt.Sprint(v) + "'") }
-func (q *UserQuery) UserName_NotEqual(v string) *UserQuery {
-	return q.w("user_name<>'" + fmt.Sprint(v) + "'")
-}
-func (q *UserQuery) UserName_Less(v string) *UserQuery { return q.w("user_name<'" + fmt.Sprint(v) + "'") }
-func (q *UserQuery) UserName_LessEqual(v string) *UserQuery {
-	return q.w("user_name<='" + fmt.Sprint(v) + "'")
-}
-func (q *UserQuery) UserName_Greater(v string) *UserQuery {
-	return q.w("user_name>'" + fmt.Sprint(v) + "'")
-}
-func (q *UserQuery) UserName_GreaterEqual(v string) *UserQuery {
-	return q.w("user_name>='" + fmt.Sprint(v) + "'")
-}
-func (q *UserQuery) UserIcon_Equal(v string) *UserQuery { return q.w("user_icon='" + fmt.Sprint(v) + "'") }
-func (q *UserQuery) UserIcon_NotEqual(v string) *UserQuery {
-	return q.w("user_icon<>'" + fmt.Sprint(v) + "'")
-}
-func (q *UserQuery) UserIcon_Less(v string) *UserQuery { return q.w("user_icon<'" + fmt.Sprint(v) + "'") }
-func (q *UserQuery) UserIcon_LessEqual(v string) *UserQuery {
-	return q.w("user_icon<='" + fmt.Sprint(v) + "'")
-}
-func (q *UserQuery) UserIcon_Greater(v string) *UserQuery {
-	return q.w("user_icon>'" + fmt.Sprint(v) + "'")
-}
-func (q *UserQuery) UserIcon_GreaterEqual(v string) *UserQuery {
-	return q.w("user_icon>='" + fmt.Sprint(v) + "'")
-}
-func (q *UserQuery) CreateTime_Equal(v time.Time) *UserQuery {
+func (q *SmsCodeQuery) CreateTime_Equal(v time.Time) *SmsCodeQuery {
 	return q.w("create_time='" + fmt.Sprint(v) + "'")
 }
-func (q *UserQuery) CreateTime_NotEqual(v time.Time) *UserQuery {
+func (q *SmsCodeQuery) CreateTime_NotEqual(v time.Time) *SmsCodeQuery {
 	return q.w("create_time<>'" + fmt.Sprint(v) + "'")
 }
-func (q *UserQuery) CreateTime_Less(v time.Time) *UserQuery {
+func (q *SmsCodeQuery) CreateTime_Less(v time.Time) *SmsCodeQuery {
 	return q.w("create_time<'" + fmt.Sprint(v) + "'")
 }
-func (q *UserQuery) CreateTime_LessEqual(v time.Time) *UserQuery {
+func (q *SmsCodeQuery) CreateTime_LessEqual(v time.Time) *SmsCodeQuery {
 	return q.w("create_time<='" + fmt.Sprint(v) + "'")
 }
-func (q *UserQuery) CreateTime_Greater(v time.Time) *UserQuery {
+func (q *SmsCodeQuery) CreateTime_Greater(v time.Time) *SmsCodeQuery {
 	return q.w("create_time>'" + fmt.Sprint(v) + "'")
 }
-func (q *UserQuery) CreateTime_GreaterEqual(v time.Time) *UserQuery {
+func (q *SmsCodeQuery) CreateTime_GreaterEqual(v time.Time) *SmsCodeQuery {
 	return q.w("create_time>='" + fmt.Sprint(v) + "'")
 }
-func (q *UserQuery) UpdateTime_Equal(v time.Time) *UserQuery {
+func (q *SmsCodeQuery) UpdateTime_Equal(v time.Time) *SmsCodeQuery {
 	return q.w("update_time='" + fmt.Sprint(v) + "'")
 }
-func (q *UserQuery) UpdateTime_NotEqual(v time.Time) *UserQuery {
+func (q *SmsCodeQuery) UpdateTime_NotEqual(v time.Time) *SmsCodeQuery {
 	return q.w("update_time<>'" + fmt.Sprint(v) + "'")
 }
-func (q *UserQuery) UpdateTime_Less(v time.Time) *UserQuery {
+func (q *SmsCodeQuery) UpdateTime_Less(v time.Time) *SmsCodeQuery {
 	return q.w("update_time<'" + fmt.Sprint(v) + "'")
 }
-func (q *UserQuery) UpdateTime_LessEqual(v time.Time) *UserQuery {
+func (q *SmsCodeQuery) UpdateTime_LessEqual(v time.Time) *SmsCodeQuery {
 	return q.w("update_time<='" + fmt.Sprint(v) + "'")
 }
-func (q *UserQuery) UpdateTime_Greater(v time.Time) *UserQuery {
+func (q *SmsCodeQuery) UpdateTime_Greater(v time.Time) *SmsCodeQuery {
 	return q.w("update_time>'" + fmt.Sprint(v) + "'")
 }
-func (q *UserQuery) UpdateTime_GreaterEqual(v time.Time) *UserQuery {
+func (q *SmsCodeQuery) UpdateTime_GreaterEqual(v time.Time) *SmsCodeQuery {
 	return q.w("update_time>='" + fmt.Sprint(v) + "'")
 }
 
-type UserDao struct {
+type SmsCodeDao struct {
 	logger     *zap.Logger
 	db         *DB
 	insertStmt *wrap.Stmt
@@ -3235,8 +2930,8 @@ type UserDao struct {
 	deleteStmt *wrap.Stmt
 }
 
-func NewUserDao(db *DB) (t *UserDao, err error) {
-	t = &UserDao{}
+func NewSmsCodeDao(db *DB) (t *SmsCodeDao, err error) {
+	t = &SmsCodeDao{}
 	t.logger = log.TypedLogger(t)
 	t.db = db
 	err = t.init()
@@ -3247,7 +2942,7 @@ func NewUserDao(db *DB) (t *UserDao, err error) {
 	return t, nil
 }
 
-func (dao *UserDao) init() (err error) {
+func (dao *SmsCodeDao) init() (err error) {
 	err = dao.prepareInsertStmt()
 	if err != nil {
 		return err
@@ -3266,28 +2961,28 @@ func (dao *UserDao) init() (err error) {
 	return nil
 }
 
-func (dao *UserDao) prepareInsertStmt() (err error) {
-	dao.insertStmt, err = dao.db.Prepare(context.Background(), "INSERT INTO user (user_id,user_name,user_icon) VALUES (?,?,?)")
+func (dao *SmsCodeDao) prepareInsertStmt() (err error) {
+	dao.insertStmt, err = dao.db.Prepare(context.Background(), "INSERT INTO sms_code (sms_scene,phone_encrypted,sms_code,user_id) VALUES (?,?,?,?)")
 	return err
 }
 
-func (dao *UserDao) prepareUpdateStmt() (err error) {
-	dao.updateStmt, err = dao.db.Prepare(context.Background(), "UPDATE user SET user_id=?,user_name=?,user_icon=? WHERE id=?")
+func (dao *SmsCodeDao) prepareUpdateStmt() (err error) {
+	dao.updateStmt, err = dao.db.Prepare(context.Background(), "UPDATE sms_code SET sms_scene=?,phone_encrypted=?,sms_code=?,user_id=? WHERE id=?")
 	return err
 }
 
-func (dao *UserDao) prepareDeleteStmt() (err error) {
-	dao.deleteStmt, err = dao.db.Prepare(context.Background(), "DELETE FROM user WHERE id=?")
+func (dao *SmsCodeDao) prepareDeleteStmt() (err error) {
+	dao.deleteStmt, err = dao.db.Prepare(context.Background(), "DELETE FROM sms_code WHERE id=?")
 	return err
 }
 
-func (dao *UserDao) Insert(ctx context.Context, tx *wrap.Tx, e *User) (id int64, err error) {
+func (dao *SmsCodeDao) Insert(ctx context.Context, tx *wrap.Tx, e *SmsCode) (id int64, err error) {
 	stmt := dao.insertStmt
 	if tx != nil {
 		stmt = tx.Stmt(ctx, stmt)
 	}
 
-	result, err := stmt.Exec(ctx, e.UserId, e.UserName, e.UserIcon)
+	result, err := stmt.Exec(ctx, e.SmsScene, e.PhoneEncrypted, e.SmsCode, e.UserId)
 	if err != nil {
 		return 0, err
 	}
@@ -3300,13 +2995,13 @@ func (dao *UserDao) Insert(ctx context.Context, tx *wrap.Tx, e *User) (id int64,
 	return id, nil
 }
 
-func (dao *UserDao) Update(ctx context.Context, tx *wrap.Tx, e *User) (err error) {
+func (dao *SmsCodeDao) Update(ctx context.Context, tx *wrap.Tx, e *SmsCode) (err error) {
 	stmt := dao.updateStmt
 	if tx != nil {
 		stmt = tx.Stmt(ctx, stmt)
 	}
 
-	_, err = stmt.Exec(ctx, e.UserId, e.UserName, e.UserIcon, e.Id)
+	_, err = stmt.Exec(ctx, e.SmsScene, e.PhoneEncrypted, e.SmsCode, e.UserId, e.Id)
 	if err != nil {
 		return err
 	}
@@ -3314,7 +3009,7 @@ func (dao *UserDao) Update(ctx context.Context, tx *wrap.Tx, e *User) (err error
 	return nil
 }
 
-func (dao *UserDao) Delete(ctx context.Context, tx *wrap.Tx, id uint64) (err error) {
+func (dao *SmsCodeDao) Delete(ctx context.Context, tx *wrap.Tx, id uint64) (err error) {
 	stmt := dao.deleteStmt
 	if tx != nil {
 		stmt = tx.Stmt(ctx, stmt)
@@ -3328,9 +3023,9 @@ func (dao *UserDao) Delete(ctx context.Context, tx *wrap.Tx, id uint64) (err err
 	return nil
 }
 
-func (dao *UserDao) scanRow(row *wrap.Row) (*User, error) {
-	e := &User{}
-	err := row.Scan(&e.Id, &e.UserId, &e.UserName, &e.UserIcon, &e.CreateTime, &e.UpdateTime)
+func (dao *SmsCodeDao) scanRow(row *wrap.Row) (*SmsCode, error) {
+	e := &SmsCode{}
+	err := row.Scan(&e.Id, &e.SmsScene, &e.PhoneEncrypted, &e.SmsCode, &e.UserId, &e.CreateTime, &e.UpdateTime)
 	if err != nil {
 		if err == wrap.ErrNoRows {
 			return nil, nil
@@ -3342,11 +3037,11 @@ func (dao *UserDao) scanRow(row *wrap.Row) (*User, error) {
 	return e, nil
 }
 
-func (dao *UserDao) scanRows(rows *wrap.Rows) (list []*User, err error) {
-	list = make([]*User, 0)
+func (dao *SmsCodeDao) scanRows(rows *wrap.Rows) (list []*SmsCode, err error) {
+	list = make([]*SmsCode, 0)
 	for rows.Next() {
-		e := User{}
-		err = rows.Scan(&e.Id, &e.UserId, &e.UserName, &e.UserIcon, &e.CreateTime, &e.UpdateTime)
+		e := SmsCode{}
+		err = rows.Scan(&e.Id, &e.SmsScene, &e.PhoneEncrypted, &e.SmsCode, &e.UserId, &e.CreateTime, &e.UpdateTime)
 		if err != nil {
 			return nil, err
 		}
@@ -3360,8 +3055,8 @@ func (dao *UserDao) scanRows(rows *wrap.Rows) (list []*User, err error) {
 	return list, nil
 }
 
-func (dao *UserDao) QueryOne(ctx context.Context, tx *wrap.Tx, query string) (*User, error) {
-	querySql := "SELECT " + USER_ALL_FIELDS_STRING + " FROM user " + query
+func (dao *SmsCodeDao) QueryOne(ctx context.Context, tx *wrap.Tx, query string) (*SmsCode, error) {
+	querySql := "SELECT " + SMS_CODE_ALL_FIELDS_STRING + " FROM sms_code " + query
 	var row *wrap.Row
 	if tx == nil {
 		row = dao.db.QueryRow(ctx, querySql)
@@ -3371,8 +3066,8 @@ func (dao *UserDao) QueryOne(ctx context.Context, tx *wrap.Tx, query string) (*U
 	return dao.scanRow(row)
 }
 
-func (dao *UserDao) QueryList(ctx context.Context, tx *wrap.Tx, query string) (list []*User, err error) {
-	querySql := "SELECT " + USER_ALL_FIELDS_STRING + " FROM user " + query
+func (dao *SmsCodeDao) QueryList(ctx context.Context, tx *wrap.Tx, query string) (list []*SmsCode, err error) {
+	querySql := "SELECT " + SMS_CODE_ALL_FIELDS_STRING + " FROM sms_code " + query
 	var rows *wrap.Rows
 	if tx == nil {
 		rows, err = dao.db.Query(ctx, querySql)
@@ -3387,8 +3082,8 @@ func (dao *UserDao) QueryList(ctx context.Context, tx *wrap.Tx, query string) (l
 	return dao.scanRows(rows)
 }
 
-func (dao *UserDao) QueryCount(ctx context.Context, tx *wrap.Tx, query string) (count int64, err error) {
-	querySql := "SELECT COUNT(1) FROM user " + query
+func (dao *SmsCodeDao) QueryCount(ctx context.Context, tx *wrap.Tx, query string) (count int64, err error) {
+	querySql := "SELECT COUNT(1) FROM sms_code " + query
 	var row *wrap.Row
 	if tx == nil {
 		row = dao.db.QueryRow(ctx, querySql)
@@ -3408,8 +3103,8 @@ func (dao *UserDao) QueryCount(ctx context.Context, tx *wrap.Tx, query string) (
 	return count, nil
 }
 
-func (dao *UserDao) QueryGroupBy(ctx context.Context, tx *wrap.Tx, groupByFields []string, query string) (rows *wrap.Rows, err error) {
-	querySql := "SELECT " + strings.Join(groupByFields, ",") + ",count(1) FROM user " + query
+func (dao *SmsCodeDao) QueryGroupBy(ctx context.Context, tx *wrap.Tx, groupByFields []string, query string) (rows *wrap.Rows, err error) {
+	querySql := "SELECT " + strings.Join(groupByFields, ",") + ",count(1) FROM sms_code " + query
 	if tx == nil {
 		return dao.db.Query(ctx, querySql)
 	} else {
@@ -3417,20 +3112,434 @@ func (dao *UserDao) QueryGroupBy(ctx context.Context, tx *wrap.Tx, groupByFields
 	}
 }
 
-func (dao *UserDao) GetQuery() *UserQuery {
-	return NewUserQuery(dao)
+func (dao *SmsCodeDao) GetQuery() *SmsCodeQuery {
+	return NewSmsCodeQuery(dao)
+}
+
+const USER_INFO_TABLE_NAME = "user_info"
+
+type USER_INFO_FIELD string
+
+const USER_INFO_FIELD_ID = USER_INFO_FIELD("id")
+const USER_INFO_FIELD_USER_ID = USER_INFO_FIELD("user_id")
+const USER_INFO_FIELD_USER_NAME = USER_INFO_FIELD("user_name")
+const USER_INFO_FIELD_USER_ICON = USER_INFO_FIELD("user_icon")
+const USER_INFO_FIELD_CREATE_TIME = USER_INFO_FIELD("create_time")
+const USER_INFO_FIELD_UPDATE_TIME = USER_INFO_FIELD("update_time")
+
+const USER_INFO_ALL_FIELDS_STRING = "id,user_id,user_name,user_icon,create_time,update_time"
+
+var USER_INFO_ALL_FIELDS = []string{
+	"id",
+	"user_id",
+	"user_name",
+	"user_icon",
+	"create_time",
+	"update_time",
+}
+
+type UserInfo struct {
+	Id         uint64 //size=20
+	UserId     string //size=32
+	UserName   string //size=32
+	UserIcon   string //size=256
+	CreateTime time.Time
+	UpdateTime time.Time
+}
+
+type UserInfoQuery struct {
+	BaseQuery
+	dao *UserInfoDao
+}
+
+func NewUserInfoQuery(dao *UserInfoDao) *UserInfoQuery {
+	q := &UserInfoQuery{}
+	q.dao = dao
+
+	return q
+}
+
+func (q *UserInfoQuery) QueryOne(ctx context.Context, tx *wrap.Tx) (*UserInfo, error) {
+	return q.dao.QueryOne(ctx, tx, q.buildQueryString())
+}
+
+func (q *UserInfoQuery) QueryList(ctx context.Context, tx *wrap.Tx) (list []*UserInfo, err error) {
+	return q.dao.QueryList(ctx, tx, q.buildQueryString())
+}
+
+func (q *UserInfoQuery) QueryCount(ctx context.Context, tx *wrap.Tx) (count int64, err error) {
+	return q.dao.QueryCount(ctx, tx, q.buildQueryString())
+}
+
+func (q *UserInfoQuery) QueryGroupBy(ctx context.Context, tx *wrap.Tx) (rows *wrap.Rows, err error) {
+	return q.dao.QueryGroupBy(ctx, tx, q.groupByFields, q.buildQueryString())
+}
+
+func (q *UserInfoQuery) ForUpdate() *UserInfoQuery {
+	q.forUpdate = true
+	return q
+}
+
+func (q *UserInfoQuery) ForShare() *UserInfoQuery {
+	q.forShare = true
+	return q
+}
+
+func (q *UserInfoQuery) GroupBy(fields ...USER_INFO_FIELD) *UserInfoQuery {
+	q.groupByFields = make([]string, len(fields))
+	for i, v := range fields {
+		q.groupByFields[i] = string(v)
+	}
+	return q
+}
+
+func (q *UserInfoQuery) Limit(startIncluded int64, count int64) *UserInfoQuery {
+	q.limit = fmt.Sprintf(" limit %d,%d", startIncluded, count)
+	return q
+}
+
+func (q *UserInfoQuery) OrderBy(fieldName USER_INFO_FIELD, asc bool) *UserInfoQuery {
+	if q.order != "" {
+		q.order += ","
+	}
+	q.order += string(fieldName) + " "
+	if asc {
+		q.order += "asc"
+	} else {
+		q.order += "desc"
+	}
+
+	return q
+}
+
+func (q *UserInfoQuery) OrderByGroupCount(asc bool) *UserInfoQuery {
+	if q.order != "" {
+		q.order += ","
+	}
+	q.order += "count(1) "
+	if asc {
+		q.order += "asc"
+	} else {
+		q.order += "desc"
+	}
+
+	return q
+}
+
+func (q *UserInfoQuery) w(format string, a ...interface{}) *UserInfoQuery {
+	q.where += fmt.Sprintf(format, a...)
+	return q
+}
+
+func (q *UserInfoQuery) Left() *UserInfoQuery  { return q.w(" ( ") }
+func (q *UserInfoQuery) Right() *UserInfoQuery { return q.w(" ) ") }
+func (q *UserInfoQuery) And() *UserInfoQuery   { return q.w(" AND ") }
+func (q *UserInfoQuery) Or() *UserInfoQuery    { return q.w(" OR ") }
+func (q *UserInfoQuery) Not() *UserInfoQuery   { return q.w(" NOT ") }
+
+func (q *UserInfoQuery) Id_Equal(v uint64) *UserInfoQuery     { return q.w("id='" + fmt.Sprint(v) + "'") }
+func (q *UserInfoQuery) Id_NotEqual(v uint64) *UserInfoQuery  { return q.w("id<>'" + fmt.Sprint(v) + "'") }
+func (q *UserInfoQuery) Id_Less(v uint64) *UserInfoQuery      { return q.w("id<'" + fmt.Sprint(v) + "'") }
+func (q *UserInfoQuery) Id_LessEqual(v uint64) *UserInfoQuery { return q.w("id<='" + fmt.Sprint(v) + "'") }
+func (q *UserInfoQuery) Id_Greater(v uint64) *UserInfoQuery   { return q.w("id>'" + fmt.Sprint(v) + "'") }
+func (q *UserInfoQuery) Id_GreaterEqual(v uint64) *UserInfoQuery {
+	return q.w("id>='" + fmt.Sprint(v) + "'")
+}
+func (q *UserInfoQuery) UserId_Equal(v string) *UserInfoQuery {
+	return q.w("user_id='" + fmt.Sprint(v) + "'")
+}
+func (q *UserInfoQuery) UserId_NotEqual(v string) *UserInfoQuery {
+	return q.w("user_id<>'" + fmt.Sprint(v) + "'")
+}
+func (q *UserInfoQuery) UserId_Less(v string) *UserInfoQuery {
+	return q.w("user_id<'" + fmt.Sprint(v) + "'")
+}
+func (q *UserInfoQuery) UserId_LessEqual(v string) *UserInfoQuery {
+	return q.w("user_id<='" + fmt.Sprint(v) + "'")
+}
+func (q *UserInfoQuery) UserId_Greater(v string) *UserInfoQuery {
+	return q.w("user_id>'" + fmt.Sprint(v) + "'")
+}
+func (q *UserInfoQuery) UserId_GreaterEqual(v string) *UserInfoQuery {
+	return q.w("user_id>='" + fmt.Sprint(v) + "'")
+}
+func (q *UserInfoQuery) UserName_Equal(v string) *UserInfoQuery {
+	return q.w("user_name='" + fmt.Sprint(v) + "'")
+}
+func (q *UserInfoQuery) UserName_NotEqual(v string) *UserInfoQuery {
+	return q.w("user_name<>'" + fmt.Sprint(v) + "'")
+}
+func (q *UserInfoQuery) UserName_Less(v string) *UserInfoQuery {
+	return q.w("user_name<'" + fmt.Sprint(v) + "'")
+}
+func (q *UserInfoQuery) UserName_LessEqual(v string) *UserInfoQuery {
+	return q.w("user_name<='" + fmt.Sprint(v) + "'")
+}
+func (q *UserInfoQuery) UserName_Greater(v string) *UserInfoQuery {
+	return q.w("user_name>'" + fmt.Sprint(v) + "'")
+}
+func (q *UserInfoQuery) UserName_GreaterEqual(v string) *UserInfoQuery {
+	return q.w("user_name>='" + fmt.Sprint(v) + "'")
+}
+func (q *UserInfoQuery) UserIcon_Equal(v string) *UserInfoQuery {
+	return q.w("user_icon='" + fmt.Sprint(v) + "'")
+}
+func (q *UserInfoQuery) UserIcon_NotEqual(v string) *UserInfoQuery {
+	return q.w("user_icon<>'" + fmt.Sprint(v) + "'")
+}
+func (q *UserInfoQuery) UserIcon_Less(v string) *UserInfoQuery {
+	return q.w("user_icon<'" + fmt.Sprint(v) + "'")
+}
+func (q *UserInfoQuery) UserIcon_LessEqual(v string) *UserInfoQuery {
+	return q.w("user_icon<='" + fmt.Sprint(v) + "'")
+}
+func (q *UserInfoQuery) UserIcon_Greater(v string) *UserInfoQuery {
+	return q.w("user_icon>'" + fmt.Sprint(v) + "'")
+}
+func (q *UserInfoQuery) UserIcon_GreaterEqual(v string) *UserInfoQuery {
+	return q.w("user_icon>='" + fmt.Sprint(v) + "'")
+}
+func (q *UserInfoQuery) CreateTime_Equal(v time.Time) *UserInfoQuery {
+	return q.w("create_time='" + fmt.Sprint(v) + "'")
+}
+func (q *UserInfoQuery) CreateTime_NotEqual(v time.Time) *UserInfoQuery {
+	return q.w("create_time<>'" + fmt.Sprint(v) + "'")
+}
+func (q *UserInfoQuery) CreateTime_Less(v time.Time) *UserInfoQuery {
+	return q.w("create_time<'" + fmt.Sprint(v) + "'")
+}
+func (q *UserInfoQuery) CreateTime_LessEqual(v time.Time) *UserInfoQuery {
+	return q.w("create_time<='" + fmt.Sprint(v) + "'")
+}
+func (q *UserInfoQuery) CreateTime_Greater(v time.Time) *UserInfoQuery {
+	return q.w("create_time>'" + fmt.Sprint(v) + "'")
+}
+func (q *UserInfoQuery) CreateTime_GreaterEqual(v time.Time) *UserInfoQuery {
+	return q.w("create_time>='" + fmt.Sprint(v) + "'")
+}
+func (q *UserInfoQuery) UpdateTime_Equal(v time.Time) *UserInfoQuery {
+	return q.w("update_time='" + fmt.Sprint(v) + "'")
+}
+func (q *UserInfoQuery) UpdateTime_NotEqual(v time.Time) *UserInfoQuery {
+	return q.w("update_time<>'" + fmt.Sprint(v) + "'")
+}
+func (q *UserInfoQuery) UpdateTime_Less(v time.Time) *UserInfoQuery {
+	return q.w("update_time<'" + fmt.Sprint(v) + "'")
+}
+func (q *UserInfoQuery) UpdateTime_LessEqual(v time.Time) *UserInfoQuery {
+	return q.w("update_time<='" + fmt.Sprint(v) + "'")
+}
+func (q *UserInfoQuery) UpdateTime_Greater(v time.Time) *UserInfoQuery {
+	return q.w("update_time>'" + fmt.Sprint(v) + "'")
+}
+func (q *UserInfoQuery) UpdateTime_GreaterEqual(v time.Time) *UserInfoQuery {
+	return q.w("update_time>='" + fmt.Sprint(v) + "'")
+}
+
+type UserInfoDao struct {
+	logger     *zap.Logger
+	db         *DB
+	insertStmt *wrap.Stmt
+	updateStmt *wrap.Stmt
+	deleteStmt *wrap.Stmt
+}
+
+func NewUserInfoDao(db *DB) (t *UserInfoDao, err error) {
+	t = &UserInfoDao{}
+	t.logger = log.TypedLogger(t)
+	t.db = db
+	err = t.init()
+	if err != nil {
+		return nil, err
+	}
+
+	return t, nil
+}
+
+func (dao *UserInfoDao) init() (err error) {
+	err = dao.prepareInsertStmt()
+	if err != nil {
+		return err
+	}
+
+	err = dao.prepareUpdateStmt()
+	if err != nil {
+		return err
+	}
+
+	err = dao.prepareDeleteStmt()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (dao *UserInfoDao) prepareInsertStmt() (err error) {
+	dao.insertStmt, err = dao.db.Prepare(context.Background(), "INSERT INTO user_info (user_id,user_name,user_icon) VALUES (?,?,?)")
+	return err
+}
+
+func (dao *UserInfoDao) prepareUpdateStmt() (err error) {
+	dao.updateStmt, err = dao.db.Prepare(context.Background(), "UPDATE user_info SET user_id=?,user_name=?,user_icon=? WHERE id=?")
+	return err
+}
+
+func (dao *UserInfoDao) prepareDeleteStmt() (err error) {
+	dao.deleteStmt, err = dao.db.Prepare(context.Background(), "DELETE FROM user_info WHERE id=?")
+	return err
+}
+
+func (dao *UserInfoDao) Insert(ctx context.Context, tx *wrap.Tx, e *UserInfo) (id int64, err error) {
+	stmt := dao.insertStmt
+	if tx != nil {
+		stmt = tx.Stmt(ctx, stmt)
+	}
+
+	result, err := stmt.Exec(ctx, e.UserId, e.UserName, e.UserIcon)
+	if err != nil {
+		return 0, err
+	}
+
+	id, err = result.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+
+	return id, nil
+}
+
+func (dao *UserInfoDao) Update(ctx context.Context, tx *wrap.Tx, e *UserInfo) (err error) {
+	stmt := dao.updateStmt
+	if tx != nil {
+		stmt = tx.Stmt(ctx, stmt)
+	}
+
+	_, err = stmt.Exec(ctx, e.UserId, e.UserName, e.UserIcon, e.Id)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (dao *UserInfoDao) Delete(ctx context.Context, tx *wrap.Tx, id uint64) (err error) {
+	stmt := dao.deleteStmt
+	if tx != nil {
+		stmt = tx.Stmt(ctx, stmt)
+	}
+
+	_, err = stmt.Exec(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (dao *UserInfoDao) scanRow(row *wrap.Row) (*UserInfo, error) {
+	e := &UserInfo{}
+	err := row.Scan(&e.Id, &e.UserId, &e.UserName, &e.UserIcon, &e.CreateTime, &e.UpdateTime)
+	if err != nil {
+		if err == wrap.ErrNoRows {
+			return nil, nil
+		} else {
+			return nil, err
+		}
+	}
+
+	return e, nil
+}
+
+func (dao *UserInfoDao) scanRows(rows *wrap.Rows) (list []*UserInfo, err error) {
+	list = make([]*UserInfo, 0)
+	for rows.Next() {
+		e := UserInfo{}
+		err = rows.Scan(&e.Id, &e.UserId, &e.UserName, &e.UserIcon, &e.CreateTime, &e.UpdateTime)
+		if err != nil {
+			return nil, err
+		}
+		list = append(list, &e)
+	}
+	if rows.Err() != nil {
+		err = rows.Err()
+		return nil, err
+	}
+
+	return list, nil
+}
+
+func (dao *UserInfoDao) QueryOne(ctx context.Context, tx *wrap.Tx, query string) (*UserInfo, error) {
+	querySql := "SELECT " + USER_INFO_ALL_FIELDS_STRING + " FROM user_info " + query
+	var row *wrap.Row
+	if tx == nil {
+		row = dao.db.QueryRow(ctx, querySql)
+	} else {
+		row = tx.QueryRow(ctx, querySql)
+	}
+	return dao.scanRow(row)
+}
+
+func (dao *UserInfoDao) QueryList(ctx context.Context, tx *wrap.Tx, query string) (list []*UserInfo, err error) {
+	querySql := "SELECT " + USER_INFO_ALL_FIELDS_STRING + " FROM user_info " + query
+	var rows *wrap.Rows
+	if tx == nil {
+		rows, err = dao.db.Query(ctx, querySql)
+	} else {
+		rows, err = tx.Query(ctx, querySql)
+	}
+	if err != nil {
+		dao.logger.Error("sqlDriver", zap.Error(err))
+		return nil, err
+	}
+
+	return dao.scanRows(rows)
+}
+
+func (dao *UserInfoDao) QueryCount(ctx context.Context, tx *wrap.Tx, query string) (count int64, err error) {
+	querySql := "SELECT COUNT(1) FROM user_info " + query
+	var row *wrap.Row
+	if tx == nil {
+		row = dao.db.QueryRow(ctx, querySql)
+	} else {
+		row = tx.QueryRow(ctx, querySql)
+	}
+	if err != nil {
+		dao.logger.Error("sqlDriver", zap.Error(err))
+		return 0, err
+	}
+
+	err = row.Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+
+	return count, nil
+}
+
+func (dao *UserInfoDao) QueryGroupBy(ctx context.Context, tx *wrap.Tx, groupByFields []string, query string) (rows *wrap.Rows, err error) {
+	querySql := "SELECT " + strings.Join(groupByFields, ",") + ",count(1) FROM user_info " + query
+	if tx == nil {
+		return dao.db.Query(ctx, querySql)
+	} else {
+		return tx.Query(ctx, querySql)
+	}
+}
+
+func (dao *UserInfoDao) GetQuery() *UserInfoQuery {
+	return NewUserInfoQuery(dao)
 }
 
 type DB struct {
 	wrap.DB
 	AccessToken      *AccessTokenDao
 	AccountOperation *AccountOperationDao
-	LoginSmsCode     *LoginSmsCodeDao
 	OauthAccount     *OauthAccountDao
 	OauthState       *OauthStateDao
 	PhoneAccount     *PhoneAccountDao
 	RefreshToken     *RefreshTokenDao
-	User             *UserDao
+	SmsCode          *SmsCodeDao
+	UserInfo         *UserInfoDao
 }
 
 func NewDB() (d *DB, err error) {
@@ -3462,11 +3571,6 @@ func NewDB() (d *DB, err error) {
 		return nil, err
 	}
 
-	d.LoginSmsCode, err = NewLoginSmsCodeDao(d)
-	if err != nil {
-		return nil, err
-	}
-
 	d.OauthAccount, err = NewOauthAccountDao(d)
 	if err != nil {
 		return nil, err
@@ -3487,7 +3591,12 @@ func NewDB() (d *DB, err error) {
 		return nil, err
 	}
 
-	d.User, err = NewUserDao(d)
+	d.SmsCode, err = NewSmsCodeDao(d)
+	if err != nil {
+		return nil, err
+	}
+
+	d.UserInfo, err = NewUserInfoDao(d)
 	if err != nil {
 		return nil, err
 	}

@@ -7,7 +7,7 @@ import (
 )
 
 func (s *AccountService) Logout(ctx *restful.Context, accessToken string, refreshToken string) (err error) {
-	dbRefreshToken, err := s.userDB.RefreshToken.GetQuery().RefreshToken_Equal(refreshToken).QueryOne(ctx, nil)
+	dbRefreshToken, err := s.accountDB.RefreshToken.GetQuery().RefreshToken_Equal(refreshToken).QueryOne(ctx, nil)
 	if err != nil {
 		return err
 	}
@@ -21,7 +21,7 @@ func (s *AccountService) Logout(ctx *restful.Context, accessToken string, refres
 
 	dbRefreshToken.IsLogout = 1
 	dbRefreshToken.LogoutTime = time.Now().UTC()
-	err = s.userDB.RefreshToken.Update(ctx, nil, dbRefreshToken)
+	err = s.accountDB.RefreshToken.Update(ctx, nil, dbRefreshToken)
 	if err != nil {
 		return err
 	}

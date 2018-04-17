@@ -32,7 +32,7 @@ CREATE TABLE `access_token` (
   UNIQUE KEY `idx_access_token` (`access_token`),
   KEY `idx_user_id` (`user_id`),
   KEY `idx_update` (`update_time`)
-) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=201 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -47,32 +47,15 @@ CREATE TABLE `account_operation` (
   `user_id` varchar(32) NOT NULL,
   `operationType` varchar(32) NOT NULL,
   `user_agent` varchar(256) NOT NULL,
-  `phone_number` varchar(32) NOT NULL,
+  `phone_encrypted` varchar(32) NOT NULL,
+  `sms_scene` varchar(32) NOT NULL,
+  `other_user_id` varchar(32) NOT NULL,
   `create_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `idx_user_id` (`user_id`),
   KEY `idx_create_time` (`create_time`),
-  KEY `idx_phone` (`phone_number`)
-) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `login_sms_code`
---
-
-DROP TABLE IF EXISTS `login_sms_code`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `login_sms_code` (
-  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-  `phone_number` varchar(32) NOT NULL,
-  `sms_code` varchar(8) NOT NULL,
-  `create_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `update_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `idx_update` (`update_time`),
-  KEY `idx_phone` (`phone_number`)
-) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8;
+  KEY `idx_phone` (`phone_encrypted`)
+) ENGINE=InnoDB AUTO_INCREMENT=197 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -85,14 +68,15 @@ DROP TABLE IF EXISTS `oauth_account`;
 CREATE TABLE `oauth_account` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `user_id` varchar(32) NOT NULL,
-  `oauth_provider` varchar(32) NOT NULL,
-  `oauth_open_id` varchar(128) NOT NULL,
-  `oauth_name` varchar(32) NOT NULL,
-  `oauth_icon` varchar(256) NOT NULL,
+  `providerId` varchar(32) NOT NULL,
+  `provider_name` varchar(32) NOT NULL,
+  `open_id` varchar(128) NOT NULL,
+  `user_name` varchar(32) NOT NULL,
+  `user_icon` varchar(256) NOT NULL,
   `create_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `update_time` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `update_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `idx_oauth_provider_account` (`oauth_provider`,`oauth_open_id`),
+  UNIQUE KEY `idx_oauth_provider_account` (`providerId`,`open_id`),
   KEY `idx_user_id` (`user_id`),
   KEY `idx_update` (`update_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
@@ -128,12 +112,12 @@ DROP TABLE IF EXISTS `phone_account`;
 CREATE TABLE `phone_account` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `user_id` varchar(32) NOT NULL,
-  `phone_number` varchar(32) NOT NULL,
+  `phone_encrypted` varchar(32) NOT NULL,
   `create_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `update_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `idx_phone` (`phone_number`),
   UNIQUE KEY `idx_user_id` (`user_id`),
+  UNIQUE KEY `idx_phone_enc` (`phone_encrypted`),
   KEY `idx_update` (`update_time`)
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -157,17 +141,39 @@ CREATE TABLE `refresh_token` (
   UNIQUE KEY `idx_refresh_token` (`refresh_token`),
   KEY `idx_user_id` (`user_id`),
   KEY `idx_update` (`update_time`)
-) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=186 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Table structure for table `user`
+-- Table structure for table `sms_code`
 --
 
-DROP TABLE IF EXISTS `user`;
+DROP TABLE IF EXISTS `sms_code`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `user` (
+CREATE TABLE `sms_code` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `sms_scene` varchar(32) NOT NULL,
+  `phone_encrypted` varchar(32) NOT NULL,
+  `sms_code` varchar(8) NOT NULL,
+  `user_id` varchar(32) NOT NULL,
+  `create_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_update` (`update_time`),
+  KEY `idx_scene_phone` (`sms_scene`,`phone_encrypted`),
+  KEY `idx_phone` (`phone_encrypted`)
+) ENGINE=InnoDB AUTO_INCREMENT=20 DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `user_info`
+--
+
+DROP TABLE IF EXISTS `user_info`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `user_info` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `user_id` varchar(32) NOT NULL,
   `user_name` varchar(32) NOT NULL,
@@ -190,4 +196,4 @@ CREATE TABLE `user` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2018-04-12 20:19:25
+-- Dump completed on 2018-04-17  8:47:16

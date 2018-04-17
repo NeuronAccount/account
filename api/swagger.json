@@ -60,6 +60,49 @@
         }
       }
     },
+    "/sendSmsCode": {
+      "post": {
+        "summary": "",
+        "operationId": "SendSmsCode",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "scene",
+            "type": "string",
+            "required": true
+          },
+          {
+            "in": "query",
+            "name": "phone",
+            "type": "string",
+            "required": true
+          },
+          {
+            "in": "query",
+            "name": "captchaId",
+            "type": "string",
+            "required": true
+          },
+          {
+            "in": "query",
+            "name": "captchaCode",
+            "type": "string",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "Bearer": [
+            ]
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        }
+      }
+    },
     "/smsLogin": {
       "post": {
         "summary": "sms login",
@@ -113,10 +156,32 @@
         }
       }
     },
-    "/getOauthState": {
+    "/refreshToken": {
       "post": {
         "summary": "",
-        "operationId": "GetOauthState",
+        "operationId": "RefreshToken",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "refreshToken",
+            "type": "string",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ok",
+            "schema": {
+              "$ref": "#/definitions/userToken"
+            }
+          }
+        }
+      }
+    },
+    "/oauthState": {
+      "post": {
+        "summary": "",
+        "operationId": "OauthState",
         "parameters": [
         ],
         "responses": {
@@ -163,34 +228,11 @@
         }
       }
     },
-    "/refreshToken": {
-      "post": {
-        "summary": "",
-        "operationId": "RefreshToken",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "refreshToken",
-            "type": "string",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "ok",
-            "schema": {
-              "$ref": "#/definitions/userToken"
-            }
-          }
-        }
-      }
-    },
-    "/userInfo":{
+    "/userInfo": {
       "get": {
         "summary": "",
         "operationId": "GetUserInfo",
         "parameters": [
-
         ],
         "security": [
           {
@@ -208,18 +250,226 @@
         }
       }
     },
+    "/setUserName": {
+      "post": {
+        "summary": "",
+        "operationId": "SetUserName",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "userName",
+            "type": "string",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "Bearer": [
+            ]
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        }
+      }
+    },
+    "/setUserIcon": {
+      "post": {
+        "summary": "",
+        "operationId": "SetUserIcon",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "userIcon",
+            "type": "string",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "Bearer": [
+            ]
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        }
+      }
+    },
+    "/accountInfo": {
+      "get": {
+        "summary": "",
+        "operationId": "GetAccountInfo",
+        "parameters": [
+        ],
+        "security": [
+          {
+            "Bearer": [
+            ]
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/accountInfo"
+            }
+          }
+        }
+      }
+    },
     "/bindPhone": {
+      "post": {
+        "summary": "",
+        "operationId": "BindPhone",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "phone",
+            "type": "string",
+            "required": true
+          },
+          {
+            "in": "query",
+            "name": "smsCode",
+            "type": "string",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "Bearer": [
+            ]
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
     },
     "/unbindPhone": {
+      "post": {
+        "summary": "",
+        "operationId": "UnbindPhone",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "phone",
+            "type": "string",
+            "required": true
+          },
+          {
+            "in": "query",
+            "name": "smsCode",
+            "type": "string",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "Bearer": [
+            ]
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        }
+      }
     },
-    "/bindOauthAccount":{
-
+    "/bindOauthAccount": {
+      "post": {
+        "summary": "",
+        "operationId": "BindOauthAccount",
+        "parameters": [
+        ],
+        "security": [
+          {
+            "Bearer": [
+            ]
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        }
+      }
     },
-    "/unbindOauthAccount":{
-
+    "/unbindOauthAccount": {
+      "post": {
+        "summary": "",
+        "operationId": "UnbindOauthAccount",
+        "parameters": [
+        ],
+        "security": [
+          {
+            "Bearer": [
+            ]
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        }
+      }
+    },
+    "/operations": {
+      "get": {
+        "summary": "",
+        "operationId": "GetOperationList",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "operationType",
+            "type": "string"
+          },
+          {
+            "in": "query",
+            "name": "pageToken",
+            "type": "string"
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "type": "string",
+            "format": "int32"
+          }
+        ],
+        "security": [
+          {
+            "Bearer": [
+            ]
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/operationListResponse"
+            }
+          }
+        }
+      }
     }
   },
   "definitions": {
+    "smsScene": {
+      "type": "string",
+      "enum": [
+        "SMS_LOGIN",
+        "BIND_PHONE",
+        "UNBIND_PHONE"
+      ]
+    },
     "userToken": {
       "type": "object",
       "properties": {
@@ -235,17 +485,109 @@
         "refreshToken"
       ]
     },
-    "userInfo":{
+    "oauthAccountInfo": {
       "type": "object",
       "properties": {
+        "providerID": {
+          "type": "string"
+        },
+        "providerName": {
+          "type": "string"
+        },
+        "openID": {
+          "type": "string"
+        },
+        "userName": {
+          "type": "string"
+        },
+        "userIcon": {
+          "type": "string"
+        }
+      }
+    },
+    "accountInfo": {
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string"
+        },
+        "userName": {
+          "type": "string"
+        },
+        "userIcon": {
+          "type": "string"
+        },
+        "phoneBinded": {
+          "type": "string"
+        },
+        "oauthBindedList": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/oauthAccountInfo"
+          }
+        }
+      }
+    },
+    "userInfo": {
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string"
+        },
+        "userName": {
+          "type": "string"
+        },
+        "userIcon": {
+          "type": "string"
+        }
+      }
+    },
+    "operationType": {
+      "type": "string",
+      "enum": [
+        "SEND_SMS_CODE",
+        "SMS_LOGIN",
+        "LOGOUT"
+      ]
+    },
+    "operation": {
+      "type": "object",
+      "properties": {
+        "operationId":{
+          "type": "string"
+        },
         "userId":{
           "type": "string"
         },
-        "name":{
+        "operationType":{
+          "$ref": "#/definitions/operationType"
+        },
+        "operationTime":{
+          "type": "string",
+          "format": "date-time"
+        },
+        "userAgent":{
           "type": "string"
         },
-        "icon":{
+        "phoneMasked":{
           "type": "string"
+        },
+        "smsScene":{
+          "$ref": "#/definitions/smsScene"
+        }
+      }
+    },
+    "operationListResponse": {
+      "type": "object",
+      "properties": {
+        "nextPageToken": {
+          "type": "string"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/operation"
+          }
         }
       }
     }

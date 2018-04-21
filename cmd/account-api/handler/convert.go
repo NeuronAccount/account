@@ -25,9 +25,9 @@ func fromUserInfo(p *models.UserInfo) (r *api.UserInfo) {
 	}
 
 	r = &api.UserInfo{}
-	r.UserID = p.UserID
-	r.UserName = p.UserName
-	r.UserIcon = p.UserIcon
+	r.UserID = &p.UserID
+	r.UserName = &p.UserName
+	r.UserIcon = &p.UserIcon
 
 	return r
 }
@@ -38,11 +38,11 @@ func fromOauthAccountInfo(p *models.OauthAccountInfo) (r *api.OauthAccountInfo) 
 	}
 
 	r = &api.OauthAccountInfo{}
-	r.ProviderID = p.ProviderId
-	r.ProviderName = p.ProviderName
-	r.OpenID = p.OpenId
-	r.UserName = p.UserName
-	r.UserIcon = p.UserIcon
+	r.ProviderID = &p.ProviderId
+	r.ProviderName = &p.ProviderName
+	r.OpenID = &p.OpenId
+	r.UserName = &p.UserName
+	r.UserIcon = &p.UserIcon
 
 	return r
 }
@@ -66,10 +66,10 @@ func fromAccountInfo(p *models.AccountInfo) (r *api.AccountInfo) {
 	}
 
 	r = &api.AccountInfo{}
-	r.UserID = p.UserId
-	r.UserName = p.UserName
-	r.UserIcon = p.UserIcon
-	r.PhoneBinded = p.PhoneBinded
+	r.UserID = &p.UserId
+	r.UserName = &p.UserName
+	r.UserIcon = &p.UserIcon
+	r.PhoneBinded = &p.PhoneBinded
 	r.OauthBindedList = fromOauthAccountInfoList(p.OauthBindedList)
 
 	return r
@@ -107,12 +107,13 @@ func fromOperation(p *models.AccountOperation) (r *api.Operation) {
 	}
 
 	r = &api.Operation{}
-	r.OperationID = p.OperationId
+	r.OperationID = &p.OperationId
 	r.OperationType = fromOperationType(p.OperationType)
-	r.OperationTime = strfmt.DateTime(p.OperationTime)
+	operationTime := strfmt.DateTime(p.OperationTime)
+	r.OperationTime = &operationTime
 	r.PhoneMasked = p.PhoneEncrypted
 	r.SmsScene = fromSmsScene(p.SmsScene)
-	r.UserID = p.UserId
+	r.UserID = &p.UserId
 	r.UserAgent = p.UserAgent
 
 	return r

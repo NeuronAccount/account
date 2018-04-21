@@ -222,7 +222,7 @@ func (h *AccountHandler) GetOperationList(p operations.GetOperationListParams, u
 
 	response := &api.OperationListResponse{
 		Items:         fromOperationList(items),
-		NextPageToken: nextPageToken,
+		NextPageToken: &nextPageToken,
 	}
 
 	return operations.NewGetOperationListOK().WithPayload(response)

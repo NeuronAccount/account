@@ -503,7 +503,14 @@
         "userIcon": {
           "type": "string"
         }
-      }
+      },
+      "required": [
+        "providerID",
+        "providerName",
+        "openID",
+        "userName",
+        "userIcon"
+      ]
     },
     "accountInfo": {
       "type": "object",
@@ -526,7 +533,14 @@
             "$ref": "#/definitions/oauthAccountInfo"
           }
         }
-      }
+      },
+      "required": [
+        "userId",
+        "userName",
+        "userIcon",
+        "phoneBinded",
+        "oauthBindedList"
+      ]
     },
     "userInfo": {
       "type": "object",
@@ -540,7 +554,12 @@
         "userIcon": {
           "type": "string"
         }
-      }
+      },
+      "required": [
+        "userId",
+        "userName",
+        "userIcon"
+      ]
     },
     "operationType": {
       "type": "string",
@@ -575,21 +594,31 @@
         "smsScene":{
           "$ref": "#/definitions/smsScene"
         }
-      }
+      },
+      "required": [
+        "operationId",
+        "userId",
+        "operationType",
+        "operationTime"
+      ]
     },
     "operationListResponse": {
       "type": "object",
       "properties": {
-        "nextPageToken": {
-          "type": "string"
-        },
         "items": {
           "type": "array",
           "items": {
             "$ref": "#/definitions/operation"
           }
+        },
+        "nextPageToken": {
+          "type": "string"
         }
-      }
+      },
+      "required": [
+        "items",
+        "nextPageToken"
+      ]
     }
   }
 }

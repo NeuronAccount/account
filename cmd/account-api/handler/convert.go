@@ -1,9 +1,8 @@
 package handler
 
-import "github.com/NeuronAccount/account/models"
 import (
 	api "github.com/NeuronAccount/account/api/gen/models"
-	"github.com/NeuronFramework/errors"
+	"github.com/NeuronAccount/account/models"
 	"github.com/go-openapi/strfmt"
 )
 
@@ -75,32 +74,6 @@ func fromAccountInfo(p *models.AccountInfo) (r *api.AccountInfo) {
 	return r
 }
 
-func fromOperationType(p models.OperationType) (r api.OperationType) {
-	switch p {
-	case models.OperationSendSmsCode:
-		return api.OperationTypeSENDSMSCODE
-	case models.OperationSmsLogin:
-		return api.OperationTypeSMSLOGIN
-	case models.OperationLogout:
-		return api.OperationTypeLOGOUT
-	default:
-		panic(errors.Unknown("未知的操作类型" + string(p)))
-	}
-}
-
-func fromSmsScene(p models.SmsScene) (r api.SmsScene) {
-	switch p {
-	case models.SmsSceneSmsLogin:
-		return api.SmsSceneSMSLOGIN
-	case models.SmsSceneBindPhone:
-		return api.SmsSceneBINDPHONE
-	case models.SmsSceneUnbindPhone:
-		return api.SmsSceneUNBINDPHONE
-	default:
-		panic(errors.Unknown("未知的操作类型" + string(p)))
-	}
-}
-
 func fromOperation(p *models.AccountOperation) (r *api.Operation) {
 	if p == nil {
 		return nil
@@ -108,11 +81,11 @@ func fromOperation(p *models.AccountOperation) (r *api.Operation) {
 
 	r = &api.Operation{}
 	r.OperationID = &p.OperationId
-	r.OperationType = fromOperationType(p.OperationType)
+	r.OperationType = &p.OperationType
 	operationTime := strfmt.DateTime(p.OperationTime)
 	r.OperationTime = &operationTime
 	r.PhoneMasked = p.PhoneEncrypted
-	r.SmsScene = fromSmsScene(p.SmsScene)
+	r.SmsScene = p.SmsScene
 	r.UserID = &p.UserId
 	r.UserAgent = p.UserAgent
 

@@ -14,11 +14,11 @@ func fromOperation(p *neuron_account_db.AccountOperation) (r *models.AccountOper
 	r = &models.AccountOperation{}
 	r.OperationId = strconv.Itoa(int(p.Id))
 	r.UserId = p.UserId
-	r.OperationType = models.OperationType(p.OperationType)
+	r.OperationType = p.OperationType
 	r.OperationTime = p.CreateTime
 	r.UserAgent = p.UserAgent
 	r.PhoneEncrypted = p.PhoneEncrypted
-	r.SmsScene = models.SmsScene(p.SmsScene)
+	r.SmsScene = p.SmsScene
 	r.OtherUserId = p.OtherUserId
 
 	return r

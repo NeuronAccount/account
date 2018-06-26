@@ -2,24 +2,25 @@ package models
 
 import "time"
 
-type OperationType string
-
 const (
-	OperationSendSmsCode = OperationType("SEND_SMS_CODE")
-	OperationSmsLogin    = OperationType("SMS_LOGIN")
-	OperationLogout      = OperationType("LOGOUT")
-	OperationBindPhone   = OperationType("BIND_PHONE")
-	OperationUnbindPhone = OperationType("UNBIND_PHONE")
+	OperationSendSmsCode        = "SEND_SMS_CODE"
+	OperationSmsLogin           = "SMS_LOGIN"
+	OperationPhonePasswordLogin = "PHONE_PASSWORD_LOGIN"
+	OperationLogout             = "LOGOUT"
+	OperationBindPhone          = "BIND_PHONE"
+	OperationUnbindPhone        = "UNBIND_PHONE"
+	OperationResetPassword      = "RESET_PASSWORD"
+	OperationRemoveAccount      = "REMOVE_ACCOUNT"
 )
 
 type AccountOperation struct {
 	OperationId    string
 	UserId         string
-	OperationType  OperationType
+	OperationType  string
 	OperationTime  time.Time
 	UserAgent      string
 	PhoneEncrypted string
-	SmsScene       SmsScene
+	SmsScene       string
 	OtherUserId    string
 }
 

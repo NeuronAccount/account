@@ -17,98 +17,74 @@ import (
 var _ = sql.ErrNoRows
 var _ = mysql.ErrOldProtocol
 
-type BaseQuery struct {
-	forUpdate     bool
-	forShare      bool
-	where         string
-	limit         string
-	order         string
-	groupByFields []string
+type QueryBase struct {
+	where              *bytes.Buffer
+	whereParams        []interface{}
+	groupByFields      []string
+	groupByOrders      []bool
+	orderByFields      []string
+	orderByOrders      []bool
+	hasLimit           bool
+	limitStartIncluded int64
+	limitCount         int64
+	forUpdate          bool
+	forShare           bool
+	updateFields       []string
+	updateParams       []interface{}
 }
 
-func (q *BaseQuery) buildQueryString() string {
-	buf := bytes.NewBufferString("")
+func (q *QueryBase) buildSelectQuery() (queryString string, params []interface{}) {
+	query := bytes.NewBufferString("")
 
-	if q.where != "" {
-		buf.WriteString(" WHERE ")
-		buf.WriteString(q.where)
+	where := q.where.String()
+	if where != "" {
+		query.WriteString(" WHERE ")
+		query.WriteString(where)
+		params = append(params, q.whereParams...)
 	}
 
-	if q.groupByFields != nil && len(q.groupByFields) > 0 {
-		buf.WriteString(" GROUP BY ")
-		buf.WriteString(strings.Join(q.groupByFields, ","))
+	groupByCount := len(q.groupByFields)
+	if groupByCount > 0 {
+		groupByItems := make([]string, groupByCount)
+		for i, v := range q.groupByFields {
+			if q.groupByOrders[i] {
+				groupByItems[i] = v + " ASC"
+			} else {
+				groupByItems[i] = v + " DESC"
+			}
+		}
+		query.WriteString(" GROUP BY ")
+		query.WriteString(strings.Join(groupByItems, ","))
 	}
 
-	if q.order != "" {
-		buf.WriteString(" order by ")
-		buf.WriteString(q.order)
+	orderByCount := len(q.orderByFields)
+	if orderByCount > 0 {
+		orderByItems := make([]string, orderByCount)
+		for i, v := range q.orderByFields {
+			if q.orderByOrders[i] {
+				orderByItems[i] = v + " ASC"
+			} else {
+				orderByItems[i] = v + " DESC"
+			}
+		}
+		query.WriteString(" ORDER BY ")
+		query.WriteString(strings.Join(orderByItems, ","))
 	}
 
-	if q.limit != "" {
-		buf.WriteString(q.limit)
+	if q.hasLimit {
+		query.WriteString(fmt.Sprintf(" LIMIT %d,%d", q.limitStartIncluded, q.limitCount))
 	}
 
 	if q.forUpdate {
-		buf.WriteString(" FOR UPDATE ")
+		query.WriteString(" FOR UPDATE")
 	}
 
 	if q.forShare {
-		buf.WriteString(" LOCK IN SHARE MODE ")
+		query.WriteString(" LOCK IN SHARE MODE")
 	}
 
-	return buf.String()
+	return query.String(), params
 }
-
-func (q *BaseQuery) groupBy(fields ...string) {
-	q.groupByFields = make([]string, len(fields))
-	for i, v := range fields {
-		q.groupByFields[i] = v
-	}
-}
-
-func (q *BaseQuery) setLimit(startIncluded int64, count int64) {
-	q.limit = fmt.Sprintf(" limit %d,%d", startIncluded, count)
-}
-
-func (q *BaseQuery) orderBy(fieldName string, asc bool) {
-	if q.order != "" {
-		q.order += ","
-	}
-	q.order += fieldName + " "
-	if asc {
-		q.order += "asc"
-	} else {
-		q.order += "desc"
-	}
-}
-
-func (q *BaseQuery) orderByGroupCount(asc bool) {
-	if q.order != "" {
-		q.order += ","
-	}
-	q.order += "count(1) "
-	if asc {
-		q.order += "asc"
-	} else {
-		q.order += "desc"
-	}
-}
-
-func (q *BaseQuery) setWhere(format string, a ...interface{}) {
-	q.where += fmt.Sprintf(format, a...)
-}
-
-const ACCESS_TOKEN_TABLE_NAME = "access_token"
-
-type ACCESS_TOKEN_FIELD string
-
-const ACCESS_TOKEN_FIELD_ID = ACCESS_TOKEN_FIELD("id")
-const ACCESS_TOKEN_FIELD_USER_ID = ACCESS_TOKEN_FIELD("user_id")
-const ACCESS_TOKEN_FIELD_ACCESS_TOKEN = ACCESS_TOKEN_FIELD("access_token")
-const ACCESS_TOKEN_FIELD_CREATE_TIME = ACCESS_TOKEN_FIELD("create_time")
-const ACCESS_TOKEN_FIELD_UPDATE_TIME = ACCESS_TOKEN_FIELD("update_time")
-
-const ACCESS_TOKEN_ALL_FIELDS_STRING = "id,user_id,access_token,create_time,update_time"
 
 type AccessToken struct {
 	Id          uint64 //size=20
@@ -119,31 +95,245 @@ type AccessToken struct {
 }
 
 type AccessTokenQuery struct {
-	BaseQuery
+	QueryBase
 	dao *AccessTokenDao
 }
 
-func NewAccessTokenQuery(dao *AccessTokenDao) *AccessTokenQuery {
+func (dao *AccessTokenDao) Query() *AccessTokenQuery {
 	q := &AccessTokenQuery{}
 	q.dao = dao
-
+	q.where = bytes.NewBufferString("")
 	return q
 }
 
-func (q *AccessTokenQuery) QueryOne(ctx context.Context, tx *wrap.Tx) (*AccessToken, error) {
-	return q.dao.QueryOne(ctx, tx, q.buildQueryString())
+func (q *AccessTokenQuery) Left() *AccessTokenQuery {
+	q.where.WriteString(" (")
+	return q
 }
 
-func (q *AccessTokenQuery) QueryList(ctx context.Context, tx *wrap.Tx) (list []*AccessToken, err error) {
-	return q.dao.QueryList(ctx, tx, q.buildQueryString())
+func (q *AccessTokenQuery) Right() *AccessTokenQuery {
+	q.where.WriteString(" )")
+	return q
 }
 
-func (q *AccessTokenQuery) QueryCount(ctx context.Context, tx *wrap.Tx) (count int64, err error) {
-	return q.dao.QueryCount(ctx, tx, q.buildQueryString())
+func (q *AccessTokenQuery) And() *AccessTokenQuery {
+	q.where.WriteString(" AND")
+	return q
 }
 
-func (q *AccessTokenQuery) QueryGroupBy(ctx context.Context, tx *wrap.Tx) (rows *wrap.Rows, err error) {
-	return q.dao.QueryGroupBy(ctx, tx, q.groupByFields, q.buildQueryString())
+func (q *AccessTokenQuery) Or() *AccessTokenQuery {
+	q.where.WriteString(" OR")
+	return q
+}
+
+func (q *AccessTokenQuery) Not() *AccessTokenQuery {
+	q.where.WriteString(" NOT")
+	return q
+}
+
+func (q *AccessTokenQuery) IdEqual(v uint64) *AccessTokenQuery {
+	q.where.WriteString(" id=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *AccessTokenQuery) IdNotEqual(v uint64) *AccessTokenQuery {
+	q.where.WriteString(" id<>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *AccessTokenQuery) IdLess(v uint64) *AccessTokenQuery {
+	q.where.WriteString(" id<?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *AccessTokenQuery) IdLessEqual(v uint64) *AccessTokenQuery {
+	q.where.WriteString(" id<=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *AccessTokenQuery) IdGreater(v uint64) *AccessTokenQuery {
+	q.where.WriteString(" id>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *AccessTokenQuery) IdGreaterEqual(v uint64) *AccessTokenQuery {
+	q.where.WriteString(" id>=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *AccessTokenQuery) IdIn(items []uint64) *AccessTokenQuery {
+	q.where.WriteString(" id IN(")
+	q.where.WriteString(wrap.RepeatWithSeparator("?", len(items), ","))
+	q.where.WriteString(")")
+	q.whereParams = append(q.whereParams, items)
+	return q
+}
+
+func (q *AccessTokenQuery) UserIdEqual(v string) *AccessTokenQuery {
+	q.where.WriteString(" user_id=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *AccessTokenQuery) UserIdNotEqual(v string) *AccessTokenQuery {
+	q.where.WriteString(" user_id<>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *AccessTokenQuery) UserIdIn(items []string) *AccessTokenQuery {
+	q.where.WriteString(" user_id IN(")
+	q.where.WriteString(wrap.RepeatWithSeparator("?", len(items), ","))
+	q.where.WriteString(")")
+	q.whereParams = append(q.whereParams, items)
+	return q
+}
+
+func (q *AccessTokenQuery) AccessTokenEqual(v string) *AccessTokenQuery {
+	q.where.WriteString(" access_token=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *AccessTokenQuery) AccessTokenNotEqual(v string) *AccessTokenQuery {
+	q.where.WriteString(" access_token<>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *AccessTokenQuery) AccessTokenIn(items []string) *AccessTokenQuery {
+	q.where.WriteString(" access_token IN(")
+	q.where.WriteString(wrap.RepeatWithSeparator("?", len(items), ","))
+	q.where.WriteString(")")
+	q.whereParams = append(q.whereParams, items)
+	return q
+}
+
+func (q *AccessTokenQuery) CreateTimeEqual(v time.Time) *AccessTokenQuery {
+	q.where.WriteString(" create_time=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *AccessTokenQuery) CreateTimeNotEqual(v time.Time) *AccessTokenQuery {
+	q.where.WriteString(" create_time<>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *AccessTokenQuery) CreateTimeLess(v time.Time) *AccessTokenQuery {
+	q.where.WriteString(" create_time<?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *AccessTokenQuery) CreateTimeLessEqual(v time.Time) *AccessTokenQuery {
+	q.where.WriteString(" create_time<=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *AccessTokenQuery) CreateTimeGreater(v time.Time) *AccessTokenQuery {
+	q.where.WriteString(" create_time>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *AccessTokenQuery) CreateTimeGreaterEqual(v time.Time) *AccessTokenQuery {
+	q.where.WriteString(" create_time>=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *AccessTokenQuery) UpdateTimeEqual(v time.Time) *AccessTokenQuery {
+	q.where.WriteString(" update_time=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *AccessTokenQuery) UpdateTimeNotEqual(v time.Time) *AccessTokenQuery {
+	q.where.WriteString(" update_time<>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *AccessTokenQuery) UpdateTimeLess(v time.Time) *AccessTokenQuery {
+	q.where.WriteString(" update_time<?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *AccessTokenQuery) UpdateTimeLessEqual(v time.Time) *AccessTokenQuery {
+	q.where.WriteString(" update_time<=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *AccessTokenQuery) UpdateTimeGreater(v time.Time) *AccessTokenQuery {
+	q.where.WriteString(" update_time>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *AccessTokenQuery) UpdateTimeGreaterEqual(v time.Time) *AccessTokenQuery {
+	q.where.WriteString(" update_time>=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *AccessTokenQuery) GroupByUserId(asc bool) *AccessTokenQuery {
+	q.groupByFields = append(q.groupByFields, "user_id")
+	q.groupByOrders = append(q.groupByOrders, asc)
+	return q
+}
+
+func (q *AccessTokenQuery) OrderById(asc bool) *AccessTokenQuery {
+	q.orderByFields = append(q.orderByFields, "id")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *AccessTokenQuery) OrderByUserId(asc bool) *AccessTokenQuery {
+	q.orderByFields = append(q.orderByFields, "user_id")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *AccessTokenQuery) OrderByAccessToken(asc bool) *AccessTokenQuery {
+	q.orderByFields = append(q.orderByFields, "access_token")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *AccessTokenQuery) OrderByCreateTime(asc bool) *AccessTokenQuery {
+	q.orderByFields = append(q.orderByFields, "create_time")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *AccessTokenQuery) OrderByUpdateTime(asc bool) *AccessTokenQuery {
+	q.orderByFields = append(q.orderByFields, "update_time")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *AccessTokenQuery) OrderByGroupCount(asc bool) *AccessTokenQuery {
+	q.orderByFields = append(q.orderByFields, "count(*)")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *AccessTokenQuery) Limit(startIncluded int64, count int64) *AccessTokenQuery {
+	q.hasLimit = true
+	q.limitStartIncluded = startIncluded
+	q.limitCount = count
+	return q
 }
 
 func (q *AccessTokenQuery) ForUpdate() *AccessTokenQuery {
@@ -156,245 +346,35 @@ func (q *AccessTokenQuery) ForShare() *AccessTokenQuery {
 	return q
 }
 
-func (q *AccessTokenQuery) GroupBy(fields ...ACCESS_TOKEN_FIELD) *AccessTokenQuery {
-	q.groupByFields = make([]string, len(fields))
-	for i, v := range fields {
-		q.groupByFields[i] = string(v)
-	}
-	return q
-}
-
-func (q *AccessTokenQuery) Limit(startIncluded int64, count int64) *AccessTokenQuery {
-	q.setLimit(startIncluded, count)
-	return q
-}
-
-func (q *AccessTokenQuery) OrderBy(fieldName ACCESS_TOKEN_FIELD, asc bool) *AccessTokenQuery {
-	q.orderBy(string(fieldName), asc)
-	return q
-}
-
-func (q *AccessTokenQuery) OrderByGroupCount(asc bool) *AccessTokenQuery {
-	q.orderByGroupCount(asc)
-	return q
-}
-
-func (q *AccessTokenQuery) w(format string, a ...interface{}) *AccessTokenQuery {
-	q.setWhere(format, a...)
-	return q
-}
-
-func (q *AccessTokenQuery) Left() *AccessTokenQuery  { return q.w(" ( ") }
-func (q *AccessTokenQuery) Right() *AccessTokenQuery { return q.w(" ) ") }
-func (q *AccessTokenQuery) And() *AccessTokenQuery   { return q.w(" AND ") }
-func (q *AccessTokenQuery) Or() *AccessTokenQuery    { return q.w(" OR ") }
-func (q *AccessTokenQuery) Not() *AccessTokenQuery   { return q.w(" NOT ") }
-
-func (q *AccessTokenQuery) Id_Equal(v uint64) *AccessTokenQuery {
-	return q.w("id='" + fmt.Sprint(v) + "'")
-}
-func (q *AccessTokenQuery) Id_NotEqual(v uint64) *AccessTokenQuery {
-	return q.w("id<>'" + fmt.Sprint(v) + "'")
-}
-func (q *AccessTokenQuery) Id_Less(v uint64) *AccessTokenQuery { return q.w("id<'" + fmt.Sprint(v) + "'") }
-func (q *AccessTokenQuery) Id_LessEqual(v uint64) *AccessTokenQuery {
-	return q.w("id<='" + fmt.Sprint(v) + "'")
-}
-func (q *AccessTokenQuery) Id_Greater(v uint64) *AccessTokenQuery {
-	return q.w("id>'" + fmt.Sprint(v) + "'")
-}
-func (q *AccessTokenQuery) Id_GreaterEqual(v uint64) *AccessTokenQuery {
-	return q.w("id>='" + fmt.Sprint(v) + "'")
-}
-func (q *AccessTokenQuery) UserId_Equal(v string) *AccessTokenQuery {
-	return q.w("user_id='" + fmt.Sprint(v) + "'")
-}
-func (q *AccessTokenQuery) UserId_NotEqual(v string) *AccessTokenQuery {
-	return q.w("user_id<>'" + fmt.Sprint(v) + "'")
-}
-func (q *AccessTokenQuery) AccessToken_Equal(v string) *AccessTokenQuery {
-	return q.w("access_token='" + fmt.Sprint(v) + "'")
-}
-func (q *AccessTokenQuery) AccessToken_NotEqual(v string) *AccessTokenQuery {
-	return q.w("access_token<>'" + fmt.Sprint(v) + "'")
-}
-func (q *AccessTokenQuery) CreateTime_Equal(v time.Time) *AccessTokenQuery {
-	return q.w("create_time='" + fmt.Sprint(v) + "'")
-}
-func (q *AccessTokenQuery) CreateTime_NotEqual(v time.Time) *AccessTokenQuery {
-	return q.w("create_time<>'" + fmt.Sprint(v) + "'")
-}
-func (q *AccessTokenQuery) CreateTime_Less(v time.Time) *AccessTokenQuery {
-	return q.w("create_time<'" + fmt.Sprint(v) + "'")
-}
-func (q *AccessTokenQuery) CreateTime_LessEqual(v time.Time) *AccessTokenQuery {
-	return q.w("create_time<='" + fmt.Sprint(v) + "'")
-}
-func (q *AccessTokenQuery) CreateTime_Greater(v time.Time) *AccessTokenQuery {
-	return q.w("create_time>'" + fmt.Sprint(v) + "'")
-}
-func (q *AccessTokenQuery) CreateTime_GreaterEqual(v time.Time) *AccessTokenQuery {
-	return q.w("create_time>='" + fmt.Sprint(v) + "'")
-}
-func (q *AccessTokenQuery) UpdateTime_Equal(v time.Time) *AccessTokenQuery {
-	return q.w("update_time='" + fmt.Sprint(v) + "'")
-}
-func (q *AccessTokenQuery) UpdateTime_NotEqual(v time.Time) *AccessTokenQuery {
-	return q.w("update_time<>'" + fmt.Sprint(v) + "'")
-}
-func (q *AccessTokenQuery) UpdateTime_Less(v time.Time) *AccessTokenQuery {
-	return q.w("update_time<'" + fmt.Sprint(v) + "'")
-}
-func (q *AccessTokenQuery) UpdateTime_LessEqual(v time.Time) *AccessTokenQuery {
-	return q.w("update_time<='" + fmt.Sprint(v) + "'")
-}
-func (q *AccessTokenQuery) UpdateTime_Greater(v time.Time) *AccessTokenQuery {
-	return q.w("update_time>'" + fmt.Sprint(v) + "'")
-}
-func (q *AccessTokenQuery) UpdateTime_GreaterEqual(v time.Time) *AccessTokenQuery {
-	return q.w("update_time>='" + fmt.Sprint(v) + "'")
-}
-
-type AccessTokenUpdate struct {
-	dao    *AccessTokenDao
-	keys   []string
-	values []interface{}
-}
-
-func NewAccessTokenUpdate(dao *AccessTokenDao) *AccessTokenUpdate {
-	q := &AccessTokenUpdate{}
-	q.dao = dao
-	q.keys = make([]string, 0)
-	q.values = make([]interface{}, 0)
-
-	return q
-}
-
-func (u *AccessTokenUpdate) Update(ctx context.Context, tx *wrap.Tx, id uint64) (err error) {
-	if len(u.keys) == 0 {
-		err = fmt.Errorf("AccessTokenUpdate没有设置更新字段")
-		u.dao.logger.Error("AccessTokenUpdate", zap.Error(err))
-		return err
-	}
-	s := "UPDATE access_token SET " + strings.Join(u.keys, ",") + " WHERE id=?"
-	v := append(u.values, id)
-	if tx == nil {
-		_, err = u.dao.db.Exec(ctx, s, v...)
-	} else {
-		_, err = tx.Exec(ctx, s, v)
+func (q *AccessTokenQuery) Select(ctx context.Context, tx *wrap.Tx) (e *AccessToken, err error) {
+	if !q.hasLimit {
+		q.limitCount = 1
+		q.hasLimit = true
 	}
 
-	if err != nil {
-		return err
+	queryString, params := q.buildSelectQuery()
+	query := bytes.NewBufferString("")
+	query.WriteString("SELECT id,user_id,access_token,create_time,update_time FROM access_token ")
+	query.WriteString(queryString)
+	e = &AccessToken{}
+	row := q.dao.db.QueryRow(ctx, tx, query.String(), params...)
+	err = row.Scan(&e.Id, &e.UserId, &e.AccessToken, &e.CreateTime, &e.UpdateTime)
+	if err == wrap.ErrNoRows {
+		return nil, nil
 	}
 
-	return nil
+	return e, err
 }
 
-func (u *AccessTokenUpdate) UserId(v string) *AccessTokenUpdate {
-	u.keys = append(u.keys, "user_id=?")
-	u.values = append(u.values, v)
-	return u
-}
-
-func (u *AccessTokenUpdate) AccessToken(v string) *AccessTokenUpdate {
-	u.keys = append(u.keys, "access_token=?")
-	u.values = append(u.values, v)
-	return u
-}
-
-type AccessTokenDao struct {
-	logger     *zap.Logger
-	db         *DB
-	insertStmt *wrap.Stmt
-	deleteStmt *wrap.Stmt
-}
-
-func NewAccessTokenDao(db *DB) (t *AccessTokenDao, err error) {
-	t = &AccessTokenDao{}
-	t.logger = log.TypedLogger(t)
-	t.db = db
-	err = t.init()
+func (q *AccessTokenQuery) SelectList(ctx context.Context, tx *wrap.Tx) (list []*AccessToken, err error) {
+	queryString, params := q.buildSelectQuery()
+	query := bytes.NewBufferString("")
+	query.WriteString("SELECT id,user_id,access_token,create_time,update_time FROM access_token ")
+	query.WriteString(queryString)
+	rows, err := q.dao.db.Query(ctx, tx, query.String(), params...)
 	if err != nil {
 		return nil, err
 	}
-
-	return t, nil
-}
-
-func (dao *AccessTokenDao) init() (err error) {
-	err = dao.prepareInsertStmt()
-	if err != nil {
-		return err
-	}
-
-	err = dao.prepareDeleteStmt()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (dao *AccessTokenDao) prepareInsertStmt() (err error) {
-	dao.insertStmt, err = dao.db.Prepare(context.Background(), "INSERT INTO access_token (user_id,access_token) VALUES (?,?)")
-	return err
-}
-
-func (dao *AccessTokenDao) prepareDeleteStmt() (err error) {
-	dao.deleteStmt, err = dao.db.Prepare(context.Background(), "DELETE FROM access_token WHERE id=?")
-	return err
-}
-
-func (dao *AccessTokenDao) Insert(ctx context.Context, tx *wrap.Tx, e *AccessToken) (id int64, err error) {
-	stmt := dao.insertStmt
-	if tx != nil {
-		stmt = tx.Stmt(ctx, stmt)
-	}
-
-	result, err := stmt.Exec(ctx, e.UserId, e.AccessToken)
-	if err != nil {
-		return 0, err
-	}
-
-	id, err = result.LastInsertId()
-	if err != nil {
-		return 0, err
-	}
-
-	return id, nil
-}
-
-func (dao *AccessTokenDao) Delete(ctx context.Context, tx *wrap.Tx, id uint64) (err error) {
-	stmt := dao.deleteStmt
-	if tx != nil {
-		stmt = tx.Stmt(ctx, stmt)
-	}
-
-	_, err = stmt.Exec(ctx, id)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (dao *AccessTokenDao) scanRow(row *wrap.Row) (*AccessToken, error) {
-	e := &AccessToken{}
-	err := row.Scan(&e.Id, &e.UserId, &e.AccessToken, &e.CreateTime, &e.UpdateTime)
-	if err != nil {
-		if err == wrap.ErrNoRows {
-			return nil, nil
-		} else {
-			return nil, err
-		}
-	}
-
-	return e, nil
-}
-
-func (dao *AccessTokenDao) scanRows(rows *wrap.Rows) (list []*AccessToken, err error) {
-	list = make([]*AccessToken, 0)
 	for rows.Next() {
 		e := AccessToken{}
 		err = rows.Scan(&e.Id, &e.UserId, &e.AccessToken, &e.CreateTime, &e.UpdateTime)
@@ -411,85 +391,130 @@ func (dao *AccessTokenDao) scanRows(rows *wrap.Rows) (list []*AccessToken, err e
 	return list, nil
 }
 
-func (dao *AccessTokenDao) QueryOne(ctx context.Context, tx *wrap.Tx, query string) (*AccessToken, error) {
-	querySql := "SELECT " + ACCESS_TOKEN_ALL_FIELDS_STRING + " FROM access_token " + query
-	var row *wrap.Row
-	if tx == nil {
-		row = dao.db.QueryRow(ctx, querySql)
-	} else {
-		row = tx.QueryRow(ctx, querySql)
-	}
-	return dao.scanRow(row)
-}
-
-func (dao *AccessTokenDao) QueryList(ctx context.Context, tx *wrap.Tx, query string) (list []*AccessToken, err error) {
-	querySql := "SELECT " + ACCESS_TOKEN_ALL_FIELDS_STRING + " FROM access_token " + query
-	var rows *wrap.Rows
-	if tx == nil {
-		rows, err = dao.db.Query(ctx, querySql)
-	} else {
-		rows, err = tx.Query(ctx, querySql)
-	}
-	if err != nil {
-		dao.logger.Error("sqlDriver", zap.Error(err))
-		return nil, err
-	}
-
-	return dao.scanRows(rows)
-}
-
-func (dao *AccessTokenDao) QueryCount(ctx context.Context, tx *wrap.Tx, query string) (count int64, err error) {
-	querySql := "SELECT COUNT(1) FROM access_token " + query
-	var row *wrap.Row
-	if tx == nil {
-		row = dao.db.QueryRow(ctx, querySql)
-	} else {
-		row = tx.QueryRow(ctx, querySql)
-	}
-	if err != nil {
-		dao.logger.Error("sqlDriver", zap.Error(err))
-		return 0, err
-	}
-
+func (q *AccessTokenQuery) SelectCount(ctx context.Context, tx *wrap.Tx) (count int64, err error) {
+	queryString, params := q.buildSelectQuery()
+	query := bytes.NewBufferString("")
+	query.WriteString("SELECT COUNT(*) FROM access_token ")
+	query.WriteString(queryString)
+	row := q.dao.db.QueryRow(ctx, tx, query.String(), params...)
 	err = row.Scan(&count)
-	if err != nil {
-		return 0, err
+
+	return count, err
+}
+
+func (q *AccessTokenQuery) SelectGroupBy(ctx context.Context, tx *wrap.Tx, withCount bool) (rows *wrap.Rows, err error) {
+	queryString, params := q.buildSelectQuery()
+	query := bytes.NewBufferString("")
+	query.WriteString("SELECT ")
+	query.WriteString(strings.Join(q.groupByFields, ","))
+	if withCount {
+		query.WriteString(",Count(*) ")
+	}
+	query.WriteString(" FROM access_token ")
+	query.WriteString(queryString)
+
+	return q.dao.db.Query(ctx, tx, query.String(), params...)
+}
+
+func (q *AccessTokenQuery) SetUserId(v string) *AccessTokenQuery {
+	q.updateFields = append(q.updateFields, "user_id")
+	q.updateParams = append(q.updateParams, v)
+	return q
+}
+
+func (q *AccessTokenQuery) SetAccessToken(v string) *AccessTokenQuery {
+	q.updateFields = append(q.updateFields, "access_token")
+	q.updateParams = append(q.updateParams, v)
+	return q
+}
+
+func (q *AccessTokenQuery) Update(ctx context.Context, tx *wrap.Tx) (result *wrap.Result, err error) {
+	query := bytes.NewBufferString("")
+	var params []interface{}
+	params = append(params, q.updateParams)
+	query.WriteString("UPDATE access_token SET ")
+	updateItems := make([]string, len(q.updateFields))
+	for i, v := range q.updateFields {
+		updateItems[i] = v + "=?"
+	}
+	query.WriteString(strings.Join(updateItems, ","))
+	where := q.where.String()
+	if where != "" {
+		query.WriteString(" WHERE ")
+		query.WriteString(where)
+		params = append(params, q.whereParams)
 	}
 
-	return count, nil
+	return q.dao.db.Exec(ctx, tx, query.String(), params...)
 }
 
-func (dao *AccessTokenDao) QueryGroupBy(ctx context.Context, tx *wrap.Tx, groupByFields []string, query string) (rows *wrap.Rows, err error) {
-	querySql := "SELECT " + strings.Join(groupByFields, ",") + ",count(1) FROM access_token " + query
-	if tx == nil {
-		return dao.db.Query(ctx, querySql)
-	} else {
-		return tx.Query(ctx, querySql)
+func (q *AccessTokenQuery) Delete(ctx context.Context, tx *wrap.Tx) (result *wrap.Result, err error) {
+	query := "DELETE FROM access_token WHERE " + q.where.String()
+	return q.dao.db.Exec(ctx, tx, query, q.whereParams...)
+}
+
+type AccessTokenDao struct {
+	logger *zap.Logger
+	db     *DB
+}
+
+func NewAccessTokenDao(db *DB) (t *AccessTokenDao, err error) {
+	t = &AccessTokenDao{}
+	t.logger = log.TypedLogger(t)
+	t.db = db
+
+	return t, nil
+}
+
+func (dao *AccessTokenDao) Insert(ctx context.Context, tx *wrap.Tx, e *AccessToken, onDuplicatedKeyUpdate bool) (result *wrap.Result, err error) {
+	query := bytes.NewBufferString("")
+	query.WriteString("INSERT INTO access_token (user_id,access_token) VALUES (?,?)")
+	if onDuplicatedKeyUpdate {
+		query.WriteString(" ON DUPLICATED KEY UPDATE user_id=VALUES(user_id)")
 	}
+	params := []interface{}{e.UserId, e.AccessToken}
+	return dao.db.Exec(ctx, tx, query.String(), params...)
 }
 
-func (dao *AccessTokenDao) GetQuery() *AccessTokenQuery {
-	return NewAccessTokenQuery(dao)
+func (dao *AccessTokenDao) BatchInsert(ctx context.Context, tx *wrap.Tx, list []*AccessToken, onDuplicatedKeyUpdate bool) (result *wrap.Result, err error) {
+	query := bytes.NewBufferString("")
+	query.WriteString("INSERT INTO access_token (user_id,access_token) VALUES ")
+	query.WriteString(wrap.RepeatWithSeparator("(?,?)", len(list), ","))
+	if onDuplicatedKeyUpdate {
+		query.WriteString(" ON DUPLICATED KEY UPDATE user_id=VALUES(user_id)")
+	}
+	params := make([]interface{}, len(list)*2)
+	offset := 0
+	for _, e := range list {
+		params[offset+0] = e.UserId
+		params[offset+1] = e.AccessToken
+		offset += 2
+	}
+
+	return dao.db.Exec(ctx, tx, query.String(), params...)
 }
 
-func (dao *AccessTokenDao) GetUpdate() *AccessTokenUpdate {
-	return NewAccessTokenUpdate(dao)
+func (dao *AccessTokenDao) DeleteById(ctx context.Context, tx *wrap.Tx, id uint64) (result *wrap.Result, err error) {
+	query := "DELETE FROM AccessToken WHERE id=?"
+	return dao.db.Exec(ctx, tx, query, id)
 }
 
-const ACCOUNT_OPERATION_TABLE_NAME = "account_operation"
+func (dao *AccessTokenDao) UpdateById(ctx context.Context, tx *wrap.Tx, e *AccessToken) (result *wrap.Result, err error) {
+	query := "UPDATE access_token SET user_id=?,access_token=? WHERE id=?"
+	params := []interface{}{e.UserId, e.AccessToken, e.Id}
+	return dao.db.Exec(ctx, tx, query, params...)
+}
 
-type ACCOUNT_OPERATION_FIELD string
-
-const ACCOUNT_OPERATION_FIELD_ID = ACCOUNT_OPERATION_FIELD("id")
-const ACCOUNT_OPERATION_FIELD_USER_ID = ACCOUNT_OPERATION_FIELD("user_id")
-const ACCOUNT_OPERATION_FIELD_OPERATIONTYPE = ACCOUNT_OPERATION_FIELD("operationType")
-const ACCOUNT_OPERATION_FIELD_USER_AGENT = ACCOUNT_OPERATION_FIELD("user_agent")
-const ACCOUNT_OPERATION_FIELD_PHONE_ENCRYPTED = ACCOUNT_OPERATION_FIELD("phone_encrypted")
-const ACCOUNT_OPERATION_FIELD_SMS_SCENE = ACCOUNT_OPERATION_FIELD("sms_scene")
-const ACCOUNT_OPERATION_FIELD_OTHER_USER_ID = ACCOUNT_OPERATION_FIELD("other_user_id")
-const ACCOUNT_OPERATION_FIELD_CREATE_TIME = ACCOUNT_OPERATION_FIELD("create_time")
-
-const ACCOUNT_OPERATION_ALL_FIELDS_STRING = "id,user_id,operationType,user_agent,phone_encrypted,sms_scene,other_user_id,create_time"
+func (dao *AccessTokenDao) SelectById(ctx context.Context, tx *wrap.Tx, id int64) (e *AccessToken, err error) {
+	query := "SELECT id,user_id,access_token,create_time,update_time FROM access_token WHERE id=?"
+	row := dao.db.QueryRow(ctx, tx, query, id)
+	e = &AccessToken{}
+	err = row.Scan(&e.Id, &e.UserId, &e.AccessToken, &e.CreateTime, &e.UpdateTime)
+	if err == wrap.ErrNoRows {
+		return nil, nil
+	}
+	return e, err
+}
 
 type AccountOperation struct {
 	Id             uint64 //size=20
@@ -503,31 +528,337 @@ type AccountOperation struct {
 }
 
 type AccountOperationQuery struct {
-	BaseQuery
+	QueryBase
 	dao *AccountOperationDao
 }
 
-func NewAccountOperationQuery(dao *AccountOperationDao) *AccountOperationQuery {
+func (dao *AccountOperationDao) Query() *AccountOperationQuery {
 	q := &AccountOperationQuery{}
 	q.dao = dao
-
+	q.where = bytes.NewBufferString("")
 	return q
 }
 
-func (q *AccountOperationQuery) QueryOne(ctx context.Context, tx *wrap.Tx) (*AccountOperation, error) {
-	return q.dao.QueryOne(ctx, tx, q.buildQueryString())
+func (q *AccountOperationQuery) Left() *AccountOperationQuery {
+	q.where.WriteString(" (")
+	return q
 }
 
-func (q *AccountOperationQuery) QueryList(ctx context.Context, tx *wrap.Tx) (list []*AccountOperation, err error) {
-	return q.dao.QueryList(ctx, tx, q.buildQueryString())
+func (q *AccountOperationQuery) Right() *AccountOperationQuery {
+	q.where.WriteString(" )")
+	return q
 }
 
-func (q *AccountOperationQuery) QueryCount(ctx context.Context, tx *wrap.Tx) (count int64, err error) {
-	return q.dao.QueryCount(ctx, tx, q.buildQueryString())
+func (q *AccountOperationQuery) And() *AccountOperationQuery {
+	q.where.WriteString(" AND")
+	return q
 }
 
-func (q *AccountOperationQuery) QueryGroupBy(ctx context.Context, tx *wrap.Tx) (rows *wrap.Rows, err error) {
-	return q.dao.QueryGroupBy(ctx, tx, q.groupByFields, q.buildQueryString())
+func (q *AccountOperationQuery) Or() *AccountOperationQuery {
+	q.where.WriteString(" OR")
+	return q
+}
+
+func (q *AccountOperationQuery) Not() *AccountOperationQuery {
+	q.where.WriteString(" NOT")
+	return q
+}
+
+func (q *AccountOperationQuery) IdEqual(v uint64) *AccountOperationQuery {
+	q.where.WriteString(" id=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *AccountOperationQuery) IdNotEqual(v uint64) *AccountOperationQuery {
+	q.where.WriteString(" id<>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *AccountOperationQuery) IdLess(v uint64) *AccountOperationQuery {
+	q.where.WriteString(" id<?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *AccountOperationQuery) IdLessEqual(v uint64) *AccountOperationQuery {
+	q.where.WriteString(" id<=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *AccountOperationQuery) IdGreater(v uint64) *AccountOperationQuery {
+	q.where.WriteString(" id>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *AccountOperationQuery) IdGreaterEqual(v uint64) *AccountOperationQuery {
+	q.where.WriteString(" id>=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *AccountOperationQuery) IdIn(items []uint64) *AccountOperationQuery {
+	q.where.WriteString(" id IN(")
+	q.where.WriteString(wrap.RepeatWithSeparator("?", len(items), ","))
+	q.where.WriteString(")")
+	q.whereParams = append(q.whereParams, items)
+	return q
+}
+
+func (q *AccountOperationQuery) UserIdEqual(v string) *AccountOperationQuery {
+	q.where.WriteString(" user_id=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *AccountOperationQuery) UserIdNotEqual(v string) *AccountOperationQuery {
+	q.where.WriteString(" user_id<>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *AccountOperationQuery) UserIdIn(items []string) *AccountOperationQuery {
+	q.where.WriteString(" user_id IN(")
+	q.where.WriteString(wrap.RepeatWithSeparator("?", len(items), ","))
+	q.where.WriteString(")")
+	q.whereParams = append(q.whereParams, items)
+	return q
+}
+
+func (q *AccountOperationQuery) OperationTypeEqual(v string) *AccountOperationQuery {
+	q.where.WriteString(" operationType=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *AccountOperationQuery) OperationTypeNotEqual(v string) *AccountOperationQuery {
+	q.where.WriteString(" operationType<>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *AccountOperationQuery) OperationTypeIn(items []string) *AccountOperationQuery {
+	q.where.WriteString(" operationType IN(")
+	q.where.WriteString(wrap.RepeatWithSeparator("?", len(items), ","))
+	q.where.WriteString(")")
+	q.whereParams = append(q.whereParams, items)
+	return q
+}
+
+func (q *AccountOperationQuery) UserAgentEqual(v string) *AccountOperationQuery {
+	q.where.WriteString(" user_agent=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *AccountOperationQuery) UserAgentNotEqual(v string) *AccountOperationQuery {
+	q.where.WriteString(" user_agent<>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *AccountOperationQuery) UserAgentIn(items []string) *AccountOperationQuery {
+	q.where.WriteString(" user_agent IN(")
+	q.where.WriteString(wrap.RepeatWithSeparator("?", len(items), ","))
+	q.where.WriteString(")")
+	q.whereParams = append(q.whereParams, items)
+	return q
+}
+
+func (q *AccountOperationQuery) PhoneEncryptedEqual(v string) *AccountOperationQuery {
+	q.where.WriteString(" phone_encrypted=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *AccountOperationQuery) PhoneEncryptedNotEqual(v string) *AccountOperationQuery {
+	q.where.WriteString(" phone_encrypted<>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *AccountOperationQuery) PhoneEncryptedIn(items []string) *AccountOperationQuery {
+	q.where.WriteString(" phone_encrypted IN(")
+	q.where.WriteString(wrap.RepeatWithSeparator("?", len(items), ","))
+	q.where.WriteString(")")
+	q.whereParams = append(q.whereParams, items)
+	return q
+}
+
+func (q *AccountOperationQuery) SmsSceneEqual(v string) *AccountOperationQuery {
+	q.where.WriteString(" sms_scene=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *AccountOperationQuery) SmsSceneNotEqual(v string) *AccountOperationQuery {
+	q.where.WriteString(" sms_scene<>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *AccountOperationQuery) SmsSceneIn(items []string) *AccountOperationQuery {
+	q.where.WriteString(" sms_scene IN(")
+	q.where.WriteString(wrap.RepeatWithSeparator("?", len(items), ","))
+	q.where.WriteString(")")
+	q.whereParams = append(q.whereParams, items)
+	return q
+}
+
+func (q *AccountOperationQuery) OtherUserIdEqual(v string) *AccountOperationQuery {
+	q.where.WriteString(" other_user_id=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *AccountOperationQuery) OtherUserIdNotEqual(v string) *AccountOperationQuery {
+	q.where.WriteString(" other_user_id<>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *AccountOperationQuery) OtherUserIdIn(items []string) *AccountOperationQuery {
+	q.where.WriteString(" other_user_id IN(")
+	q.where.WriteString(wrap.RepeatWithSeparator("?", len(items), ","))
+	q.where.WriteString(")")
+	q.whereParams = append(q.whereParams, items)
+	return q
+}
+
+func (q *AccountOperationQuery) CreateTimeEqual(v time.Time) *AccountOperationQuery {
+	q.where.WriteString(" create_time=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *AccountOperationQuery) CreateTimeNotEqual(v time.Time) *AccountOperationQuery {
+	q.where.WriteString(" create_time<>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *AccountOperationQuery) CreateTimeLess(v time.Time) *AccountOperationQuery {
+	q.where.WriteString(" create_time<?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *AccountOperationQuery) CreateTimeLessEqual(v time.Time) *AccountOperationQuery {
+	q.where.WriteString(" create_time<=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *AccountOperationQuery) CreateTimeGreater(v time.Time) *AccountOperationQuery {
+	q.where.WriteString(" create_time>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *AccountOperationQuery) CreateTimeGreaterEqual(v time.Time) *AccountOperationQuery {
+	q.where.WriteString(" create_time>=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *AccountOperationQuery) GroupByUserId(asc bool) *AccountOperationQuery {
+	q.groupByFields = append(q.groupByFields, "user_id")
+	q.groupByOrders = append(q.groupByOrders, asc)
+	return q
+}
+
+func (q *AccountOperationQuery) GroupByOperationType(asc bool) *AccountOperationQuery {
+	q.groupByFields = append(q.groupByFields, "operationType")
+	q.groupByOrders = append(q.groupByOrders, asc)
+	return q
+}
+
+func (q *AccountOperationQuery) GroupByUserAgent(asc bool) *AccountOperationQuery {
+	q.groupByFields = append(q.groupByFields, "user_agent")
+	q.groupByOrders = append(q.groupByOrders, asc)
+	return q
+}
+
+func (q *AccountOperationQuery) GroupByPhoneEncrypted(asc bool) *AccountOperationQuery {
+	q.groupByFields = append(q.groupByFields, "phone_encrypted")
+	q.groupByOrders = append(q.groupByOrders, asc)
+	return q
+}
+
+func (q *AccountOperationQuery) GroupBySmsScene(asc bool) *AccountOperationQuery {
+	q.groupByFields = append(q.groupByFields, "sms_scene")
+	q.groupByOrders = append(q.groupByOrders, asc)
+	return q
+}
+
+func (q *AccountOperationQuery) GroupByOtherUserId(asc bool) *AccountOperationQuery {
+	q.groupByFields = append(q.groupByFields, "other_user_id")
+	q.groupByOrders = append(q.groupByOrders, asc)
+	return q
+}
+
+func (q *AccountOperationQuery) OrderById(asc bool) *AccountOperationQuery {
+	q.orderByFields = append(q.orderByFields, "id")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *AccountOperationQuery) OrderByUserId(asc bool) *AccountOperationQuery {
+	q.orderByFields = append(q.orderByFields, "user_id")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *AccountOperationQuery) OrderByOperationType(asc bool) *AccountOperationQuery {
+	q.orderByFields = append(q.orderByFields, "operationType")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *AccountOperationQuery) OrderByUserAgent(asc bool) *AccountOperationQuery {
+	q.orderByFields = append(q.orderByFields, "user_agent")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *AccountOperationQuery) OrderByPhoneEncrypted(asc bool) *AccountOperationQuery {
+	q.orderByFields = append(q.orderByFields, "phone_encrypted")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *AccountOperationQuery) OrderBySmsScene(asc bool) *AccountOperationQuery {
+	q.orderByFields = append(q.orderByFields, "sms_scene")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *AccountOperationQuery) OrderByOtherUserId(asc bool) *AccountOperationQuery {
+	q.orderByFields = append(q.orderByFields, "other_user_id")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *AccountOperationQuery) OrderByCreateTime(asc bool) *AccountOperationQuery {
+	q.orderByFields = append(q.orderByFields, "create_time")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *AccountOperationQuery) OrderByGroupCount(asc bool) *AccountOperationQuery {
+	q.orderByFields = append(q.orderByFields, "count(*)")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *AccountOperationQuery) Limit(startIncluded int64, count int64) *AccountOperationQuery {
+	q.hasLimit = true
+	q.limitStartIncluded = startIncluded
+	q.limitCount = count
+	return q
 }
 
 func (q *AccountOperationQuery) ForUpdate() *AccountOperationQuery {
@@ -540,205 +871,35 @@ func (q *AccountOperationQuery) ForShare() *AccountOperationQuery {
 	return q
 }
 
-func (q *AccountOperationQuery) GroupBy(fields ...ACCOUNT_OPERATION_FIELD) *AccountOperationQuery {
-	q.groupByFields = make([]string, len(fields))
-	for i, v := range fields {
-		q.groupByFields[i] = string(v)
+func (q *AccountOperationQuery) Select(ctx context.Context, tx *wrap.Tx) (e *AccountOperation, err error) {
+	if !q.hasLimit {
+		q.limitCount = 1
+		q.hasLimit = true
 	}
-	return q
+
+	queryString, params := q.buildSelectQuery()
+	query := bytes.NewBufferString("")
+	query.WriteString("SELECT id,user_id,operationType,user_agent,phone_encrypted,sms_scene,other_user_id,create_time FROM account_operation ")
+	query.WriteString(queryString)
+	e = &AccountOperation{}
+	row := q.dao.db.QueryRow(ctx, tx, query.String(), params...)
+	err = row.Scan(&e.Id, &e.UserId, &e.OperationType, &e.UserAgent, &e.PhoneEncrypted, &e.SmsScene, &e.OtherUserId, &e.CreateTime)
+	if err == wrap.ErrNoRows {
+		return nil, nil
+	}
+
+	return e, err
 }
 
-func (q *AccountOperationQuery) Limit(startIncluded int64, count int64) *AccountOperationQuery {
-	q.setLimit(startIncluded, count)
-	return q
-}
-
-func (q *AccountOperationQuery) OrderBy(fieldName ACCOUNT_OPERATION_FIELD, asc bool) *AccountOperationQuery {
-	q.orderBy(string(fieldName), asc)
-	return q
-}
-
-func (q *AccountOperationQuery) OrderByGroupCount(asc bool) *AccountOperationQuery {
-	q.orderByGroupCount(asc)
-	return q
-}
-
-func (q *AccountOperationQuery) w(format string, a ...interface{}) *AccountOperationQuery {
-	q.setWhere(format, a...)
-	return q
-}
-
-func (q *AccountOperationQuery) Left() *AccountOperationQuery  { return q.w(" ( ") }
-func (q *AccountOperationQuery) Right() *AccountOperationQuery { return q.w(" ) ") }
-func (q *AccountOperationQuery) And() *AccountOperationQuery   { return q.w(" AND ") }
-func (q *AccountOperationQuery) Or() *AccountOperationQuery    { return q.w(" OR ") }
-func (q *AccountOperationQuery) Not() *AccountOperationQuery   { return q.w(" NOT ") }
-
-func (q *AccountOperationQuery) Id_Equal(v uint64) *AccountOperationQuery {
-	return q.w("id='" + fmt.Sprint(v) + "'")
-}
-func (q *AccountOperationQuery) Id_NotEqual(v uint64) *AccountOperationQuery {
-	return q.w("id<>'" + fmt.Sprint(v) + "'")
-}
-func (q *AccountOperationQuery) Id_Less(v uint64) *AccountOperationQuery {
-	return q.w("id<'" + fmt.Sprint(v) + "'")
-}
-func (q *AccountOperationQuery) Id_LessEqual(v uint64) *AccountOperationQuery {
-	return q.w("id<='" + fmt.Sprint(v) + "'")
-}
-func (q *AccountOperationQuery) Id_Greater(v uint64) *AccountOperationQuery {
-	return q.w("id>'" + fmt.Sprint(v) + "'")
-}
-func (q *AccountOperationQuery) Id_GreaterEqual(v uint64) *AccountOperationQuery {
-	return q.w("id>='" + fmt.Sprint(v) + "'")
-}
-func (q *AccountOperationQuery) UserId_Equal(v string) *AccountOperationQuery {
-	return q.w("user_id='" + fmt.Sprint(v) + "'")
-}
-func (q *AccountOperationQuery) UserId_NotEqual(v string) *AccountOperationQuery {
-	return q.w("user_id<>'" + fmt.Sprint(v) + "'")
-}
-func (q *AccountOperationQuery) OperationType_Equal(v string) *AccountOperationQuery {
-	return q.w("operationType='" + fmt.Sprint(v) + "'")
-}
-func (q *AccountOperationQuery) OperationType_NotEqual(v string) *AccountOperationQuery {
-	return q.w("operationType<>'" + fmt.Sprint(v) + "'")
-}
-func (q *AccountOperationQuery) UserAgent_Equal(v string) *AccountOperationQuery {
-	return q.w("user_agent='" + fmt.Sprint(v) + "'")
-}
-func (q *AccountOperationQuery) UserAgent_NotEqual(v string) *AccountOperationQuery {
-	return q.w("user_agent<>'" + fmt.Sprint(v) + "'")
-}
-func (q *AccountOperationQuery) PhoneEncrypted_Equal(v string) *AccountOperationQuery {
-	return q.w("phone_encrypted='" + fmt.Sprint(v) + "'")
-}
-func (q *AccountOperationQuery) PhoneEncrypted_NotEqual(v string) *AccountOperationQuery {
-	return q.w("phone_encrypted<>'" + fmt.Sprint(v) + "'")
-}
-func (q *AccountOperationQuery) SmsScene_Equal(v string) *AccountOperationQuery {
-	return q.w("sms_scene='" + fmt.Sprint(v) + "'")
-}
-func (q *AccountOperationQuery) SmsScene_NotEqual(v string) *AccountOperationQuery {
-	return q.w("sms_scene<>'" + fmt.Sprint(v) + "'")
-}
-func (q *AccountOperationQuery) OtherUserId_Equal(v string) *AccountOperationQuery {
-	return q.w("other_user_id='" + fmt.Sprint(v) + "'")
-}
-func (q *AccountOperationQuery) OtherUserId_NotEqual(v string) *AccountOperationQuery {
-	return q.w("other_user_id<>'" + fmt.Sprint(v) + "'")
-}
-func (q *AccountOperationQuery) CreateTime_Equal(v time.Time) *AccountOperationQuery {
-	return q.w("create_time='" + fmt.Sprint(v) + "'")
-}
-func (q *AccountOperationQuery) CreateTime_NotEqual(v time.Time) *AccountOperationQuery {
-	return q.w("create_time<>'" + fmt.Sprint(v) + "'")
-}
-func (q *AccountOperationQuery) CreateTime_Less(v time.Time) *AccountOperationQuery {
-	return q.w("create_time<'" + fmt.Sprint(v) + "'")
-}
-func (q *AccountOperationQuery) CreateTime_LessEqual(v time.Time) *AccountOperationQuery {
-	return q.w("create_time<='" + fmt.Sprint(v) + "'")
-}
-func (q *AccountOperationQuery) CreateTime_Greater(v time.Time) *AccountOperationQuery {
-	return q.w("create_time>'" + fmt.Sprint(v) + "'")
-}
-func (q *AccountOperationQuery) CreateTime_GreaterEqual(v time.Time) *AccountOperationQuery {
-	return q.w("create_time>='" + fmt.Sprint(v) + "'")
-}
-
-type AccountOperationDao struct {
-	logger     *zap.Logger
-	db         *DB
-	insertStmt *wrap.Stmt
-	deleteStmt *wrap.Stmt
-}
-
-func NewAccountOperationDao(db *DB) (t *AccountOperationDao, err error) {
-	t = &AccountOperationDao{}
-	t.logger = log.TypedLogger(t)
-	t.db = db
-	err = t.init()
+func (q *AccountOperationQuery) SelectList(ctx context.Context, tx *wrap.Tx) (list []*AccountOperation, err error) {
+	queryString, params := q.buildSelectQuery()
+	query := bytes.NewBufferString("")
+	query.WriteString("SELECT id,user_id,operationType,user_agent,phone_encrypted,sms_scene,other_user_id,create_time FROM account_operation ")
+	query.WriteString(queryString)
+	rows, err := q.dao.db.Query(ctx, tx, query.String(), params...)
 	if err != nil {
 		return nil, err
 	}
-
-	return t, nil
-}
-
-func (dao *AccountOperationDao) init() (err error) {
-	err = dao.prepareInsertStmt()
-	if err != nil {
-		return err
-	}
-
-	err = dao.prepareDeleteStmt()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (dao *AccountOperationDao) prepareInsertStmt() (err error) {
-	dao.insertStmt, err = dao.db.Prepare(context.Background(), "INSERT INTO account_operation (user_id,operationType,user_agent,phone_encrypted,sms_scene,other_user_id) VALUES (?,?,?,?,?,?)")
-	return err
-}
-
-func (dao *AccountOperationDao) prepareDeleteStmt() (err error) {
-	dao.deleteStmt, err = dao.db.Prepare(context.Background(), "DELETE FROM account_operation WHERE id=?")
-	return err
-}
-
-func (dao *AccountOperationDao) Insert(ctx context.Context, tx *wrap.Tx, e *AccountOperation) (id int64, err error) {
-	stmt := dao.insertStmt
-	if tx != nil {
-		stmt = tx.Stmt(ctx, stmt)
-	}
-
-	result, err := stmt.Exec(ctx, e.UserId, e.OperationType, e.UserAgent, e.PhoneEncrypted, e.SmsScene, e.OtherUserId)
-	if err != nil {
-		return 0, err
-	}
-
-	id, err = result.LastInsertId()
-	if err != nil {
-		return 0, err
-	}
-
-	return id, nil
-}
-
-func (dao *AccountOperationDao) Delete(ctx context.Context, tx *wrap.Tx, id uint64) (err error) {
-	stmt := dao.deleteStmt
-	if tx != nil {
-		stmt = tx.Stmt(ctx, stmt)
-	}
-
-	_, err = stmt.Exec(ctx, id)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (dao *AccountOperationDao) scanRow(row *wrap.Row) (*AccountOperation, error) {
-	e := &AccountOperation{}
-	err := row.Scan(&e.Id, &e.UserId, &e.OperationType, &e.UserAgent, &e.PhoneEncrypted, &e.SmsScene, &e.OtherUserId, &e.CreateTime)
-	if err != nil {
-		if err == wrap.ErrNoRows {
-			return nil, nil
-		} else {
-			return nil, err
-		}
-	}
-
-	return e, nil
-}
-
-func (dao *AccountOperationDao) scanRows(rows *wrap.Rows) (list []*AccountOperation, err error) {
-	list = make([]*AccountOperation, 0)
 	for rows.Next() {
 		e := AccountOperation{}
 		err = rows.Scan(&e.Id, &e.UserId, &e.OperationType, &e.UserAgent, &e.PhoneEncrypted, &e.SmsScene, &e.OtherUserId, &e.CreateTime)
@@ -755,82 +916,152 @@ func (dao *AccountOperationDao) scanRows(rows *wrap.Rows) (list []*AccountOperat
 	return list, nil
 }
 
-func (dao *AccountOperationDao) QueryOne(ctx context.Context, tx *wrap.Tx, query string) (*AccountOperation, error) {
-	querySql := "SELECT " + ACCOUNT_OPERATION_ALL_FIELDS_STRING + " FROM account_operation " + query
-	var row *wrap.Row
-	if tx == nil {
-		row = dao.db.QueryRow(ctx, querySql)
-	} else {
-		row = tx.QueryRow(ctx, querySql)
-	}
-	return dao.scanRow(row)
-}
-
-func (dao *AccountOperationDao) QueryList(ctx context.Context, tx *wrap.Tx, query string) (list []*AccountOperation, err error) {
-	querySql := "SELECT " + ACCOUNT_OPERATION_ALL_FIELDS_STRING + " FROM account_operation " + query
-	var rows *wrap.Rows
-	if tx == nil {
-		rows, err = dao.db.Query(ctx, querySql)
-	} else {
-		rows, err = tx.Query(ctx, querySql)
-	}
-	if err != nil {
-		dao.logger.Error("sqlDriver", zap.Error(err))
-		return nil, err
-	}
-
-	return dao.scanRows(rows)
-}
-
-func (dao *AccountOperationDao) QueryCount(ctx context.Context, tx *wrap.Tx, query string) (count int64, err error) {
-	querySql := "SELECT COUNT(1) FROM account_operation " + query
-	var row *wrap.Row
-	if tx == nil {
-		row = dao.db.QueryRow(ctx, querySql)
-	} else {
-		row = tx.QueryRow(ctx, querySql)
-	}
-	if err != nil {
-		dao.logger.Error("sqlDriver", zap.Error(err))
-		return 0, err
-	}
-
+func (q *AccountOperationQuery) SelectCount(ctx context.Context, tx *wrap.Tx) (count int64, err error) {
+	queryString, params := q.buildSelectQuery()
+	query := bytes.NewBufferString("")
+	query.WriteString("SELECT COUNT(*) FROM account_operation ")
+	query.WriteString(queryString)
+	row := q.dao.db.QueryRow(ctx, tx, query.String(), params...)
 	err = row.Scan(&count)
-	if err != nil {
-		return 0, err
+
+	return count, err
+}
+
+func (q *AccountOperationQuery) SelectGroupBy(ctx context.Context, tx *wrap.Tx, withCount bool) (rows *wrap.Rows, err error) {
+	queryString, params := q.buildSelectQuery()
+	query := bytes.NewBufferString("")
+	query.WriteString("SELECT ")
+	query.WriteString(strings.Join(q.groupByFields, ","))
+	if withCount {
+		query.WriteString(",Count(*) ")
+	}
+	query.WriteString(" FROM account_operation ")
+	query.WriteString(queryString)
+
+	return q.dao.db.Query(ctx, tx, query.String(), params...)
+}
+
+func (q *AccountOperationQuery) SetUserId(v string) *AccountOperationQuery {
+	q.updateFields = append(q.updateFields, "user_id")
+	q.updateParams = append(q.updateParams, v)
+	return q
+}
+
+func (q *AccountOperationQuery) SetOperationType(v string) *AccountOperationQuery {
+	q.updateFields = append(q.updateFields, "operationType")
+	q.updateParams = append(q.updateParams, v)
+	return q
+}
+
+func (q *AccountOperationQuery) SetUserAgent(v string) *AccountOperationQuery {
+	q.updateFields = append(q.updateFields, "user_agent")
+	q.updateParams = append(q.updateParams, v)
+	return q
+}
+
+func (q *AccountOperationQuery) SetPhoneEncrypted(v string) *AccountOperationQuery {
+	q.updateFields = append(q.updateFields, "phone_encrypted")
+	q.updateParams = append(q.updateParams, v)
+	return q
+}
+
+func (q *AccountOperationQuery) SetSmsScene(v string) *AccountOperationQuery {
+	q.updateFields = append(q.updateFields, "sms_scene")
+	q.updateParams = append(q.updateParams, v)
+	return q
+}
+
+func (q *AccountOperationQuery) SetOtherUserId(v string) *AccountOperationQuery {
+	q.updateFields = append(q.updateFields, "other_user_id")
+	q.updateParams = append(q.updateParams, v)
+	return q
+}
+
+func (q *AccountOperationQuery) Update(ctx context.Context, tx *wrap.Tx) (result *wrap.Result, err error) {
+	query := bytes.NewBufferString("")
+	var params []interface{}
+	params = append(params, q.updateParams)
+	query.WriteString("UPDATE account_operation SET ")
+	updateItems := make([]string, len(q.updateFields))
+	for i, v := range q.updateFields {
+		updateItems[i] = v + "=?"
+	}
+	query.WriteString(strings.Join(updateItems, ","))
+	where := q.where.String()
+	if where != "" {
+		query.WriteString(" WHERE ")
+		query.WriteString(where)
+		params = append(params, q.whereParams)
 	}
 
-	return count, nil
+	return q.dao.db.Exec(ctx, tx, query.String(), params...)
 }
 
-func (dao *AccountOperationDao) QueryGroupBy(ctx context.Context, tx *wrap.Tx, groupByFields []string, query string) (rows *wrap.Rows, err error) {
-	querySql := "SELECT " + strings.Join(groupByFields, ",") + ",count(1) FROM account_operation " + query
-	if tx == nil {
-		return dao.db.Query(ctx, querySql)
-	} else {
-		return tx.Query(ctx, querySql)
+func (q *AccountOperationQuery) Delete(ctx context.Context, tx *wrap.Tx) (result *wrap.Result, err error) {
+	query := "DELETE FROM account_operation WHERE " + q.where.String()
+	return q.dao.db.Exec(ctx, tx, query, q.whereParams...)
+}
+
+type AccountOperationDao struct {
+	logger *zap.Logger
+	db     *DB
+}
+
+func NewAccountOperationDao(db *DB) (t *AccountOperationDao, err error) {
+	t = &AccountOperationDao{}
+	t.logger = log.TypedLogger(t)
+	t.db = db
+
+	return t, nil
+}
+
+func (dao *AccountOperationDao) Insert(ctx context.Context, tx *wrap.Tx, e *AccountOperation) (result *wrap.Result, err error) {
+	query := bytes.NewBufferString("")
+	query.WriteString("INSERT INTO account_operation (user_id,operationType,user_agent,phone_encrypted,sms_scene,other_user_id) VALUES (?,?,?,?,?,?)")
+	params := []interface{}{e.UserId, e.OperationType, e.UserAgent, e.PhoneEncrypted, e.SmsScene, e.OtherUserId}
+	return dao.db.Exec(ctx, tx, query.String(), params...)
+}
+
+func (dao *AccountOperationDao) BatchInsert(ctx context.Context, tx *wrap.Tx, list []*AccountOperation) (result *wrap.Result, err error) {
+	query := bytes.NewBufferString("")
+	query.WriteString("INSERT INTO account_operation (user_id,operationType,user_agent,phone_encrypted,sms_scene,other_user_id) VALUES ")
+	query.WriteString(wrap.RepeatWithSeparator("(?,?,?,?,?,?)", len(list), ","))
+	params := make([]interface{}, len(list)*6)
+	offset := 0
+	for _, e := range list {
+		params[offset+0] = e.UserId
+		params[offset+1] = e.OperationType
+		params[offset+2] = e.UserAgent
+		params[offset+3] = e.PhoneEncrypted
+		params[offset+4] = e.SmsScene
+		params[offset+5] = e.OtherUserId
+		offset += 6
 	}
+
+	return dao.db.Exec(ctx, tx, query.String(), params...)
 }
 
-func (dao *AccountOperationDao) GetQuery() *AccountOperationQuery {
-	return NewAccountOperationQuery(dao)
+func (dao *AccountOperationDao) DeleteById(ctx context.Context, tx *wrap.Tx, id uint64) (result *wrap.Result, err error) {
+	query := "DELETE FROM AccountOperation WHERE id=?"
+	return dao.db.Exec(ctx, tx, query, id)
 }
 
-const OAUTH_ACCOUNT_TABLE_NAME = "oauth_account"
+func (dao *AccountOperationDao) UpdateById(ctx context.Context, tx *wrap.Tx, e *AccountOperation) (result *wrap.Result, err error) {
+	query := "UPDATE account_operation SET user_id=?,operationType=?,user_agent=?,phone_encrypted=?,sms_scene=?,other_user_id=? WHERE id=?"
+	params := []interface{}{e.UserId, e.OperationType, e.UserAgent, e.PhoneEncrypted, e.SmsScene, e.OtherUserId, e.Id}
+	return dao.db.Exec(ctx, tx, query, params...)
+}
 
-type OAUTH_ACCOUNT_FIELD string
-
-const OAUTH_ACCOUNT_FIELD_ID = OAUTH_ACCOUNT_FIELD("id")
-const OAUTH_ACCOUNT_FIELD_USER_ID = OAUTH_ACCOUNT_FIELD("user_id")
-const OAUTH_ACCOUNT_FIELD_PROVIDERID = OAUTH_ACCOUNT_FIELD("providerId")
-const OAUTH_ACCOUNT_FIELD_PROVIDER_NAME = OAUTH_ACCOUNT_FIELD("provider_name")
-const OAUTH_ACCOUNT_FIELD_OPEN_ID = OAUTH_ACCOUNT_FIELD("open_id")
-const OAUTH_ACCOUNT_FIELD_USER_NAME = OAUTH_ACCOUNT_FIELD("user_name")
-const OAUTH_ACCOUNT_FIELD_USER_ICON = OAUTH_ACCOUNT_FIELD("user_icon")
-const OAUTH_ACCOUNT_FIELD_CREATE_TIME = OAUTH_ACCOUNT_FIELD("create_time")
-const OAUTH_ACCOUNT_FIELD_UPDATE_TIME = OAUTH_ACCOUNT_FIELD("update_time")
-
-const OAUTH_ACCOUNT_ALL_FIELDS_STRING = "id,user_id,providerId,provider_name,open_id,user_name,user_icon,create_time,update_time"
+func (dao *AccountOperationDao) SelectById(ctx context.Context, tx *wrap.Tx, id int64) (e *AccountOperation, err error) {
+	query := "SELECT id,user_id,operationType,user_agent,phone_encrypted,sms_scene,other_user_id,create_time FROM account_operation WHERE id=?"
+	row := dao.db.QueryRow(ctx, tx, query, id)
+	e = &AccountOperation{}
+	err = row.Scan(&e.Id, &e.UserId, &e.OperationType, &e.UserAgent, &e.PhoneEncrypted, &e.SmsScene, &e.OtherUserId, &e.CreateTime)
+	if err == wrap.ErrNoRows {
+		return nil, nil
+	}
+	return e, err
+}
 
 type OauthAccount struct {
 	Id           uint64 //size=20
@@ -845,31 +1076,379 @@ type OauthAccount struct {
 }
 
 type OauthAccountQuery struct {
-	BaseQuery
+	QueryBase
 	dao *OauthAccountDao
 }
 
-func NewOauthAccountQuery(dao *OauthAccountDao) *OauthAccountQuery {
+func (dao *OauthAccountDao) Query() *OauthAccountQuery {
 	q := &OauthAccountQuery{}
 	q.dao = dao
-
+	q.where = bytes.NewBufferString("")
 	return q
 }
 
-func (q *OauthAccountQuery) QueryOne(ctx context.Context, tx *wrap.Tx) (*OauthAccount, error) {
-	return q.dao.QueryOne(ctx, tx, q.buildQueryString())
+func (q *OauthAccountQuery) Left() *OauthAccountQuery {
+	q.where.WriteString(" (")
+	return q
 }
 
-func (q *OauthAccountQuery) QueryList(ctx context.Context, tx *wrap.Tx) (list []*OauthAccount, err error) {
-	return q.dao.QueryList(ctx, tx, q.buildQueryString())
+func (q *OauthAccountQuery) Right() *OauthAccountQuery {
+	q.where.WriteString(" )")
+	return q
 }
 
-func (q *OauthAccountQuery) QueryCount(ctx context.Context, tx *wrap.Tx) (count int64, err error) {
-	return q.dao.QueryCount(ctx, tx, q.buildQueryString())
+func (q *OauthAccountQuery) And() *OauthAccountQuery {
+	q.where.WriteString(" AND")
+	return q
 }
 
-func (q *OauthAccountQuery) QueryGroupBy(ctx context.Context, tx *wrap.Tx) (rows *wrap.Rows, err error) {
-	return q.dao.QueryGroupBy(ctx, tx, q.groupByFields, q.buildQueryString())
+func (q *OauthAccountQuery) Or() *OauthAccountQuery {
+	q.where.WriteString(" OR")
+	return q
+}
+
+func (q *OauthAccountQuery) Not() *OauthAccountQuery {
+	q.where.WriteString(" NOT")
+	return q
+}
+
+func (q *OauthAccountQuery) IdEqual(v uint64) *OauthAccountQuery {
+	q.where.WriteString(" id=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthAccountQuery) IdNotEqual(v uint64) *OauthAccountQuery {
+	q.where.WriteString(" id<>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthAccountQuery) IdLess(v uint64) *OauthAccountQuery {
+	q.where.WriteString(" id<?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthAccountQuery) IdLessEqual(v uint64) *OauthAccountQuery {
+	q.where.WriteString(" id<=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthAccountQuery) IdGreater(v uint64) *OauthAccountQuery {
+	q.where.WriteString(" id>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthAccountQuery) IdGreaterEqual(v uint64) *OauthAccountQuery {
+	q.where.WriteString(" id>=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthAccountQuery) IdIn(items []uint64) *OauthAccountQuery {
+	q.where.WriteString(" id IN(")
+	q.where.WriteString(wrap.RepeatWithSeparator("?", len(items), ","))
+	q.where.WriteString(")")
+	q.whereParams = append(q.whereParams, items)
+	return q
+}
+
+func (q *OauthAccountQuery) UserIdEqual(v string) *OauthAccountQuery {
+	q.where.WriteString(" user_id=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthAccountQuery) UserIdNotEqual(v string) *OauthAccountQuery {
+	q.where.WriteString(" user_id<>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthAccountQuery) UserIdIn(items []string) *OauthAccountQuery {
+	q.where.WriteString(" user_id IN(")
+	q.where.WriteString(wrap.RepeatWithSeparator("?", len(items), ","))
+	q.where.WriteString(")")
+	q.whereParams = append(q.whereParams, items)
+	return q
+}
+
+func (q *OauthAccountQuery) ProviderIdEqual(v string) *OauthAccountQuery {
+	q.where.WriteString(" providerId=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthAccountQuery) ProviderIdNotEqual(v string) *OauthAccountQuery {
+	q.where.WriteString(" providerId<>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthAccountQuery) ProviderIdIn(items []string) *OauthAccountQuery {
+	q.where.WriteString(" providerId IN(")
+	q.where.WriteString(wrap.RepeatWithSeparator("?", len(items), ","))
+	q.where.WriteString(")")
+	q.whereParams = append(q.whereParams, items)
+	return q
+}
+
+func (q *OauthAccountQuery) ProviderNameEqual(v string) *OauthAccountQuery {
+	q.where.WriteString(" provider_name=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthAccountQuery) ProviderNameNotEqual(v string) *OauthAccountQuery {
+	q.where.WriteString(" provider_name<>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthAccountQuery) ProviderNameIn(items []string) *OauthAccountQuery {
+	q.where.WriteString(" provider_name IN(")
+	q.where.WriteString(wrap.RepeatWithSeparator("?", len(items), ","))
+	q.where.WriteString(")")
+	q.whereParams = append(q.whereParams, items)
+	return q
+}
+
+func (q *OauthAccountQuery) OpenIdEqual(v string) *OauthAccountQuery {
+	q.where.WriteString(" open_id=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthAccountQuery) OpenIdNotEqual(v string) *OauthAccountQuery {
+	q.where.WriteString(" open_id<>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthAccountQuery) OpenIdIn(items []string) *OauthAccountQuery {
+	q.where.WriteString(" open_id IN(")
+	q.where.WriteString(wrap.RepeatWithSeparator("?", len(items), ","))
+	q.where.WriteString(")")
+	q.whereParams = append(q.whereParams, items)
+	return q
+}
+
+func (q *OauthAccountQuery) UserNameEqual(v string) *OauthAccountQuery {
+	q.where.WriteString(" user_name=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthAccountQuery) UserNameNotEqual(v string) *OauthAccountQuery {
+	q.where.WriteString(" user_name<>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthAccountQuery) UserNameIn(items []string) *OauthAccountQuery {
+	q.where.WriteString(" user_name IN(")
+	q.where.WriteString(wrap.RepeatWithSeparator("?", len(items), ","))
+	q.where.WriteString(")")
+	q.whereParams = append(q.whereParams, items)
+	return q
+}
+
+func (q *OauthAccountQuery) UserIconEqual(v string) *OauthAccountQuery {
+	q.where.WriteString(" user_icon=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthAccountQuery) UserIconNotEqual(v string) *OauthAccountQuery {
+	q.where.WriteString(" user_icon<>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthAccountQuery) UserIconIn(items []string) *OauthAccountQuery {
+	q.where.WriteString(" user_icon IN(")
+	q.where.WriteString(wrap.RepeatWithSeparator("?", len(items), ","))
+	q.where.WriteString(")")
+	q.whereParams = append(q.whereParams, items)
+	return q
+}
+
+func (q *OauthAccountQuery) CreateTimeEqual(v time.Time) *OauthAccountQuery {
+	q.where.WriteString(" create_time=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthAccountQuery) CreateTimeNotEqual(v time.Time) *OauthAccountQuery {
+	q.where.WriteString(" create_time<>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthAccountQuery) CreateTimeLess(v time.Time) *OauthAccountQuery {
+	q.where.WriteString(" create_time<?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthAccountQuery) CreateTimeLessEqual(v time.Time) *OauthAccountQuery {
+	q.where.WriteString(" create_time<=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthAccountQuery) CreateTimeGreater(v time.Time) *OauthAccountQuery {
+	q.where.WriteString(" create_time>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthAccountQuery) CreateTimeGreaterEqual(v time.Time) *OauthAccountQuery {
+	q.where.WriteString(" create_time>=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthAccountQuery) UpdateTimeEqual(v time.Time) *OauthAccountQuery {
+	q.where.WriteString(" update_time=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthAccountQuery) UpdateTimeNotEqual(v time.Time) *OauthAccountQuery {
+	q.where.WriteString(" update_time<>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthAccountQuery) UpdateTimeLess(v time.Time) *OauthAccountQuery {
+	q.where.WriteString(" update_time<?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthAccountQuery) UpdateTimeLessEqual(v time.Time) *OauthAccountQuery {
+	q.where.WriteString(" update_time<=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthAccountQuery) UpdateTimeGreater(v time.Time) *OauthAccountQuery {
+	q.where.WriteString(" update_time>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthAccountQuery) UpdateTimeGreaterEqual(v time.Time) *OauthAccountQuery {
+	q.where.WriteString(" update_time>=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthAccountQuery) GroupByUserId(asc bool) *OauthAccountQuery {
+	q.groupByFields = append(q.groupByFields, "user_id")
+	q.groupByOrders = append(q.groupByOrders, asc)
+	return q
+}
+
+func (q *OauthAccountQuery) GroupByProviderId(asc bool) *OauthAccountQuery {
+	q.groupByFields = append(q.groupByFields, "providerId")
+	q.groupByOrders = append(q.groupByOrders, asc)
+	return q
+}
+
+func (q *OauthAccountQuery) GroupByProviderName(asc bool) *OauthAccountQuery {
+	q.groupByFields = append(q.groupByFields, "provider_name")
+	q.groupByOrders = append(q.groupByOrders, asc)
+	return q
+}
+
+func (q *OauthAccountQuery) GroupByOpenId(asc bool) *OauthAccountQuery {
+	q.groupByFields = append(q.groupByFields, "open_id")
+	q.groupByOrders = append(q.groupByOrders, asc)
+	return q
+}
+
+func (q *OauthAccountQuery) GroupByUserName(asc bool) *OauthAccountQuery {
+	q.groupByFields = append(q.groupByFields, "user_name")
+	q.groupByOrders = append(q.groupByOrders, asc)
+	return q
+}
+
+func (q *OauthAccountQuery) GroupByUserIcon(asc bool) *OauthAccountQuery {
+	q.groupByFields = append(q.groupByFields, "user_icon")
+	q.groupByOrders = append(q.groupByOrders, asc)
+	return q
+}
+
+func (q *OauthAccountQuery) OrderById(asc bool) *OauthAccountQuery {
+	q.orderByFields = append(q.orderByFields, "id")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *OauthAccountQuery) OrderByUserId(asc bool) *OauthAccountQuery {
+	q.orderByFields = append(q.orderByFields, "user_id")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *OauthAccountQuery) OrderByProviderId(asc bool) *OauthAccountQuery {
+	q.orderByFields = append(q.orderByFields, "providerId")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *OauthAccountQuery) OrderByProviderName(asc bool) *OauthAccountQuery {
+	q.orderByFields = append(q.orderByFields, "provider_name")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *OauthAccountQuery) OrderByOpenId(asc bool) *OauthAccountQuery {
+	q.orderByFields = append(q.orderByFields, "open_id")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *OauthAccountQuery) OrderByUserName(asc bool) *OauthAccountQuery {
+	q.orderByFields = append(q.orderByFields, "user_name")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *OauthAccountQuery) OrderByUserIcon(asc bool) *OauthAccountQuery {
+	q.orderByFields = append(q.orderByFields, "user_icon")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *OauthAccountQuery) OrderByCreateTime(asc bool) *OauthAccountQuery {
+	q.orderByFields = append(q.orderByFields, "create_time")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *OauthAccountQuery) OrderByUpdateTime(asc bool) *OauthAccountQuery {
+	q.orderByFields = append(q.orderByFields, "update_time")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *OauthAccountQuery) OrderByGroupCount(asc bool) *OauthAccountQuery {
+	q.orderByFields = append(q.orderByFields, "count(*)")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *OauthAccountQuery) Limit(startIncluded int64, count int64) *OauthAccountQuery {
+	q.hasLimit = true
+	q.limitStartIncluded = startIncluded
+	q.limitCount = count
+	return q
 }
 
 func (q *OauthAccountQuery) ForUpdate() *OauthAccountQuery {
@@ -882,295 +1461,35 @@ func (q *OauthAccountQuery) ForShare() *OauthAccountQuery {
 	return q
 }
 
-func (q *OauthAccountQuery) GroupBy(fields ...OAUTH_ACCOUNT_FIELD) *OauthAccountQuery {
-	q.groupByFields = make([]string, len(fields))
-	for i, v := range fields {
-		q.groupByFields[i] = string(v)
-	}
-	return q
-}
-
-func (q *OauthAccountQuery) Limit(startIncluded int64, count int64) *OauthAccountQuery {
-	q.setLimit(startIncluded, count)
-	return q
-}
-
-func (q *OauthAccountQuery) OrderBy(fieldName OAUTH_ACCOUNT_FIELD, asc bool) *OauthAccountQuery {
-	q.orderBy(string(fieldName), asc)
-	return q
-}
-
-func (q *OauthAccountQuery) OrderByGroupCount(asc bool) *OauthAccountQuery {
-	q.orderByGroupCount(asc)
-	return q
-}
-
-func (q *OauthAccountQuery) w(format string, a ...interface{}) *OauthAccountQuery {
-	q.setWhere(format, a...)
-	return q
-}
-
-func (q *OauthAccountQuery) Left() *OauthAccountQuery  { return q.w(" ( ") }
-func (q *OauthAccountQuery) Right() *OauthAccountQuery { return q.w(" ) ") }
-func (q *OauthAccountQuery) And() *OauthAccountQuery   { return q.w(" AND ") }
-func (q *OauthAccountQuery) Or() *OauthAccountQuery    { return q.w(" OR ") }
-func (q *OauthAccountQuery) Not() *OauthAccountQuery   { return q.w(" NOT ") }
-
-func (q *OauthAccountQuery) Id_Equal(v uint64) *OauthAccountQuery {
-	return q.w("id='" + fmt.Sprint(v) + "'")
-}
-func (q *OauthAccountQuery) Id_NotEqual(v uint64) *OauthAccountQuery {
-	return q.w("id<>'" + fmt.Sprint(v) + "'")
-}
-func (q *OauthAccountQuery) Id_Less(v uint64) *OauthAccountQuery {
-	return q.w("id<'" + fmt.Sprint(v) + "'")
-}
-func (q *OauthAccountQuery) Id_LessEqual(v uint64) *OauthAccountQuery {
-	return q.w("id<='" + fmt.Sprint(v) + "'")
-}
-func (q *OauthAccountQuery) Id_Greater(v uint64) *OauthAccountQuery {
-	return q.w("id>'" + fmt.Sprint(v) + "'")
-}
-func (q *OauthAccountQuery) Id_GreaterEqual(v uint64) *OauthAccountQuery {
-	return q.w("id>='" + fmt.Sprint(v) + "'")
-}
-func (q *OauthAccountQuery) UserId_Equal(v string) *OauthAccountQuery {
-	return q.w("user_id='" + fmt.Sprint(v) + "'")
-}
-func (q *OauthAccountQuery) UserId_NotEqual(v string) *OauthAccountQuery {
-	return q.w("user_id<>'" + fmt.Sprint(v) + "'")
-}
-func (q *OauthAccountQuery) ProviderId_Equal(v string) *OauthAccountQuery {
-	return q.w("providerId='" + fmt.Sprint(v) + "'")
-}
-func (q *OauthAccountQuery) ProviderId_NotEqual(v string) *OauthAccountQuery {
-	return q.w("providerId<>'" + fmt.Sprint(v) + "'")
-}
-func (q *OauthAccountQuery) ProviderName_Equal(v string) *OauthAccountQuery {
-	return q.w("provider_name='" + fmt.Sprint(v) + "'")
-}
-func (q *OauthAccountQuery) ProviderName_NotEqual(v string) *OauthAccountQuery {
-	return q.w("provider_name<>'" + fmt.Sprint(v) + "'")
-}
-func (q *OauthAccountQuery) OpenId_Equal(v string) *OauthAccountQuery {
-	return q.w("open_id='" + fmt.Sprint(v) + "'")
-}
-func (q *OauthAccountQuery) OpenId_NotEqual(v string) *OauthAccountQuery {
-	return q.w("open_id<>'" + fmt.Sprint(v) + "'")
-}
-func (q *OauthAccountQuery) UserName_Equal(v string) *OauthAccountQuery {
-	return q.w("user_name='" + fmt.Sprint(v) + "'")
-}
-func (q *OauthAccountQuery) UserName_NotEqual(v string) *OauthAccountQuery {
-	return q.w("user_name<>'" + fmt.Sprint(v) + "'")
-}
-func (q *OauthAccountQuery) UserIcon_Equal(v string) *OauthAccountQuery {
-	return q.w("user_icon='" + fmt.Sprint(v) + "'")
-}
-func (q *OauthAccountQuery) UserIcon_NotEqual(v string) *OauthAccountQuery {
-	return q.w("user_icon<>'" + fmt.Sprint(v) + "'")
-}
-func (q *OauthAccountQuery) CreateTime_Equal(v time.Time) *OauthAccountQuery {
-	return q.w("create_time='" + fmt.Sprint(v) + "'")
-}
-func (q *OauthAccountQuery) CreateTime_NotEqual(v time.Time) *OauthAccountQuery {
-	return q.w("create_time<>'" + fmt.Sprint(v) + "'")
-}
-func (q *OauthAccountQuery) CreateTime_Less(v time.Time) *OauthAccountQuery {
-	return q.w("create_time<'" + fmt.Sprint(v) + "'")
-}
-func (q *OauthAccountQuery) CreateTime_LessEqual(v time.Time) *OauthAccountQuery {
-	return q.w("create_time<='" + fmt.Sprint(v) + "'")
-}
-func (q *OauthAccountQuery) CreateTime_Greater(v time.Time) *OauthAccountQuery {
-	return q.w("create_time>'" + fmt.Sprint(v) + "'")
-}
-func (q *OauthAccountQuery) CreateTime_GreaterEqual(v time.Time) *OauthAccountQuery {
-	return q.w("create_time>='" + fmt.Sprint(v) + "'")
-}
-func (q *OauthAccountQuery) UpdateTime_Equal(v time.Time) *OauthAccountQuery {
-	return q.w("update_time='" + fmt.Sprint(v) + "'")
-}
-func (q *OauthAccountQuery) UpdateTime_NotEqual(v time.Time) *OauthAccountQuery {
-	return q.w("update_time<>'" + fmt.Sprint(v) + "'")
-}
-func (q *OauthAccountQuery) UpdateTime_Less(v time.Time) *OauthAccountQuery {
-	return q.w("update_time<'" + fmt.Sprint(v) + "'")
-}
-func (q *OauthAccountQuery) UpdateTime_LessEqual(v time.Time) *OauthAccountQuery {
-	return q.w("update_time<='" + fmt.Sprint(v) + "'")
-}
-func (q *OauthAccountQuery) UpdateTime_Greater(v time.Time) *OauthAccountQuery {
-	return q.w("update_time>'" + fmt.Sprint(v) + "'")
-}
-func (q *OauthAccountQuery) UpdateTime_GreaterEqual(v time.Time) *OauthAccountQuery {
-	return q.w("update_time>='" + fmt.Sprint(v) + "'")
-}
-
-type OauthAccountUpdate struct {
-	dao    *OauthAccountDao
-	keys   []string
-	values []interface{}
-}
-
-func NewOauthAccountUpdate(dao *OauthAccountDao) *OauthAccountUpdate {
-	q := &OauthAccountUpdate{}
-	q.dao = dao
-	q.keys = make([]string, 0)
-	q.values = make([]interface{}, 0)
-
-	return q
-}
-
-func (u *OauthAccountUpdate) Update(ctx context.Context, tx *wrap.Tx, id uint64) (err error) {
-	if len(u.keys) == 0 {
-		err = fmt.Errorf("OauthAccountUpdate没有设置更新字段")
-		u.dao.logger.Error("OauthAccountUpdate", zap.Error(err))
-		return err
-	}
-	s := "UPDATE oauth_account SET " + strings.Join(u.keys, ",") + " WHERE id=?"
-	v := append(u.values, id)
-	if tx == nil {
-		_, err = u.dao.db.Exec(ctx, s, v...)
-	} else {
-		_, err = tx.Exec(ctx, s, v)
+func (q *OauthAccountQuery) Select(ctx context.Context, tx *wrap.Tx) (e *OauthAccount, err error) {
+	if !q.hasLimit {
+		q.limitCount = 1
+		q.hasLimit = true
 	}
 
-	if err != nil {
-		return err
+	queryString, params := q.buildSelectQuery()
+	query := bytes.NewBufferString("")
+	query.WriteString("SELECT id,user_id,providerId,provider_name,open_id,user_name,user_icon,create_time,update_time FROM oauth_account ")
+	query.WriteString(queryString)
+	e = &OauthAccount{}
+	row := q.dao.db.QueryRow(ctx, tx, query.String(), params...)
+	err = row.Scan(&e.Id, &e.UserId, &e.ProviderId, &e.ProviderName, &e.OpenId, &e.UserName, &e.UserIcon, &e.CreateTime, &e.UpdateTime)
+	if err == wrap.ErrNoRows {
+		return nil, nil
 	}
 
-	return nil
+	return e, err
 }
 
-func (u *OauthAccountUpdate) UserId(v string) *OauthAccountUpdate {
-	u.keys = append(u.keys, "user_id=?")
-	u.values = append(u.values, v)
-	return u
-}
-
-func (u *OauthAccountUpdate) ProviderId(v string) *OauthAccountUpdate {
-	u.keys = append(u.keys, "providerId=?")
-	u.values = append(u.values, v)
-	return u
-}
-
-func (u *OauthAccountUpdate) ProviderName(v string) *OauthAccountUpdate {
-	u.keys = append(u.keys, "provider_name=?")
-	u.values = append(u.values, v)
-	return u
-}
-
-func (u *OauthAccountUpdate) OpenId(v string) *OauthAccountUpdate {
-	u.keys = append(u.keys, "open_id=?")
-	u.values = append(u.values, v)
-	return u
-}
-
-func (u *OauthAccountUpdate) UserName(v string) *OauthAccountUpdate {
-	u.keys = append(u.keys, "user_name=?")
-	u.values = append(u.values, v)
-	return u
-}
-
-func (u *OauthAccountUpdate) UserIcon(v string) *OauthAccountUpdate {
-	u.keys = append(u.keys, "user_icon=?")
-	u.values = append(u.values, v)
-	return u
-}
-
-type OauthAccountDao struct {
-	logger     *zap.Logger
-	db         *DB
-	insertStmt *wrap.Stmt
-	deleteStmt *wrap.Stmt
-}
-
-func NewOauthAccountDao(db *DB) (t *OauthAccountDao, err error) {
-	t = &OauthAccountDao{}
-	t.logger = log.TypedLogger(t)
-	t.db = db
-	err = t.init()
+func (q *OauthAccountQuery) SelectList(ctx context.Context, tx *wrap.Tx) (list []*OauthAccount, err error) {
+	queryString, params := q.buildSelectQuery()
+	query := bytes.NewBufferString("")
+	query.WriteString("SELECT id,user_id,providerId,provider_name,open_id,user_name,user_icon,create_time,update_time FROM oauth_account ")
+	query.WriteString(queryString)
+	rows, err := q.dao.db.Query(ctx, tx, query.String(), params...)
 	if err != nil {
 		return nil, err
 	}
-
-	return t, nil
-}
-
-func (dao *OauthAccountDao) init() (err error) {
-	err = dao.prepareInsertStmt()
-	if err != nil {
-		return err
-	}
-
-	err = dao.prepareDeleteStmt()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (dao *OauthAccountDao) prepareInsertStmt() (err error) {
-	dao.insertStmt, err = dao.db.Prepare(context.Background(), "INSERT INTO oauth_account (user_id,providerId,provider_name,open_id,user_name,user_icon) VALUES (?,?,?,?,?,?)")
-	return err
-}
-
-func (dao *OauthAccountDao) prepareDeleteStmt() (err error) {
-	dao.deleteStmt, err = dao.db.Prepare(context.Background(), "DELETE FROM oauth_account WHERE id=?")
-	return err
-}
-
-func (dao *OauthAccountDao) Insert(ctx context.Context, tx *wrap.Tx, e *OauthAccount) (id int64, err error) {
-	stmt := dao.insertStmt
-	if tx != nil {
-		stmt = tx.Stmt(ctx, stmt)
-	}
-
-	result, err := stmt.Exec(ctx, e.UserId, e.ProviderId, e.ProviderName, e.OpenId, e.UserName, e.UserIcon)
-	if err != nil {
-		return 0, err
-	}
-
-	id, err = result.LastInsertId()
-	if err != nil {
-		return 0, err
-	}
-
-	return id, nil
-}
-
-func (dao *OauthAccountDao) Delete(ctx context.Context, tx *wrap.Tx, id uint64) (err error) {
-	stmt := dao.deleteStmt
-	if tx != nil {
-		stmt = tx.Stmt(ctx, stmt)
-	}
-
-	_, err = stmt.Exec(ctx, id)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (dao *OauthAccountDao) scanRow(row *wrap.Row) (*OauthAccount, error) {
-	e := &OauthAccount{}
-	err := row.Scan(&e.Id, &e.UserId, &e.ProviderId, &e.ProviderName, &e.OpenId, &e.UserName, &e.UserIcon, &e.CreateTime, &e.UpdateTime)
-	if err != nil {
-		if err == wrap.ErrNoRows {
-			return nil, nil
-		} else {
-			return nil, err
-		}
-	}
-
-	return e, nil
-}
-
-func (dao *OauthAccountDao) scanRows(rows *wrap.Rows) (list []*OauthAccount, err error) {
-	list = make([]*OauthAccount, 0)
 	for rows.Next() {
 		e := OauthAccount{}
 		err = rows.Scan(&e.Id, &e.UserId, &e.ProviderId, &e.ProviderName, &e.OpenId, &e.UserName, &e.UserIcon, &e.CreateTime, &e.UpdateTime)
@@ -1187,83 +1506,158 @@ func (dao *OauthAccountDao) scanRows(rows *wrap.Rows) (list []*OauthAccount, err
 	return list, nil
 }
 
-func (dao *OauthAccountDao) QueryOne(ctx context.Context, tx *wrap.Tx, query string) (*OauthAccount, error) {
-	querySql := "SELECT " + OAUTH_ACCOUNT_ALL_FIELDS_STRING + " FROM oauth_account " + query
-	var row *wrap.Row
-	if tx == nil {
-		row = dao.db.QueryRow(ctx, querySql)
-	} else {
-		row = tx.QueryRow(ctx, querySql)
-	}
-	return dao.scanRow(row)
-}
-
-func (dao *OauthAccountDao) QueryList(ctx context.Context, tx *wrap.Tx, query string) (list []*OauthAccount, err error) {
-	querySql := "SELECT " + OAUTH_ACCOUNT_ALL_FIELDS_STRING + " FROM oauth_account " + query
-	var rows *wrap.Rows
-	if tx == nil {
-		rows, err = dao.db.Query(ctx, querySql)
-	} else {
-		rows, err = tx.Query(ctx, querySql)
-	}
-	if err != nil {
-		dao.logger.Error("sqlDriver", zap.Error(err))
-		return nil, err
-	}
-
-	return dao.scanRows(rows)
-}
-
-func (dao *OauthAccountDao) QueryCount(ctx context.Context, tx *wrap.Tx, query string) (count int64, err error) {
-	querySql := "SELECT COUNT(1) FROM oauth_account " + query
-	var row *wrap.Row
-	if tx == nil {
-		row = dao.db.QueryRow(ctx, querySql)
-	} else {
-		row = tx.QueryRow(ctx, querySql)
-	}
-	if err != nil {
-		dao.logger.Error("sqlDriver", zap.Error(err))
-		return 0, err
-	}
-
+func (q *OauthAccountQuery) SelectCount(ctx context.Context, tx *wrap.Tx) (count int64, err error) {
+	queryString, params := q.buildSelectQuery()
+	query := bytes.NewBufferString("")
+	query.WriteString("SELECT COUNT(*) FROM oauth_account ")
+	query.WriteString(queryString)
+	row := q.dao.db.QueryRow(ctx, tx, query.String(), params...)
 	err = row.Scan(&count)
-	if err != nil {
-		return 0, err
+
+	return count, err
+}
+
+func (q *OauthAccountQuery) SelectGroupBy(ctx context.Context, tx *wrap.Tx, withCount bool) (rows *wrap.Rows, err error) {
+	queryString, params := q.buildSelectQuery()
+	query := bytes.NewBufferString("")
+	query.WriteString("SELECT ")
+	query.WriteString(strings.Join(q.groupByFields, ","))
+	if withCount {
+		query.WriteString(",Count(*) ")
+	}
+	query.WriteString(" FROM oauth_account ")
+	query.WriteString(queryString)
+
+	return q.dao.db.Query(ctx, tx, query.String(), params...)
+}
+
+func (q *OauthAccountQuery) SetUserId(v string) *OauthAccountQuery {
+	q.updateFields = append(q.updateFields, "user_id")
+	q.updateParams = append(q.updateParams, v)
+	return q
+}
+
+func (q *OauthAccountQuery) SetProviderId(v string) *OauthAccountQuery {
+	q.updateFields = append(q.updateFields, "providerId")
+	q.updateParams = append(q.updateParams, v)
+	return q
+}
+
+func (q *OauthAccountQuery) SetProviderName(v string) *OauthAccountQuery {
+	q.updateFields = append(q.updateFields, "provider_name")
+	q.updateParams = append(q.updateParams, v)
+	return q
+}
+
+func (q *OauthAccountQuery) SetOpenId(v string) *OauthAccountQuery {
+	q.updateFields = append(q.updateFields, "open_id")
+	q.updateParams = append(q.updateParams, v)
+	return q
+}
+
+func (q *OauthAccountQuery) SetUserName(v string) *OauthAccountQuery {
+	q.updateFields = append(q.updateFields, "user_name")
+	q.updateParams = append(q.updateParams, v)
+	return q
+}
+
+func (q *OauthAccountQuery) SetUserIcon(v string) *OauthAccountQuery {
+	q.updateFields = append(q.updateFields, "user_icon")
+	q.updateParams = append(q.updateParams, v)
+	return q
+}
+
+func (q *OauthAccountQuery) Update(ctx context.Context, tx *wrap.Tx) (result *wrap.Result, err error) {
+	query := bytes.NewBufferString("")
+	var params []interface{}
+	params = append(params, q.updateParams)
+	query.WriteString("UPDATE oauth_account SET ")
+	updateItems := make([]string, len(q.updateFields))
+	for i, v := range q.updateFields {
+		updateItems[i] = v + "=?"
+	}
+	query.WriteString(strings.Join(updateItems, ","))
+	where := q.where.String()
+	if where != "" {
+		query.WriteString(" WHERE ")
+		query.WriteString(where)
+		params = append(params, q.whereParams)
 	}
 
-	return count, nil
+	return q.dao.db.Exec(ctx, tx, query.String(), params...)
 }
 
-func (dao *OauthAccountDao) QueryGroupBy(ctx context.Context, tx *wrap.Tx, groupByFields []string, query string) (rows *wrap.Rows, err error) {
-	querySql := "SELECT " + strings.Join(groupByFields, ",") + ",count(1) FROM oauth_account " + query
-	if tx == nil {
-		return dao.db.Query(ctx, querySql)
-	} else {
-		return tx.Query(ctx, querySql)
+func (q *OauthAccountQuery) Delete(ctx context.Context, tx *wrap.Tx) (result *wrap.Result, err error) {
+	query := "DELETE FROM oauth_account WHERE " + q.where.String()
+	return q.dao.db.Exec(ctx, tx, query, q.whereParams...)
+}
+
+type OauthAccountDao struct {
+	logger *zap.Logger
+	db     *DB
+}
+
+func NewOauthAccountDao(db *DB) (t *OauthAccountDao, err error) {
+	t = &OauthAccountDao{}
+	t.logger = log.TypedLogger(t)
+	t.db = db
+
+	return t, nil
+}
+
+func (dao *OauthAccountDao) Insert(ctx context.Context, tx *wrap.Tx, e *OauthAccount, onDuplicatedKeyUpdate bool) (result *wrap.Result, err error) {
+	query := bytes.NewBufferString("")
+	query.WriteString("INSERT INTO oauth_account (user_id,providerId,provider_name,open_id,user_name,user_icon) VALUES (?,?,?,?,?,?)")
+	if onDuplicatedKeyUpdate {
+		query.WriteString(" ON DUPLICATED KEY UPDATE user_id=VALUES(user_id),provider_name=VALUES(provider_name),user_name=VALUES(user_name),user_icon=VALUES(user_icon)")
 	}
+	params := []interface{}{e.UserId, e.ProviderId, e.ProviderName, e.OpenId, e.UserName, e.UserIcon}
+	return dao.db.Exec(ctx, tx, query.String(), params...)
 }
 
-func (dao *OauthAccountDao) GetQuery() *OauthAccountQuery {
-	return NewOauthAccountQuery(dao)
+func (dao *OauthAccountDao) BatchInsert(ctx context.Context, tx *wrap.Tx, list []*OauthAccount, onDuplicatedKeyUpdate bool) (result *wrap.Result, err error) {
+	query := bytes.NewBufferString("")
+	query.WriteString("INSERT INTO oauth_account (user_id,providerId,provider_name,open_id,user_name,user_icon) VALUES ")
+	query.WriteString(wrap.RepeatWithSeparator("(?,?,?,?,?,?)", len(list), ","))
+	if onDuplicatedKeyUpdate {
+		query.WriteString(" ON DUPLICATED KEY UPDATE user_id=VALUES(user_id),provider_name=VALUES(provider_name),user_name=VALUES(user_name),user_icon=VALUES(user_icon)")
+	}
+	params := make([]interface{}, len(list)*6)
+	offset := 0
+	for _, e := range list {
+		params[offset+0] = e.UserId
+		params[offset+1] = e.ProviderId
+		params[offset+2] = e.ProviderName
+		params[offset+3] = e.OpenId
+		params[offset+4] = e.UserName
+		params[offset+5] = e.UserIcon
+		offset += 6
+	}
+
+	return dao.db.Exec(ctx, tx, query.String(), params...)
 }
 
-func (dao *OauthAccountDao) GetUpdate() *OauthAccountUpdate {
-	return NewOauthAccountUpdate(dao)
+func (dao *OauthAccountDao) DeleteById(ctx context.Context, tx *wrap.Tx, id uint64) (result *wrap.Result, err error) {
+	query := "DELETE FROM OauthAccount WHERE id=?"
+	return dao.db.Exec(ctx, tx, query, id)
 }
 
-const OAUTH_STATE_TABLE_NAME = "oauth_state"
+func (dao *OauthAccountDao) UpdateById(ctx context.Context, tx *wrap.Tx, e *OauthAccount) (result *wrap.Result, err error) {
+	query := "UPDATE oauth_account SET user_id=?,providerId=?,provider_name=?,open_id=?,user_name=?,user_icon=? WHERE id=?"
+	params := []interface{}{e.UserId, e.ProviderId, e.ProviderName, e.OpenId, e.UserName, e.UserIcon, e.Id}
+	return dao.db.Exec(ctx, tx, query, params...)
+}
 
-type OAUTH_STATE_FIELD string
-
-const OAUTH_STATE_FIELD_ID = OAUTH_STATE_FIELD("id")
-const OAUTH_STATE_FIELD_OAUTH_STATE = OAUTH_STATE_FIELD("oauth_state")
-const OAUTH_STATE_FIELD_IS_USED = OAUTH_STATE_FIELD("is_used")
-const OAUTH_STATE_FIELD_USER_AGENT = OAUTH_STATE_FIELD("user_agent")
-const OAUTH_STATE_FIELD_CREATE_TIME = OAUTH_STATE_FIELD("create_time")
-const OAUTH_STATE_FIELD_UPDATE_TIME = OAUTH_STATE_FIELD("update_time")
-
-const OAUTH_STATE_ALL_FIELDS_STRING = "id,oauth_state,is_used,user_agent,create_time,update_time"
+func (dao *OauthAccountDao) SelectById(ctx context.Context, tx *wrap.Tx, id int64) (e *OauthAccount, err error) {
+	query := "SELECT id,user_id,providerId,provider_name,open_id,user_name,user_icon,create_time,update_time FROM oauth_account WHERE id=?"
+	row := dao.db.QueryRow(ctx, tx, query, id)
+	e = &OauthAccount{}
+	err = row.Scan(&e.Id, &e.UserId, &e.ProviderId, &e.ProviderName, &e.OpenId, &e.UserName, &e.UserIcon, &e.CreateTime, &e.UpdateTime)
+	if err == wrap.ErrNoRows {
+		return nil, nil
+	}
+	return e, err
+}
 
 type OauthState struct {
 	Id         uint64 //size=20
@@ -1275,31 +1669,301 @@ type OauthState struct {
 }
 
 type OauthStateQuery struct {
-	BaseQuery
+	QueryBase
 	dao *OauthStateDao
 }
 
-func NewOauthStateQuery(dao *OauthStateDao) *OauthStateQuery {
+func (dao *OauthStateDao) Query() *OauthStateQuery {
 	q := &OauthStateQuery{}
 	q.dao = dao
-
+	q.where = bytes.NewBufferString("")
 	return q
 }
 
-func (q *OauthStateQuery) QueryOne(ctx context.Context, tx *wrap.Tx) (*OauthState, error) {
-	return q.dao.QueryOne(ctx, tx, q.buildQueryString())
+func (q *OauthStateQuery) Left() *OauthStateQuery {
+	q.where.WriteString(" (")
+	return q
 }
 
-func (q *OauthStateQuery) QueryList(ctx context.Context, tx *wrap.Tx) (list []*OauthState, err error) {
-	return q.dao.QueryList(ctx, tx, q.buildQueryString())
+func (q *OauthStateQuery) Right() *OauthStateQuery {
+	q.where.WriteString(" )")
+	return q
 }
 
-func (q *OauthStateQuery) QueryCount(ctx context.Context, tx *wrap.Tx) (count int64, err error) {
-	return q.dao.QueryCount(ctx, tx, q.buildQueryString())
+func (q *OauthStateQuery) And() *OauthStateQuery {
+	q.where.WriteString(" AND")
+	return q
 }
 
-func (q *OauthStateQuery) QueryGroupBy(ctx context.Context, tx *wrap.Tx) (rows *wrap.Rows, err error) {
-	return q.dao.QueryGroupBy(ctx, tx, q.groupByFields, q.buildQueryString())
+func (q *OauthStateQuery) Or() *OauthStateQuery {
+	q.where.WriteString(" OR")
+	return q
+}
+
+func (q *OauthStateQuery) Not() *OauthStateQuery {
+	q.where.WriteString(" NOT")
+	return q
+}
+
+func (q *OauthStateQuery) IdEqual(v uint64) *OauthStateQuery {
+	q.where.WriteString(" id=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthStateQuery) IdNotEqual(v uint64) *OauthStateQuery {
+	q.where.WriteString(" id<>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthStateQuery) IdLess(v uint64) *OauthStateQuery {
+	q.where.WriteString(" id<?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthStateQuery) IdLessEqual(v uint64) *OauthStateQuery {
+	q.where.WriteString(" id<=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthStateQuery) IdGreater(v uint64) *OauthStateQuery {
+	q.where.WriteString(" id>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthStateQuery) IdGreaterEqual(v uint64) *OauthStateQuery {
+	q.where.WriteString(" id>=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthStateQuery) IdIn(items []uint64) *OauthStateQuery {
+	q.where.WriteString(" id IN(")
+	q.where.WriteString(wrap.RepeatWithSeparator("?", len(items), ","))
+	q.where.WriteString(")")
+	q.whereParams = append(q.whereParams, items)
+	return q
+}
+
+func (q *OauthStateQuery) OauthStateEqual(v string) *OauthStateQuery {
+	q.where.WriteString(" oauth_state=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthStateQuery) OauthStateNotEqual(v string) *OauthStateQuery {
+	q.where.WriteString(" oauth_state<>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthStateQuery) OauthStateIn(items []string) *OauthStateQuery {
+	q.where.WriteString(" oauth_state IN(")
+	q.where.WriteString(wrap.RepeatWithSeparator("?", len(items), ","))
+	q.where.WriteString(")")
+	q.whereParams = append(q.whereParams, items)
+	return q
+}
+
+func (q *OauthStateQuery) IsUsedEqual(v int32) *OauthStateQuery {
+	q.where.WriteString(" is_used=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthStateQuery) IsUsedNotEqual(v int32) *OauthStateQuery {
+	q.where.WriteString(" is_used<>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthStateQuery) IsUsedLess(v int32) *OauthStateQuery {
+	q.where.WriteString(" is_used<?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthStateQuery) IsUsedLessEqual(v int32) *OauthStateQuery {
+	q.where.WriteString(" is_used<=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthStateQuery) IsUsedGreater(v int32) *OauthStateQuery {
+	q.where.WriteString(" is_used>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthStateQuery) IsUsedGreaterEqual(v int32) *OauthStateQuery {
+	q.where.WriteString(" is_used>=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthStateQuery) IsUsedIn(items []int32) *OauthStateQuery {
+	q.where.WriteString(" is_used IN(")
+	q.where.WriteString(wrap.RepeatWithSeparator("?", len(items), ","))
+	q.where.WriteString(")")
+	q.whereParams = append(q.whereParams, items)
+	return q
+}
+
+func (q *OauthStateQuery) UserAgentEqual(v string) *OauthStateQuery {
+	q.where.WriteString(" user_agent=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthStateQuery) UserAgentNotEqual(v string) *OauthStateQuery {
+	q.where.WriteString(" user_agent<>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthStateQuery) UserAgentIn(items []string) *OauthStateQuery {
+	q.where.WriteString(" user_agent IN(")
+	q.where.WriteString(wrap.RepeatWithSeparator("?", len(items), ","))
+	q.where.WriteString(")")
+	q.whereParams = append(q.whereParams, items)
+	return q
+}
+
+func (q *OauthStateQuery) CreateTimeEqual(v time.Time) *OauthStateQuery {
+	q.where.WriteString(" create_time=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthStateQuery) CreateTimeNotEqual(v time.Time) *OauthStateQuery {
+	q.where.WriteString(" create_time<>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthStateQuery) CreateTimeLess(v time.Time) *OauthStateQuery {
+	q.where.WriteString(" create_time<?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthStateQuery) CreateTimeLessEqual(v time.Time) *OauthStateQuery {
+	q.where.WriteString(" create_time<=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthStateQuery) CreateTimeGreater(v time.Time) *OauthStateQuery {
+	q.where.WriteString(" create_time>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthStateQuery) CreateTimeGreaterEqual(v time.Time) *OauthStateQuery {
+	q.where.WriteString(" create_time>=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthStateQuery) UpdateTimeEqual(v time.Time) *OauthStateQuery {
+	q.where.WriteString(" update_time=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthStateQuery) UpdateTimeNotEqual(v time.Time) *OauthStateQuery {
+	q.where.WriteString(" update_time<>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthStateQuery) UpdateTimeLess(v time.Time) *OauthStateQuery {
+	q.where.WriteString(" update_time<?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthStateQuery) UpdateTimeLessEqual(v time.Time) *OauthStateQuery {
+	q.where.WriteString(" update_time<=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthStateQuery) UpdateTimeGreater(v time.Time) *OauthStateQuery {
+	q.where.WriteString(" update_time>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthStateQuery) UpdateTimeGreaterEqual(v time.Time) *OauthStateQuery {
+	q.where.WriteString(" update_time>=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *OauthStateQuery) GroupByIsUsed(asc bool) *OauthStateQuery {
+	q.groupByFields = append(q.groupByFields, "is_used")
+	q.groupByOrders = append(q.groupByOrders, asc)
+	return q
+}
+
+func (q *OauthStateQuery) GroupByUserAgent(asc bool) *OauthStateQuery {
+	q.groupByFields = append(q.groupByFields, "user_agent")
+	q.groupByOrders = append(q.groupByOrders, asc)
+	return q
+}
+
+func (q *OauthStateQuery) OrderById(asc bool) *OauthStateQuery {
+	q.orderByFields = append(q.orderByFields, "id")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *OauthStateQuery) OrderByOauthState(asc bool) *OauthStateQuery {
+	q.orderByFields = append(q.orderByFields, "oauth_state")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *OauthStateQuery) OrderByIsUsed(asc bool) *OauthStateQuery {
+	q.orderByFields = append(q.orderByFields, "is_used")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *OauthStateQuery) OrderByUserAgent(asc bool) *OauthStateQuery {
+	q.orderByFields = append(q.orderByFields, "user_agent")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *OauthStateQuery) OrderByCreateTime(asc bool) *OauthStateQuery {
+	q.orderByFields = append(q.orderByFields, "create_time")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *OauthStateQuery) OrderByUpdateTime(asc bool) *OauthStateQuery {
+	q.orderByFields = append(q.orderByFields, "update_time")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *OauthStateQuery) OrderByGroupCount(asc bool) *OauthStateQuery {
+	q.orderByFields = append(q.orderByFields, "count(*)")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *OauthStateQuery) Limit(startIncluded int64, count int64) *OauthStateQuery {
+	q.hasLimit = true
+	q.limitStartIncluded = startIncluded
+	q.limitCount = count
+	return q
 }
 
 func (q *OauthStateQuery) ForUpdate() *OauthStateQuery {
@@ -1312,267 +1976,35 @@ func (q *OauthStateQuery) ForShare() *OauthStateQuery {
 	return q
 }
 
-func (q *OauthStateQuery) GroupBy(fields ...OAUTH_STATE_FIELD) *OauthStateQuery {
-	q.groupByFields = make([]string, len(fields))
-	for i, v := range fields {
-		q.groupByFields[i] = string(v)
-	}
-	return q
-}
-
-func (q *OauthStateQuery) Limit(startIncluded int64, count int64) *OauthStateQuery {
-	q.setLimit(startIncluded, count)
-	return q
-}
-
-func (q *OauthStateQuery) OrderBy(fieldName OAUTH_STATE_FIELD, asc bool) *OauthStateQuery {
-	q.orderBy(string(fieldName), asc)
-	return q
-}
-
-func (q *OauthStateQuery) OrderByGroupCount(asc bool) *OauthStateQuery {
-	q.orderByGroupCount(asc)
-	return q
-}
-
-func (q *OauthStateQuery) w(format string, a ...interface{}) *OauthStateQuery {
-	q.setWhere(format, a...)
-	return q
-}
-
-func (q *OauthStateQuery) Left() *OauthStateQuery  { return q.w(" ( ") }
-func (q *OauthStateQuery) Right() *OauthStateQuery { return q.w(" ) ") }
-func (q *OauthStateQuery) And() *OauthStateQuery   { return q.w(" AND ") }
-func (q *OauthStateQuery) Or() *OauthStateQuery    { return q.w(" OR ") }
-func (q *OauthStateQuery) Not() *OauthStateQuery   { return q.w(" NOT ") }
-
-func (q *OauthStateQuery) Id_Equal(v uint64) *OauthStateQuery { return q.w("id='" + fmt.Sprint(v) + "'") }
-func (q *OauthStateQuery) Id_NotEqual(v uint64) *OauthStateQuery {
-	return q.w("id<>'" + fmt.Sprint(v) + "'")
-}
-func (q *OauthStateQuery) Id_Less(v uint64) *OauthStateQuery { return q.w("id<'" + fmt.Sprint(v) + "'") }
-func (q *OauthStateQuery) Id_LessEqual(v uint64) *OauthStateQuery {
-	return q.w("id<='" + fmt.Sprint(v) + "'")
-}
-func (q *OauthStateQuery) Id_Greater(v uint64) *OauthStateQuery {
-	return q.w("id>'" + fmt.Sprint(v) + "'")
-}
-func (q *OauthStateQuery) Id_GreaterEqual(v uint64) *OauthStateQuery {
-	return q.w("id>='" + fmt.Sprint(v) + "'")
-}
-func (q *OauthStateQuery) OauthState_Equal(v string) *OauthStateQuery {
-	return q.w("oauth_state='" + fmt.Sprint(v) + "'")
-}
-func (q *OauthStateQuery) OauthState_NotEqual(v string) *OauthStateQuery {
-	return q.w("oauth_state<>'" + fmt.Sprint(v) + "'")
-}
-func (q *OauthStateQuery) IsUsed_Equal(v int32) *OauthStateQuery {
-	return q.w("is_used='" + fmt.Sprint(v) + "'")
-}
-func (q *OauthStateQuery) IsUsed_NotEqual(v int32) *OauthStateQuery {
-	return q.w("is_used<>'" + fmt.Sprint(v) + "'")
-}
-func (q *OauthStateQuery) IsUsed_Less(v int32) *OauthStateQuery {
-	return q.w("is_used<'" + fmt.Sprint(v) + "'")
-}
-func (q *OauthStateQuery) IsUsed_LessEqual(v int32) *OauthStateQuery {
-	return q.w("is_used<='" + fmt.Sprint(v) + "'")
-}
-func (q *OauthStateQuery) IsUsed_Greater(v int32) *OauthStateQuery {
-	return q.w("is_used>'" + fmt.Sprint(v) + "'")
-}
-func (q *OauthStateQuery) IsUsed_GreaterEqual(v int32) *OauthStateQuery {
-	return q.w("is_used>='" + fmt.Sprint(v) + "'")
-}
-func (q *OauthStateQuery) UserAgent_Equal(v string) *OauthStateQuery {
-	return q.w("user_agent='" + fmt.Sprint(v) + "'")
-}
-func (q *OauthStateQuery) UserAgent_NotEqual(v string) *OauthStateQuery {
-	return q.w("user_agent<>'" + fmt.Sprint(v) + "'")
-}
-func (q *OauthStateQuery) CreateTime_Equal(v time.Time) *OauthStateQuery {
-	return q.w("create_time='" + fmt.Sprint(v) + "'")
-}
-func (q *OauthStateQuery) CreateTime_NotEqual(v time.Time) *OauthStateQuery {
-	return q.w("create_time<>'" + fmt.Sprint(v) + "'")
-}
-func (q *OauthStateQuery) CreateTime_Less(v time.Time) *OauthStateQuery {
-	return q.w("create_time<'" + fmt.Sprint(v) + "'")
-}
-func (q *OauthStateQuery) CreateTime_LessEqual(v time.Time) *OauthStateQuery {
-	return q.w("create_time<='" + fmt.Sprint(v) + "'")
-}
-func (q *OauthStateQuery) CreateTime_Greater(v time.Time) *OauthStateQuery {
-	return q.w("create_time>'" + fmt.Sprint(v) + "'")
-}
-func (q *OauthStateQuery) CreateTime_GreaterEqual(v time.Time) *OauthStateQuery {
-	return q.w("create_time>='" + fmt.Sprint(v) + "'")
-}
-func (q *OauthStateQuery) UpdateTime_Equal(v time.Time) *OauthStateQuery {
-	return q.w("update_time='" + fmt.Sprint(v) + "'")
-}
-func (q *OauthStateQuery) UpdateTime_NotEqual(v time.Time) *OauthStateQuery {
-	return q.w("update_time<>'" + fmt.Sprint(v) + "'")
-}
-func (q *OauthStateQuery) UpdateTime_Less(v time.Time) *OauthStateQuery {
-	return q.w("update_time<'" + fmt.Sprint(v) + "'")
-}
-func (q *OauthStateQuery) UpdateTime_LessEqual(v time.Time) *OauthStateQuery {
-	return q.w("update_time<='" + fmt.Sprint(v) + "'")
-}
-func (q *OauthStateQuery) UpdateTime_Greater(v time.Time) *OauthStateQuery {
-	return q.w("update_time>'" + fmt.Sprint(v) + "'")
-}
-func (q *OauthStateQuery) UpdateTime_GreaterEqual(v time.Time) *OauthStateQuery {
-	return q.w("update_time>='" + fmt.Sprint(v) + "'")
-}
-
-type OauthStateUpdate struct {
-	dao    *OauthStateDao
-	keys   []string
-	values []interface{}
-}
-
-func NewOauthStateUpdate(dao *OauthStateDao) *OauthStateUpdate {
-	q := &OauthStateUpdate{}
-	q.dao = dao
-	q.keys = make([]string, 0)
-	q.values = make([]interface{}, 0)
-
-	return q
-}
-
-func (u *OauthStateUpdate) Update(ctx context.Context, tx *wrap.Tx, id uint64) (err error) {
-	if len(u.keys) == 0 {
-		err = fmt.Errorf("OauthStateUpdate没有设置更新字段")
-		u.dao.logger.Error("OauthStateUpdate", zap.Error(err))
-		return err
-	}
-	s := "UPDATE oauth_state SET " + strings.Join(u.keys, ",") + " WHERE id=?"
-	v := append(u.values, id)
-	if tx == nil {
-		_, err = u.dao.db.Exec(ctx, s, v...)
-	} else {
-		_, err = tx.Exec(ctx, s, v)
+func (q *OauthStateQuery) Select(ctx context.Context, tx *wrap.Tx) (e *OauthState, err error) {
+	if !q.hasLimit {
+		q.limitCount = 1
+		q.hasLimit = true
 	}
 
-	if err != nil {
-		return err
+	queryString, params := q.buildSelectQuery()
+	query := bytes.NewBufferString("")
+	query.WriteString("SELECT id,oauth_state,is_used,user_agent,create_time,update_time FROM oauth_state ")
+	query.WriteString(queryString)
+	e = &OauthState{}
+	row := q.dao.db.QueryRow(ctx, tx, query.String(), params...)
+	err = row.Scan(&e.Id, &e.OauthState, &e.IsUsed, &e.UserAgent, &e.CreateTime, &e.UpdateTime)
+	if err == wrap.ErrNoRows {
+		return nil, nil
 	}
 
-	return nil
+	return e, err
 }
 
-func (u *OauthStateUpdate) OauthState(v string) *OauthStateUpdate {
-	u.keys = append(u.keys, "oauth_state=?")
-	u.values = append(u.values, v)
-	return u
-}
-
-func (u *OauthStateUpdate) IsUsed(v int32) *OauthStateUpdate {
-	u.keys = append(u.keys, "is_used=?")
-	u.values = append(u.values, v)
-	return u
-}
-
-func (u *OauthStateUpdate) UserAgent(v string) *OauthStateUpdate {
-	u.keys = append(u.keys, "user_agent=?")
-	u.values = append(u.values, v)
-	return u
-}
-
-type OauthStateDao struct {
-	logger     *zap.Logger
-	db         *DB
-	insertStmt *wrap.Stmt
-	deleteStmt *wrap.Stmt
-}
-
-func NewOauthStateDao(db *DB) (t *OauthStateDao, err error) {
-	t = &OauthStateDao{}
-	t.logger = log.TypedLogger(t)
-	t.db = db
-	err = t.init()
+func (q *OauthStateQuery) SelectList(ctx context.Context, tx *wrap.Tx) (list []*OauthState, err error) {
+	queryString, params := q.buildSelectQuery()
+	query := bytes.NewBufferString("")
+	query.WriteString("SELECT id,oauth_state,is_used,user_agent,create_time,update_time FROM oauth_state ")
+	query.WriteString(queryString)
+	rows, err := q.dao.db.Query(ctx, tx, query.String(), params...)
 	if err != nil {
 		return nil, err
 	}
-
-	return t, nil
-}
-
-func (dao *OauthStateDao) init() (err error) {
-	err = dao.prepareInsertStmt()
-	if err != nil {
-		return err
-	}
-
-	err = dao.prepareDeleteStmt()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (dao *OauthStateDao) prepareInsertStmt() (err error) {
-	dao.insertStmt, err = dao.db.Prepare(context.Background(), "INSERT INTO oauth_state (oauth_state,is_used,user_agent) VALUES (?,?,?)")
-	return err
-}
-
-func (dao *OauthStateDao) prepareDeleteStmt() (err error) {
-	dao.deleteStmt, err = dao.db.Prepare(context.Background(), "DELETE FROM oauth_state WHERE id=?")
-	return err
-}
-
-func (dao *OauthStateDao) Insert(ctx context.Context, tx *wrap.Tx, e *OauthState) (id int64, err error) {
-	stmt := dao.insertStmt
-	if tx != nil {
-		stmt = tx.Stmt(ctx, stmt)
-	}
-
-	result, err := stmt.Exec(ctx, e.OauthState, e.IsUsed, e.UserAgent)
-	if err != nil {
-		return 0, err
-	}
-
-	id, err = result.LastInsertId()
-	if err != nil {
-		return 0, err
-	}
-
-	return id, nil
-}
-
-func (dao *OauthStateDao) Delete(ctx context.Context, tx *wrap.Tx, id uint64) (err error) {
-	stmt := dao.deleteStmt
-	if tx != nil {
-		stmt = tx.Stmt(ctx, stmt)
-	}
-
-	_, err = stmt.Exec(ctx, id)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (dao *OauthStateDao) scanRow(row *wrap.Row) (*OauthState, error) {
-	e := &OauthState{}
-	err := row.Scan(&e.Id, &e.OauthState, &e.IsUsed, &e.UserAgent, &e.CreateTime, &e.UpdateTime)
-	if err != nil {
-		if err == wrap.ErrNoRows {
-			return nil, nil
-		} else {
-			return nil, err
-		}
-	}
-
-	return e, nil
-}
-
-func (dao *OauthStateDao) scanRows(rows *wrap.Rows) (list []*OauthState, err error) {
-	list = make([]*OauthState, 0)
 	for rows.Next() {
 		e := OauthState{}
 		err = rows.Scan(&e.Id, &e.OauthState, &e.IsUsed, &e.UserAgent, &e.CreateTime, &e.UpdateTime)
@@ -1589,82 +2021,137 @@ func (dao *OauthStateDao) scanRows(rows *wrap.Rows) (list []*OauthState, err err
 	return list, nil
 }
 
-func (dao *OauthStateDao) QueryOne(ctx context.Context, tx *wrap.Tx, query string) (*OauthState, error) {
-	querySql := "SELECT " + OAUTH_STATE_ALL_FIELDS_STRING + " FROM oauth_state " + query
-	var row *wrap.Row
-	if tx == nil {
-		row = dao.db.QueryRow(ctx, querySql)
-	} else {
-		row = tx.QueryRow(ctx, querySql)
-	}
-	return dao.scanRow(row)
-}
-
-func (dao *OauthStateDao) QueryList(ctx context.Context, tx *wrap.Tx, query string) (list []*OauthState, err error) {
-	querySql := "SELECT " + OAUTH_STATE_ALL_FIELDS_STRING + " FROM oauth_state " + query
-	var rows *wrap.Rows
-	if tx == nil {
-		rows, err = dao.db.Query(ctx, querySql)
-	} else {
-		rows, err = tx.Query(ctx, querySql)
-	}
-	if err != nil {
-		dao.logger.Error("sqlDriver", zap.Error(err))
-		return nil, err
-	}
-
-	return dao.scanRows(rows)
-}
-
-func (dao *OauthStateDao) QueryCount(ctx context.Context, tx *wrap.Tx, query string) (count int64, err error) {
-	querySql := "SELECT COUNT(1) FROM oauth_state " + query
-	var row *wrap.Row
-	if tx == nil {
-		row = dao.db.QueryRow(ctx, querySql)
-	} else {
-		row = tx.QueryRow(ctx, querySql)
-	}
-	if err != nil {
-		dao.logger.Error("sqlDriver", zap.Error(err))
-		return 0, err
-	}
-
+func (q *OauthStateQuery) SelectCount(ctx context.Context, tx *wrap.Tx) (count int64, err error) {
+	queryString, params := q.buildSelectQuery()
+	query := bytes.NewBufferString("")
+	query.WriteString("SELECT COUNT(*) FROM oauth_state ")
+	query.WriteString(queryString)
+	row := q.dao.db.QueryRow(ctx, tx, query.String(), params...)
 	err = row.Scan(&count)
-	if err != nil {
-		return 0, err
+
+	return count, err
+}
+
+func (q *OauthStateQuery) SelectGroupBy(ctx context.Context, tx *wrap.Tx, withCount bool) (rows *wrap.Rows, err error) {
+	queryString, params := q.buildSelectQuery()
+	query := bytes.NewBufferString("")
+	query.WriteString("SELECT ")
+	query.WriteString(strings.Join(q.groupByFields, ","))
+	if withCount {
+		query.WriteString(",Count(*) ")
+	}
+	query.WriteString(" FROM oauth_state ")
+	query.WriteString(queryString)
+
+	return q.dao.db.Query(ctx, tx, query.String(), params...)
+}
+
+func (q *OauthStateQuery) SetOauthState(v string) *OauthStateQuery {
+	q.updateFields = append(q.updateFields, "oauth_state")
+	q.updateParams = append(q.updateParams, v)
+	return q
+}
+
+func (q *OauthStateQuery) SetIsUsed(v int32) *OauthStateQuery {
+	q.updateFields = append(q.updateFields, "is_used")
+	q.updateParams = append(q.updateParams, v)
+	return q
+}
+
+func (q *OauthStateQuery) SetUserAgent(v string) *OauthStateQuery {
+	q.updateFields = append(q.updateFields, "user_agent")
+	q.updateParams = append(q.updateParams, v)
+	return q
+}
+
+func (q *OauthStateQuery) Update(ctx context.Context, tx *wrap.Tx) (result *wrap.Result, err error) {
+	query := bytes.NewBufferString("")
+	var params []interface{}
+	params = append(params, q.updateParams)
+	query.WriteString("UPDATE oauth_state SET ")
+	updateItems := make([]string, len(q.updateFields))
+	for i, v := range q.updateFields {
+		updateItems[i] = v + "=?"
+	}
+	query.WriteString(strings.Join(updateItems, ","))
+	where := q.where.String()
+	if where != "" {
+		query.WriteString(" WHERE ")
+		query.WriteString(where)
+		params = append(params, q.whereParams)
 	}
 
-	return count, nil
+	return q.dao.db.Exec(ctx, tx, query.String(), params...)
 }
 
-func (dao *OauthStateDao) QueryGroupBy(ctx context.Context, tx *wrap.Tx, groupByFields []string, query string) (rows *wrap.Rows, err error) {
-	querySql := "SELECT " + strings.Join(groupByFields, ",") + ",count(1) FROM oauth_state " + query
-	if tx == nil {
-		return dao.db.Query(ctx, querySql)
-	} else {
-		return tx.Query(ctx, querySql)
+func (q *OauthStateQuery) Delete(ctx context.Context, tx *wrap.Tx) (result *wrap.Result, err error) {
+	query := "DELETE FROM oauth_state WHERE " + q.where.String()
+	return q.dao.db.Exec(ctx, tx, query, q.whereParams...)
+}
+
+type OauthStateDao struct {
+	logger *zap.Logger
+	db     *DB
+}
+
+func NewOauthStateDao(db *DB) (t *OauthStateDao, err error) {
+	t = &OauthStateDao{}
+	t.logger = log.TypedLogger(t)
+	t.db = db
+
+	return t, nil
+}
+
+func (dao *OauthStateDao) Insert(ctx context.Context, tx *wrap.Tx, e *OauthState, onDuplicatedKeyUpdate bool) (result *wrap.Result, err error) {
+	query := bytes.NewBufferString("")
+	query.WriteString("INSERT INTO oauth_state (oauth_state,is_used,user_agent) VALUES (?,?,?)")
+	if onDuplicatedKeyUpdate {
+		query.WriteString(" ON DUPLICATED KEY UPDATE is_used=VALUES(is_used),user_agent=VALUES(user_agent)")
 	}
+	params := []interface{}{e.OauthState, e.IsUsed, e.UserAgent}
+	return dao.db.Exec(ctx, tx, query.String(), params...)
 }
 
-func (dao *OauthStateDao) GetQuery() *OauthStateQuery {
-	return NewOauthStateQuery(dao)
+func (dao *OauthStateDao) BatchInsert(ctx context.Context, tx *wrap.Tx, list []*OauthState, onDuplicatedKeyUpdate bool) (result *wrap.Result, err error) {
+	query := bytes.NewBufferString("")
+	query.WriteString("INSERT INTO oauth_state (oauth_state,is_used,user_agent) VALUES ")
+	query.WriteString(wrap.RepeatWithSeparator("(?,?,?)", len(list), ","))
+	if onDuplicatedKeyUpdate {
+		query.WriteString(" ON DUPLICATED KEY UPDATE is_used=VALUES(is_used),user_agent=VALUES(user_agent)")
+	}
+	params := make([]interface{}, len(list)*3)
+	offset := 0
+	for _, e := range list {
+		params[offset+0] = e.OauthState
+		params[offset+1] = e.IsUsed
+		params[offset+2] = e.UserAgent
+		offset += 3
+	}
+
+	return dao.db.Exec(ctx, tx, query.String(), params...)
 }
 
-func (dao *OauthStateDao) GetUpdate() *OauthStateUpdate {
-	return NewOauthStateUpdate(dao)
+func (dao *OauthStateDao) DeleteById(ctx context.Context, tx *wrap.Tx, id uint64) (result *wrap.Result, err error) {
+	query := "DELETE FROM OauthState WHERE id=?"
+	return dao.db.Exec(ctx, tx, query, id)
 }
 
-const PHONE_ACCOUNT_TABLE_NAME = "phone_account"
+func (dao *OauthStateDao) UpdateById(ctx context.Context, tx *wrap.Tx, e *OauthState) (result *wrap.Result, err error) {
+	query := "UPDATE oauth_state SET oauth_state=?,is_used=?,user_agent=? WHERE id=?"
+	params := []interface{}{e.OauthState, e.IsUsed, e.UserAgent, e.Id}
+	return dao.db.Exec(ctx, tx, query, params...)
+}
 
-type PHONE_ACCOUNT_FIELD string
-
-const PHONE_ACCOUNT_FIELD_ID = PHONE_ACCOUNT_FIELD("id")
-const PHONE_ACCOUNT_FIELD_USER_ID = PHONE_ACCOUNT_FIELD("user_id")
-const PHONE_ACCOUNT_FIELD_PHONE_ENCRYPTED = PHONE_ACCOUNT_FIELD("phone_encrypted")
-const PHONE_ACCOUNT_FIELD_CREATE_TIME = PHONE_ACCOUNT_FIELD("create_time")
-const PHONE_ACCOUNT_FIELD_UPDATE_TIME = PHONE_ACCOUNT_FIELD("update_time")
-
-const PHONE_ACCOUNT_ALL_FIELDS_STRING = "id,user_id,phone_encrypted,create_time,update_time"
+func (dao *OauthStateDao) SelectById(ctx context.Context, tx *wrap.Tx, id int64) (e *OauthState, err error) {
+	query := "SELECT id,oauth_state,is_used,user_agent,create_time,update_time FROM oauth_state WHERE id=?"
+	row := dao.db.QueryRow(ctx, tx, query, id)
+	e = &OauthState{}
+	err = row.Scan(&e.Id, &e.OauthState, &e.IsUsed, &e.UserAgent, &e.CreateTime, &e.UpdateTime)
+	if err == wrap.ErrNoRows {
+		return nil, nil
+	}
+	return e, err
+}
 
 type PhoneAccount struct {
 	Id             uint64 //size=20
@@ -1675,31 +2162,245 @@ type PhoneAccount struct {
 }
 
 type PhoneAccountQuery struct {
-	BaseQuery
+	QueryBase
 	dao *PhoneAccountDao
 }
 
-func NewPhoneAccountQuery(dao *PhoneAccountDao) *PhoneAccountQuery {
+func (dao *PhoneAccountDao) Query() *PhoneAccountQuery {
 	q := &PhoneAccountQuery{}
 	q.dao = dao
-
+	q.where = bytes.NewBufferString("")
 	return q
 }
 
-func (q *PhoneAccountQuery) QueryOne(ctx context.Context, tx *wrap.Tx) (*PhoneAccount, error) {
-	return q.dao.QueryOne(ctx, tx, q.buildQueryString())
+func (q *PhoneAccountQuery) Left() *PhoneAccountQuery {
+	q.where.WriteString(" (")
+	return q
 }
 
-func (q *PhoneAccountQuery) QueryList(ctx context.Context, tx *wrap.Tx) (list []*PhoneAccount, err error) {
-	return q.dao.QueryList(ctx, tx, q.buildQueryString())
+func (q *PhoneAccountQuery) Right() *PhoneAccountQuery {
+	q.where.WriteString(" )")
+	return q
 }
 
-func (q *PhoneAccountQuery) QueryCount(ctx context.Context, tx *wrap.Tx) (count int64, err error) {
-	return q.dao.QueryCount(ctx, tx, q.buildQueryString())
+func (q *PhoneAccountQuery) And() *PhoneAccountQuery {
+	q.where.WriteString(" AND")
+	return q
 }
 
-func (q *PhoneAccountQuery) QueryGroupBy(ctx context.Context, tx *wrap.Tx) (rows *wrap.Rows, err error) {
-	return q.dao.QueryGroupBy(ctx, tx, q.groupByFields, q.buildQueryString())
+func (q *PhoneAccountQuery) Or() *PhoneAccountQuery {
+	q.where.WriteString(" OR")
+	return q
+}
+
+func (q *PhoneAccountQuery) Not() *PhoneAccountQuery {
+	q.where.WriteString(" NOT")
+	return q
+}
+
+func (q *PhoneAccountQuery) IdEqual(v uint64) *PhoneAccountQuery {
+	q.where.WriteString(" id=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *PhoneAccountQuery) IdNotEqual(v uint64) *PhoneAccountQuery {
+	q.where.WriteString(" id<>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *PhoneAccountQuery) IdLess(v uint64) *PhoneAccountQuery {
+	q.where.WriteString(" id<?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *PhoneAccountQuery) IdLessEqual(v uint64) *PhoneAccountQuery {
+	q.where.WriteString(" id<=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *PhoneAccountQuery) IdGreater(v uint64) *PhoneAccountQuery {
+	q.where.WriteString(" id>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *PhoneAccountQuery) IdGreaterEqual(v uint64) *PhoneAccountQuery {
+	q.where.WriteString(" id>=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *PhoneAccountQuery) IdIn(items []uint64) *PhoneAccountQuery {
+	q.where.WriteString(" id IN(")
+	q.where.WriteString(wrap.RepeatWithSeparator("?", len(items), ","))
+	q.where.WriteString(")")
+	q.whereParams = append(q.whereParams, items)
+	return q
+}
+
+func (q *PhoneAccountQuery) UserIdEqual(v string) *PhoneAccountQuery {
+	q.where.WriteString(" user_id=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *PhoneAccountQuery) UserIdNotEqual(v string) *PhoneAccountQuery {
+	q.where.WriteString(" user_id<>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *PhoneAccountQuery) UserIdIn(items []string) *PhoneAccountQuery {
+	q.where.WriteString(" user_id IN(")
+	q.where.WriteString(wrap.RepeatWithSeparator("?", len(items), ","))
+	q.where.WriteString(")")
+	q.whereParams = append(q.whereParams, items)
+	return q
+}
+
+func (q *PhoneAccountQuery) PhoneEncryptedEqual(v string) *PhoneAccountQuery {
+	q.where.WriteString(" phone_encrypted=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *PhoneAccountQuery) PhoneEncryptedNotEqual(v string) *PhoneAccountQuery {
+	q.where.WriteString(" phone_encrypted<>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *PhoneAccountQuery) PhoneEncryptedIn(items []string) *PhoneAccountQuery {
+	q.where.WriteString(" phone_encrypted IN(")
+	q.where.WriteString(wrap.RepeatWithSeparator("?", len(items), ","))
+	q.where.WriteString(")")
+	q.whereParams = append(q.whereParams, items)
+	return q
+}
+
+func (q *PhoneAccountQuery) CreateTimeEqual(v time.Time) *PhoneAccountQuery {
+	q.where.WriteString(" create_time=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *PhoneAccountQuery) CreateTimeNotEqual(v time.Time) *PhoneAccountQuery {
+	q.where.WriteString(" create_time<>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *PhoneAccountQuery) CreateTimeLess(v time.Time) *PhoneAccountQuery {
+	q.where.WriteString(" create_time<?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *PhoneAccountQuery) CreateTimeLessEqual(v time.Time) *PhoneAccountQuery {
+	q.where.WriteString(" create_time<=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *PhoneAccountQuery) CreateTimeGreater(v time.Time) *PhoneAccountQuery {
+	q.where.WriteString(" create_time>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *PhoneAccountQuery) CreateTimeGreaterEqual(v time.Time) *PhoneAccountQuery {
+	q.where.WriteString(" create_time>=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *PhoneAccountQuery) UpdateTimeEqual(v time.Time) *PhoneAccountQuery {
+	q.where.WriteString(" update_time=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *PhoneAccountQuery) UpdateTimeNotEqual(v time.Time) *PhoneAccountQuery {
+	q.where.WriteString(" update_time<>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *PhoneAccountQuery) UpdateTimeLess(v time.Time) *PhoneAccountQuery {
+	q.where.WriteString(" update_time<?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *PhoneAccountQuery) UpdateTimeLessEqual(v time.Time) *PhoneAccountQuery {
+	q.where.WriteString(" update_time<=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *PhoneAccountQuery) UpdateTimeGreater(v time.Time) *PhoneAccountQuery {
+	q.where.WriteString(" update_time>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *PhoneAccountQuery) UpdateTimeGreaterEqual(v time.Time) *PhoneAccountQuery {
+	q.where.WriteString(" update_time>=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *PhoneAccountQuery) GroupByUserId(asc bool) *PhoneAccountQuery {
+	q.groupByFields = append(q.groupByFields, "user_id")
+	q.groupByOrders = append(q.groupByOrders, asc)
+	return q
+}
+
+func (q *PhoneAccountQuery) OrderById(asc bool) *PhoneAccountQuery {
+	q.orderByFields = append(q.orderByFields, "id")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *PhoneAccountQuery) OrderByUserId(asc bool) *PhoneAccountQuery {
+	q.orderByFields = append(q.orderByFields, "user_id")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *PhoneAccountQuery) OrderByPhoneEncrypted(asc bool) *PhoneAccountQuery {
+	q.orderByFields = append(q.orderByFields, "phone_encrypted")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *PhoneAccountQuery) OrderByCreateTime(asc bool) *PhoneAccountQuery {
+	q.orderByFields = append(q.orderByFields, "create_time")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *PhoneAccountQuery) OrderByUpdateTime(asc bool) *PhoneAccountQuery {
+	q.orderByFields = append(q.orderByFields, "update_time")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *PhoneAccountQuery) OrderByGroupCount(asc bool) *PhoneAccountQuery {
+	q.orderByFields = append(q.orderByFields, "count(*)")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *PhoneAccountQuery) Limit(startIncluded int64, count int64) *PhoneAccountQuery {
+	q.hasLimit = true
+	q.limitStartIncluded = startIncluded
+	q.limitCount = count
+	return q
 }
 
 func (q *PhoneAccountQuery) ForUpdate() *PhoneAccountQuery {
@@ -1712,247 +2413,35 @@ func (q *PhoneAccountQuery) ForShare() *PhoneAccountQuery {
 	return q
 }
 
-func (q *PhoneAccountQuery) GroupBy(fields ...PHONE_ACCOUNT_FIELD) *PhoneAccountQuery {
-	q.groupByFields = make([]string, len(fields))
-	for i, v := range fields {
-		q.groupByFields[i] = string(v)
-	}
-	return q
-}
-
-func (q *PhoneAccountQuery) Limit(startIncluded int64, count int64) *PhoneAccountQuery {
-	q.setLimit(startIncluded, count)
-	return q
-}
-
-func (q *PhoneAccountQuery) OrderBy(fieldName PHONE_ACCOUNT_FIELD, asc bool) *PhoneAccountQuery {
-	q.orderBy(string(fieldName), asc)
-	return q
-}
-
-func (q *PhoneAccountQuery) OrderByGroupCount(asc bool) *PhoneAccountQuery {
-	q.orderByGroupCount(asc)
-	return q
-}
-
-func (q *PhoneAccountQuery) w(format string, a ...interface{}) *PhoneAccountQuery {
-	q.setWhere(format, a...)
-	return q
-}
-
-func (q *PhoneAccountQuery) Left() *PhoneAccountQuery  { return q.w(" ( ") }
-func (q *PhoneAccountQuery) Right() *PhoneAccountQuery { return q.w(" ) ") }
-func (q *PhoneAccountQuery) And() *PhoneAccountQuery   { return q.w(" AND ") }
-func (q *PhoneAccountQuery) Or() *PhoneAccountQuery    { return q.w(" OR ") }
-func (q *PhoneAccountQuery) Not() *PhoneAccountQuery   { return q.w(" NOT ") }
-
-func (q *PhoneAccountQuery) Id_Equal(v uint64) *PhoneAccountQuery {
-	return q.w("id='" + fmt.Sprint(v) + "'")
-}
-func (q *PhoneAccountQuery) Id_NotEqual(v uint64) *PhoneAccountQuery {
-	return q.w("id<>'" + fmt.Sprint(v) + "'")
-}
-func (q *PhoneAccountQuery) Id_Less(v uint64) *PhoneAccountQuery {
-	return q.w("id<'" + fmt.Sprint(v) + "'")
-}
-func (q *PhoneAccountQuery) Id_LessEqual(v uint64) *PhoneAccountQuery {
-	return q.w("id<='" + fmt.Sprint(v) + "'")
-}
-func (q *PhoneAccountQuery) Id_Greater(v uint64) *PhoneAccountQuery {
-	return q.w("id>'" + fmt.Sprint(v) + "'")
-}
-func (q *PhoneAccountQuery) Id_GreaterEqual(v uint64) *PhoneAccountQuery {
-	return q.w("id>='" + fmt.Sprint(v) + "'")
-}
-func (q *PhoneAccountQuery) UserId_Equal(v string) *PhoneAccountQuery {
-	return q.w("user_id='" + fmt.Sprint(v) + "'")
-}
-func (q *PhoneAccountQuery) UserId_NotEqual(v string) *PhoneAccountQuery {
-	return q.w("user_id<>'" + fmt.Sprint(v) + "'")
-}
-func (q *PhoneAccountQuery) PhoneEncrypted_Equal(v string) *PhoneAccountQuery {
-	return q.w("phone_encrypted='" + fmt.Sprint(v) + "'")
-}
-func (q *PhoneAccountQuery) PhoneEncrypted_NotEqual(v string) *PhoneAccountQuery {
-	return q.w("phone_encrypted<>'" + fmt.Sprint(v) + "'")
-}
-func (q *PhoneAccountQuery) CreateTime_Equal(v time.Time) *PhoneAccountQuery {
-	return q.w("create_time='" + fmt.Sprint(v) + "'")
-}
-func (q *PhoneAccountQuery) CreateTime_NotEqual(v time.Time) *PhoneAccountQuery {
-	return q.w("create_time<>'" + fmt.Sprint(v) + "'")
-}
-func (q *PhoneAccountQuery) CreateTime_Less(v time.Time) *PhoneAccountQuery {
-	return q.w("create_time<'" + fmt.Sprint(v) + "'")
-}
-func (q *PhoneAccountQuery) CreateTime_LessEqual(v time.Time) *PhoneAccountQuery {
-	return q.w("create_time<='" + fmt.Sprint(v) + "'")
-}
-func (q *PhoneAccountQuery) CreateTime_Greater(v time.Time) *PhoneAccountQuery {
-	return q.w("create_time>'" + fmt.Sprint(v) + "'")
-}
-func (q *PhoneAccountQuery) CreateTime_GreaterEqual(v time.Time) *PhoneAccountQuery {
-	return q.w("create_time>='" + fmt.Sprint(v) + "'")
-}
-func (q *PhoneAccountQuery) UpdateTime_Equal(v time.Time) *PhoneAccountQuery {
-	return q.w("update_time='" + fmt.Sprint(v) + "'")
-}
-func (q *PhoneAccountQuery) UpdateTime_NotEqual(v time.Time) *PhoneAccountQuery {
-	return q.w("update_time<>'" + fmt.Sprint(v) + "'")
-}
-func (q *PhoneAccountQuery) UpdateTime_Less(v time.Time) *PhoneAccountQuery {
-	return q.w("update_time<'" + fmt.Sprint(v) + "'")
-}
-func (q *PhoneAccountQuery) UpdateTime_LessEqual(v time.Time) *PhoneAccountQuery {
-	return q.w("update_time<='" + fmt.Sprint(v) + "'")
-}
-func (q *PhoneAccountQuery) UpdateTime_Greater(v time.Time) *PhoneAccountQuery {
-	return q.w("update_time>'" + fmt.Sprint(v) + "'")
-}
-func (q *PhoneAccountQuery) UpdateTime_GreaterEqual(v time.Time) *PhoneAccountQuery {
-	return q.w("update_time>='" + fmt.Sprint(v) + "'")
-}
-
-type PhoneAccountUpdate struct {
-	dao    *PhoneAccountDao
-	keys   []string
-	values []interface{}
-}
-
-func NewPhoneAccountUpdate(dao *PhoneAccountDao) *PhoneAccountUpdate {
-	q := &PhoneAccountUpdate{}
-	q.dao = dao
-	q.keys = make([]string, 0)
-	q.values = make([]interface{}, 0)
-
-	return q
-}
-
-func (u *PhoneAccountUpdate) Update(ctx context.Context, tx *wrap.Tx, id uint64) (err error) {
-	if len(u.keys) == 0 {
-		err = fmt.Errorf("PhoneAccountUpdate没有设置更新字段")
-		u.dao.logger.Error("PhoneAccountUpdate", zap.Error(err))
-		return err
-	}
-	s := "UPDATE phone_account SET " + strings.Join(u.keys, ",") + " WHERE id=?"
-	v := append(u.values, id)
-	if tx == nil {
-		_, err = u.dao.db.Exec(ctx, s, v...)
-	} else {
-		_, err = tx.Exec(ctx, s, v)
+func (q *PhoneAccountQuery) Select(ctx context.Context, tx *wrap.Tx) (e *PhoneAccount, err error) {
+	if !q.hasLimit {
+		q.limitCount = 1
+		q.hasLimit = true
 	}
 
-	if err != nil {
-		return err
+	queryString, params := q.buildSelectQuery()
+	query := bytes.NewBufferString("")
+	query.WriteString("SELECT id,user_id,phone_encrypted,create_time,update_time FROM phone_account ")
+	query.WriteString(queryString)
+	e = &PhoneAccount{}
+	row := q.dao.db.QueryRow(ctx, tx, query.String(), params...)
+	err = row.Scan(&e.Id, &e.UserId, &e.PhoneEncrypted, &e.CreateTime, &e.UpdateTime)
+	if err == wrap.ErrNoRows {
+		return nil, nil
 	}
 
-	return nil
+	return e, err
 }
 
-func (u *PhoneAccountUpdate) UserId(v string) *PhoneAccountUpdate {
-	u.keys = append(u.keys, "user_id=?")
-	u.values = append(u.values, v)
-	return u
-}
-
-func (u *PhoneAccountUpdate) PhoneEncrypted(v string) *PhoneAccountUpdate {
-	u.keys = append(u.keys, "phone_encrypted=?")
-	u.values = append(u.values, v)
-	return u
-}
-
-type PhoneAccountDao struct {
-	logger     *zap.Logger
-	db         *DB
-	insertStmt *wrap.Stmt
-	deleteStmt *wrap.Stmt
-}
-
-func NewPhoneAccountDao(db *DB) (t *PhoneAccountDao, err error) {
-	t = &PhoneAccountDao{}
-	t.logger = log.TypedLogger(t)
-	t.db = db
-	err = t.init()
+func (q *PhoneAccountQuery) SelectList(ctx context.Context, tx *wrap.Tx) (list []*PhoneAccount, err error) {
+	queryString, params := q.buildSelectQuery()
+	query := bytes.NewBufferString("")
+	query.WriteString("SELECT id,user_id,phone_encrypted,create_time,update_time FROM phone_account ")
+	query.WriteString(queryString)
+	rows, err := q.dao.db.Query(ctx, tx, query.String(), params...)
 	if err != nil {
 		return nil, err
 	}
-
-	return t, nil
-}
-
-func (dao *PhoneAccountDao) init() (err error) {
-	err = dao.prepareInsertStmt()
-	if err != nil {
-		return err
-	}
-
-	err = dao.prepareDeleteStmt()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (dao *PhoneAccountDao) prepareInsertStmt() (err error) {
-	dao.insertStmt, err = dao.db.Prepare(context.Background(), "INSERT INTO phone_account (user_id,phone_encrypted) VALUES (?,?)")
-	return err
-}
-
-func (dao *PhoneAccountDao) prepareDeleteStmt() (err error) {
-	dao.deleteStmt, err = dao.db.Prepare(context.Background(), "DELETE FROM phone_account WHERE id=?")
-	return err
-}
-
-func (dao *PhoneAccountDao) Insert(ctx context.Context, tx *wrap.Tx, e *PhoneAccount) (id int64, err error) {
-	stmt := dao.insertStmt
-	if tx != nil {
-		stmt = tx.Stmt(ctx, stmt)
-	}
-
-	result, err := stmt.Exec(ctx, e.UserId, e.PhoneEncrypted)
-	if err != nil {
-		return 0, err
-	}
-
-	id, err = result.LastInsertId()
-	if err != nil {
-		return 0, err
-	}
-
-	return id, nil
-}
-
-func (dao *PhoneAccountDao) Delete(ctx context.Context, tx *wrap.Tx, id uint64) (err error) {
-	stmt := dao.deleteStmt
-	if tx != nil {
-		stmt = tx.Stmt(ctx, stmt)
-	}
-
-	_, err = stmt.Exec(ctx, id)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (dao *PhoneAccountDao) scanRow(row *wrap.Row) (*PhoneAccount, error) {
-	e := &PhoneAccount{}
-	err := row.Scan(&e.Id, &e.UserId, &e.PhoneEncrypted, &e.CreateTime, &e.UpdateTime)
-	if err != nil {
-		if err == wrap.ErrNoRows {
-			return nil, nil
-		} else {
-			return nil, err
-		}
-	}
-
-	return e, nil
-}
-
-func (dao *PhoneAccountDao) scanRows(rows *wrap.Rows) (list []*PhoneAccount, err error) {
-	list = make([]*PhoneAccount, 0)
 	for rows.Next() {
 		e := PhoneAccount{}
 		err = rows.Scan(&e.Id, &e.UserId, &e.PhoneEncrypted, &e.CreateTime, &e.UpdateTime)
@@ -1969,121 +2458,373 @@ func (dao *PhoneAccountDao) scanRows(rows *wrap.Rows) (list []*PhoneAccount, err
 	return list, nil
 }
 
-func (dao *PhoneAccountDao) QueryOne(ctx context.Context, tx *wrap.Tx, query string) (*PhoneAccount, error) {
-	querySql := "SELECT " + PHONE_ACCOUNT_ALL_FIELDS_STRING + " FROM phone_account " + query
-	var row *wrap.Row
-	if tx == nil {
-		row = dao.db.QueryRow(ctx, querySql)
-	} else {
-		row = tx.QueryRow(ctx, querySql)
-	}
-	return dao.scanRow(row)
-}
-
-func (dao *PhoneAccountDao) QueryList(ctx context.Context, tx *wrap.Tx, query string) (list []*PhoneAccount, err error) {
-	querySql := "SELECT " + PHONE_ACCOUNT_ALL_FIELDS_STRING + " FROM phone_account " + query
-	var rows *wrap.Rows
-	if tx == nil {
-		rows, err = dao.db.Query(ctx, querySql)
-	} else {
-		rows, err = tx.Query(ctx, querySql)
-	}
-	if err != nil {
-		dao.logger.Error("sqlDriver", zap.Error(err))
-		return nil, err
-	}
-
-	return dao.scanRows(rows)
-}
-
-func (dao *PhoneAccountDao) QueryCount(ctx context.Context, tx *wrap.Tx, query string) (count int64, err error) {
-	querySql := "SELECT COUNT(1) FROM phone_account " + query
-	var row *wrap.Row
-	if tx == nil {
-		row = dao.db.QueryRow(ctx, querySql)
-	} else {
-		row = tx.QueryRow(ctx, querySql)
-	}
-	if err != nil {
-		dao.logger.Error("sqlDriver", zap.Error(err))
-		return 0, err
-	}
-
+func (q *PhoneAccountQuery) SelectCount(ctx context.Context, tx *wrap.Tx) (count int64, err error) {
+	queryString, params := q.buildSelectQuery()
+	query := bytes.NewBufferString("")
+	query.WriteString("SELECT COUNT(*) FROM phone_account ")
+	query.WriteString(queryString)
+	row := q.dao.db.QueryRow(ctx, tx, query.String(), params...)
 	err = row.Scan(&count)
-	if err != nil {
-		return 0, err
+
+	return count, err
+}
+
+func (q *PhoneAccountQuery) SelectGroupBy(ctx context.Context, tx *wrap.Tx, withCount bool) (rows *wrap.Rows, err error) {
+	queryString, params := q.buildSelectQuery()
+	query := bytes.NewBufferString("")
+	query.WriteString("SELECT ")
+	query.WriteString(strings.Join(q.groupByFields, ","))
+	if withCount {
+		query.WriteString(",Count(*) ")
+	}
+	query.WriteString(" FROM phone_account ")
+	query.WriteString(queryString)
+
+	return q.dao.db.Query(ctx, tx, query.String(), params...)
+}
+
+func (q *PhoneAccountQuery) SetUserId(v string) *PhoneAccountQuery {
+	q.updateFields = append(q.updateFields, "user_id")
+	q.updateParams = append(q.updateParams, v)
+	return q
+}
+
+func (q *PhoneAccountQuery) SetPhoneEncrypted(v string) *PhoneAccountQuery {
+	q.updateFields = append(q.updateFields, "phone_encrypted")
+	q.updateParams = append(q.updateParams, v)
+	return q
+}
+
+func (q *PhoneAccountQuery) Update(ctx context.Context, tx *wrap.Tx) (result *wrap.Result, err error) {
+	query := bytes.NewBufferString("")
+	var params []interface{}
+	params = append(params, q.updateParams)
+	query.WriteString("UPDATE phone_account SET ")
+	updateItems := make([]string, len(q.updateFields))
+	for i, v := range q.updateFields {
+		updateItems[i] = v + "=?"
+	}
+	query.WriteString(strings.Join(updateItems, ","))
+	where := q.where.String()
+	if where != "" {
+		query.WriteString(" WHERE ")
+		query.WriteString(where)
+		params = append(params, q.whereParams)
 	}
 
-	return count, nil
+	return q.dao.db.Exec(ctx, tx, query.String(), params...)
 }
 
-func (dao *PhoneAccountDao) QueryGroupBy(ctx context.Context, tx *wrap.Tx, groupByFields []string, query string) (rows *wrap.Rows, err error) {
-	querySql := "SELECT " + strings.Join(groupByFields, ",") + ",count(1) FROM phone_account " + query
-	if tx == nil {
-		return dao.db.Query(ctx, querySql)
-	} else {
-		return tx.Query(ctx, querySql)
+func (q *PhoneAccountQuery) Delete(ctx context.Context, tx *wrap.Tx) (result *wrap.Result, err error) {
+	query := "DELETE FROM phone_account WHERE " + q.where.String()
+	return q.dao.db.Exec(ctx, tx, query, q.whereParams...)
+}
+
+type PhoneAccountDao struct {
+	logger *zap.Logger
+	db     *DB
+}
+
+func NewPhoneAccountDao(db *DB) (t *PhoneAccountDao, err error) {
+	t = &PhoneAccountDao{}
+	t.logger = log.TypedLogger(t)
+	t.db = db
+
+	return t, nil
+}
+
+func (dao *PhoneAccountDao) Insert(ctx context.Context, tx *wrap.Tx, e *PhoneAccount, onDuplicatedKeyUpdate bool) (result *wrap.Result, err error) {
+	query := bytes.NewBufferString("")
+	query.WriteString("INSERT INTO phone_account (user_id,phone_encrypted) VALUES (?,?)")
+	if onDuplicatedKeyUpdate {
+		query.WriteString(" ON DUPLICATED KEY UPDATE user_id=VALUES(user_id)")
 	}
+	params := []interface{}{e.UserId, e.PhoneEncrypted}
+	return dao.db.Exec(ctx, tx, query.String(), params...)
 }
 
-func (dao *PhoneAccountDao) GetQuery() *PhoneAccountQuery {
-	return NewPhoneAccountQuery(dao)
+func (dao *PhoneAccountDao) BatchInsert(ctx context.Context, tx *wrap.Tx, list []*PhoneAccount, onDuplicatedKeyUpdate bool) (result *wrap.Result, err error) {
+	query := bytes.NewBufferString("")
+	query.WriteString("INSERT INTO phone_account (user_id,phone_encrypted) VALUES ")
+	query.WriteString(wrap.RepeatWithSeparator("(?,?)", len(list), ","))
+	if onDuplicatedKeyUpdate {
+		query.WriteString(" ON DUPLICATED KEY UPDATE user_id=VALUES(user_id)")
+	}
+	params := make([]interface{}, len(list)*2)
+	offset := 0
+	for _, e := range list {
+		params[offset+0] = e.UserId
+		params[offset+1] = e.PhoneEncrypted
+		offset += 2
+	}
+
+	return dao.db.Exec(ctx, tx, query.String(), params...)
 }
 
-func (dao *PhoneAccountDao) GetUpdate() *PhoneAccountUpdate {
-	return NewPhoneAccountUpdate(dao)
+func (dao *PhoneAccountDao) DeleteById(ctx context.Context, tx *wrap.Tx, id uint64) (result *wrap.Result, err error) {
+	query := "DELETE FROM PhoneAccount WHERE id=?"
+	return dao.db.Exec(ctx, tx, query, id)
 }
 
-const REFRESH_TOKEN_TABLE_NAME = "refresh_token"
+func (dao *PhoneAccountDao) UpdateById(ctx context.Context, tx *wrap.Tx, e *PhoneAccount) (result *wrap.Result, err error) {
+	query := "UPDATE phone_account SET user_id=?,phone_encrypted=? WHERE id=?"
+	params := []interface{}{e.UserId, e.PhoneEncrypted, e.Id}
+	return dao.db.Exec(ctx, tx, query, params...)
+}
 
-type REFRESH_TOKEN_FIELD string
-
-const REFRESH_TOKEN_FIELD_ID = REFRESH_TOKEN_FIELD("id")
-const REFRESH_TOKEN_FIELD_USER_ID = REFRESH_TOKEN_FIELD("user_id")
-const REFRESH_TOKEN_FIELD_REFRESH_TOKEN = REFRESH_TOKEN_FIELD("refresh_token")
-const REFRESH_TOKEN_FIELD_IS_LOGOUT = REFRESH_TOKEN_FIELD("is_logout")
-const REFRESH_TOKEN_FIELD_LOGOUT_TIME = REFRESH_TOKEN_FIELD("logout_time")
-const REFRESH_TOKEN_FIELD_CREATE_TIME = REFRESH_TOKEN_FIELD("create_time")
-const REFRESH_TOKEN_FIELD_UPDATE_TIME = REFRESH_TOKEN_FIELD("update_time")
-
-const REFRESH_TOKEN_ALL_FIELDS_STRING = "id,user_id,refresh_token,is_logout,logout_time,create_time,update_time"
+func (dao *PhoneAccountDao) SelectById(ctx context.Context, tx *wrap.Tx, id int64) (e *PhoneAccount, err error) {
+	query := "SELECT id,user_id,phone_encrypted,create_time,update_time FROM phone_account WHERE id=?"
+	row := dao.db.QueryRow(ctx, tx, query, id)
+	e = &PhoneAccount{}
+	err = row.Scan(&e.Id, &e.UserId, &e.PhoneEncrypted, &e.CreateTime, &e.UpdateTime)
+	if err == wrap.ErrNoRows {
+		return nil, nil
+	}
+	return e, err
+}
 
 type RefreshToken struct {
 	Id           uint64 //size=20
 	UserId       string //size=32
 	RefreshToken string //size=128
-	IsLogout     int32  //size=1
-	LogoutTime   time.Time
 	CreateTime   time.Time
 	UpdateTime   time.Time
 }
 
 type RefreshTokenQuery struct {
-	BaseQuery
+	QueryBase
 	dao *RefreshTokenDao
 }
 
-func NewRefreshTokenQuery(dao *RefreshTokenDao) *RefreshTokenQuery {
+func (dao *RefreshTokenDao) Query() *RefreshTokenQuery {
 	q := &RefreshTokenQuery{}
 	q.dao = dao
-
+	q.where = bytes.NewBufferString("")
 	return q
 }
 
-func (q *RefreshTokenQuery) QueryOne(ctx context.Context, tx *wrap.Tx) (*RefreshToken, error) {
-	return q.dao.QueryOne(ctx, tx, q.buildQueryString())
+func (q *RefreshTokenQuery) Left() *RefreshTokenQuery {
+	q.where.WriteString(" (")
+	return q
 }
 
-func (q *RefreshTokenQuery) QueryList(ctx context.Context, tx *wrap.Tx) (list []*RefreshToken, err error) {
-	return q.dao.QueryList(ctx, tx, q.buildQueryString())
+func (q *RefreshTokenQuery) Right() *RefreshTokenQuery {
+	q.where.WriteString(" )")
+	return q
 }
 
-func (q *RefreshTokenQuery) QueryCount(ctx context.Context, tx *wrap.Tx) (count int64, err error) {
-	return q.dao.QueryCount(ctx, tx, q.buildQueryString())
+func (q *RefreshTokenQuery) And() *RefreshTokenQuery {
+	q.where.WriteString(" AND")
+	return q
 }
 
-func (q *RefreshTokenQuery) QueryGroupBy(ctx context.Context, tx *wrap.Tx) (rows *wrap.Rows, err error) {
-	return q.dao.QueryGroupBy(ctx, tx, q.groupByFields, q.buildQueryString())
+func (q *RefreshTokenQuery) Or() *RefreshTokenQuery {
+	q.where.WriteString(" OR")
+	return q
+}
+
+func (q *RefreshTokenQuery) Not() *RefreshTokenQuery {
+	q.where.WriteString(" NOT")
+	return q
+}
+
+func (q *RefreshTokenQuery) IdEqual(v uint64) *RefreshTokenQuery {
+	q.where.WriteString(" id=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *RefreshTokenQuery) IdNotEqual(v uint64) *RefreshTokenQuery {
+	q.where.WriteString(" id<>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *RefreshTokenQuery) IdLess(v uint64) *RefreshTokenQuery {
+	q.where.WriteString(" id<?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *RefreshTokenQuery) IdLessEqual(v uint64) *RefreshTokenQuery {
+	q.where.WriteString(" id<=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *RefreshTokenQuery) IdGreater(v uint64) *RefreshTokenQuery {
+	q.where.WriteString(" id>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *RefreshTokenQuery) IdGreaterEqual(v uint64) *RefreshTokenQuery {
+	q.where.WriteString(" id>=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *RefreshTokenQuery) IdIn(items []uint64) *RefreshTokenQuery {
+	q.where.WriteString(" id IN(")
+	q.where.WriteString(wrap.RepeatWithSeparator("?", len(items), ","))
+	q.where.WriteString(")")
+	q.whereParams = append(q.whereParams, items)
+	return q
+}
+
+func (q *RefreshTokenQuery) UserIdEqual(v string) *RefreshTokenQuery {
+	q.where.WriteString(" user_id=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *RefreshTokenQuery) UserIdNotEqual(v string) *RefreshTokenQuery {
+	q.where.WriteString(" user_id<>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *RefreshTokenQuery) UserIdIn(items []string) *RefreshTokenQuery {
+	q.where.WriteString(" user_id IN(")
+	q.where.WriteString(wrap.RepeatWithSeparator("?", len(items), ","))
+	q.where.WriteString(")")
+	q.whereParams = append(q.whereParams, items)
+	return q
+}
+
+func (q *RefreshTokenQuery) RefreshTokenEqual(v string) *RefreshTokenQuery {
+	q.where.WriteString(" refresh_token=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *RefreshTokenQuery) RefreshTokenNotEqual(v string) *RefreshTokenQuery {
+	q.where.WriteString(" refresh_token<>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *RefreshTokenQuery) RefreshTokenIn(items []string) *RefreshTokenQuery {
+	q.where.WriteString(" refresh_token IN(")
+	q.where.WriteString(wrap.RepeatWithSeparator("?", len(items), ","))
+	q.where.WriteString(")")
+	q.whereParams = append(q.whereParams, items)
+	return q
+}
+
+func (q *RefreshTokenQuery) CreateTimeEqual(v time.Time) *RefreshTokenQuery {
+	q.where.WriteString(" create_time=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *RefreshTokenQuery) CreateTimeNotEqual(v time.Time) *RefreshTokenQuery {
+	q.where.WriteString(" create_time<>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *RefreshTokenQuery) CreateTimeLess(v time.Time) *RefreshTokenQuery {
+	q.where.WriteString(" create_time<?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *RefreshTokenQuery) CreateTimeLessEqual(v time.Time) *RefreshTokenQuery {
+	q.where.WriteString(" create_time<=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *RefreshTokenQuery) CreateTimeGreater(v time.Time) *RefreshTokenQuery {
+	q.where.WriteString(" create_time>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *RefreshTokenQuery) CreateTimeGreaterEqual(v time.Time) *RefreshTokenQuery {
+	q.where.WriteString(" create_time>=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *RefreshTokenQuery) UpdateTimeEqual(v time.Time) *RefreshTokenQuery {
+	q.where.WriteString(" update_time=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *RefreshTokenQuery) UpdateTimeNotEqual(v time.Time) *RefreshTokenQuery {
+	q.where.WriteString(" update_time<>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *RefreshTokenQuery) UpdateTimeLess(v time.Time) *RefreshTokenQuery {
+	q.where.WriteString(" update_time<?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *RefreshTokenQuery) UpdateTimeLessEqual(v time.Time) *RefreshTokenQuery {
+	q.where.WriteString(" update_time<=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *RefreshTokenQuery) UpdateTimeGreater(v time.Time) *RefreshTokenQuery {
+	q.where.WriteString(" update_time>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *RefreshTokenQuery) UpdateTimeGreaterEqual(v time.Time) *RefreshTokenQuery {
+	q.where.WriteString(" update_time>=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *RefreshTokenQuery) OrderById(asc bool) *RefreshTokenQuery {
+	q.orderByFields = append(q.orderByFields, "id")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *RefreshTokenQuery) OrderByUserId(asc bool) *RefreshTokenQuery {
+	q.orderByFields = append(q.orderByFields, "user_id")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *RefreshTokenQuery) OrderByRefreshToken(asc bool) *RefreshTokenQuery {
+	q.orderByFields = append(q.orderByFields, "refresh_token")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *RefreshTokenQuery) OrderByCreateTime(asc bool) *RefreshTokenQuery {
+	q.orderByFields = append(q.orderByFields, "create_time")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *RefreshTokenQuery) OrderByUpdateTime(asc bool) *RefreshTokenQuery {
+	q.orderByFields = append(q.orderByFields, "update_time")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *RefreshTokenQuery) OrderByGroupCount(asc bool) *RefreshTokenQuery {
+	q.orderByFields = append(q.orderByFields, "count(*)")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *RefreshTokenQuery) Limit(startIncluded int64, count int64) *RefreshTokenQuery {
+	q.hasLimit = true
+	q.limitStartIncluded = startIncluded
+	q.limitCount = count
+	return q
 }
 
 func (q *RefreshTokenQuery) ForUpdate() *RefreshTokenQuery {
@@ -2096,298 +2837,38 @@ func (q *RefreshTokenQuery) ForShare() *RefreshTokenQuery {
 	return q
 }
 
-func (q *RefreshTokenQuery) GroupBy(fields ...REFRESH_TOKEN_FIELD) *RefreshTokenQuery {
-	q.groupByFields = make([]string, len(fields))
-	for i, v := range fields {
-		q.groupByFields[i] = string(v)
-	}
-	return q
-}
-
-func (q *RefreshTokenQuery) Limit(startIncluded int64, count int64) *RefreshTokenQuery {
-	q.setLimit(startIncluded, count)
-	return q
-}
-
-func (q *RefreshTokenQuery) OrderBy(fieldName REFRESH_TOKEN_FIELD, asc bool) *RefreshTokenQuery {
-	q.orderBy(string(fieldName), asc)
-	return q
-}
-
-func (q *RefreshTokenQuery) OrderByGroupCount(asc bool) *RefreshTokenQuery {
-	q.orderByGroupCount(asc)
-	return q
-}
-
-func (q *RefreshTokenQuery) w(format string, a ...interface{}) *RefreshTokenQuery {
-	q.setWhere(format, a...)
-	return q
-}
-
-func (q *RefreshTokenQuery) Left() *RefreshTokenQuery  { return q.w(" ( ") }
-func (q *RefreshTokenQuery) Right() *RefreshTokenQuery { return q.w(" ) ") }
-func (q *RefreshTokenQuery) And() *RefreshTokenQuery   { return q.w(" AND ") }
-func (q *RefreshTokenQuery) Or() *RefreshTokenQuery    { return q.w(" OR ") }
-func (q *RefreshTokenQuery) Not() *RefreshTokenQuery   { return q.w(" NOT ") }
-
-func (q *RefreshTokenQuery) Id_Equal(v uint64) *RefreshTokenQuery {
-	return q.w("id='" + fmt.Sprint(v) + "'")
-}
-func (q *RefreshTokenQuery) Id_NotEqual(v uint64) *RefreshTokenQuery {
-	return q.w("id<>'" + fmt.Sprint(v) + "'")
-}
-func (q *RefreshTokenQuery) Id_Less(v uint64) *RefreshTokenQuery {
-	return q.w("id<'" + fmt.Sprint(v) + "'")
-}
-func (q *RefreshTokenQuery) Id_LessEqual(v uint64) *RefreshTokenQuery {
-	return q.w("id<='" + fmt.Sprint(v) + "'")
-}
-func (q *RefreshTokenQuery) Id_Greater(v uint64) *RefreshTokenQuery {
-	return q.w("id>'" + fmt.Sprint(v) + "'")
-}
-func (q *RefreshTokenQuery) Id_GreaterEqual(v uint64) *RefreshTokenQuery {
-	return q.w("id>='" + fmt.Sprint(v) + "'")
-}
-func (q *RefreshTokenQuery) UserId_Equal(v string) *RefreshTokenQuery {
-	return q.w("user_id='" + fmt.Sprint(v) + "'")
-}
-func (q *RefreshTokenQuery) UserId_NotEqual(v string) *RefreshTokenQuery {
-	return q.w("user_id<>'" + fmt.Sprint(v) + "'")
-}
-func (q *RefreshTokenQuery) RefreshToken_Equal(v string) *RefreshTokenQuery {
-	return q.w("refresh_token='" + fmt.Sprint(v) + "'")
-}
-func (q *RefreshTokenQuery) RefreshToken_NotEqual(v string) *RefreshTokenQuery {
-	return q.w("refresh_token<>'" + fmt.Sprint(v) + "'")
-}
-func (q *RefreshTokenQuery) IsLogout_Equal(v int32) *RefreshTokenQuery {
-	return q.w("is_logout='" + fmt.Sprint(v) + "'")
-}
-func (q *RefreshTokenQuery) IsLogout_NotEqual(v int32) *RefreshTokenQuery {
-	return q.w("is_logout<>'" + fmt.Sprint(v) + "'")
-}
-func (q *RefreshTokenQuery) IsLogout_Less(v int32) *RefreshTokenQuery {
-	return q.w("is_logout<'" + fmt.Sprint(v) + "'")
-}
-func (q *RefreshTokenQuery) IsLogout_LessEqual(v int32) *RefreshTokenQuery {
-	return q.w("is_logout<='" + fmt.Sprint(v) + "'")
-}
-func (q *RefreshTokenQuery) IsLogout_Greater(v int32) *RefreshTokenQuery {
-	return q.w("is_logout>'" + fmt.Sprint(v) + "'")
-}
-func (q *RefreshTokenQuery) IsLogout_GreaterEqual(v int32) *RefreshTokenQuery {
-	return q.w("is_logout>='" + fmt.Sprint(v) + "'")
-}
-func (q *RefreshTokenQuery) LogoutTime_Equal(v time.Time) *RefreshTokenQuery {
-	return q.w("logout_time='" + fmt.Sprint(v) + "'")
-}
-func (q *RefreshTokenQuery) LogoutTime_NotEqual(v time.Time) *RefreshTokenQuery {
-	return q.w("logout_time<>'" + fmt.Sprint(v) + "'")
-}
-func (q *RefreshTokenQuery) LogoutTime_Less(v time.Time) *RefreshTokenQuery {
-	return q.w("logout_time<'" + fmt.Sprint(v) + "'")
-}
-func (q *RefreshTokenQuery) LogoutTime_LessEqual(v time.Time) *RefreshTokenQuery {
-	return q.w("logout_time<='" + fmt.Sprint(v) + "'")
-}
-func (q *RefreshTokenQuery) LogoutTime_Greater(v time.Time) *RefreshTokenQuery {
-	return q.w("logout_time>'" + fmt.Sprint(v) + "'")
-}
-func (q *RefreshTokenQuery) LogoutTime_GreaterEqual(v time.Time) *RefreshTokenQuery {
-	return q.w("logout_time>='" + fmt.Sprint(v) + "'")
-}
-func (q *RefreshTokenQuery) CreateTime_Equal(v time.Time) *RefreshTokenQuery {
-	return q.w("create_time='" + fmt.Sprint(v) + "'")
-}
-func (q *RefreshTokenQuery) CreateTime_NotEqual(v time.Time) *RefreshTokenQuery {
-	return q.w("create_time<>'" + fmt.Sprint(v) + "'")
-}
-func (q *RefreshTokenQuery) CreateTime_Less(v time.Time) *RefreshTokenQuery {
-	return q.w("create_time<'" + fmt.Sprint(v) + "'")
-}
-func (q *RefreshTokenQuery) CreateTime_LessEqual(v time.Time) *RefreshTokenQuery {
-	return q.w("create_time<='" + fmt.Sprint(v) + "'")
-}
-func (q *RefreshTokenQuery) CreateTime_Greater(v time.Time) *RefreshTokenQuery {
-	return q.w("create_time>'" + fmt.Sprint(v) + "'")
-}
-func (q *RefreshTokenQuery) CreateTime_GreaterEqual(v time.Time) *RefreshTokenQuery {
-	return q.w("create_time>='" + fmt.Sprint(v) + "'")
-}
-func (q *RefreshTokenQuery) UpdateTime_Equal(v time.Time) *RefreshTokenQuery {
-	return q.w("update_time='" + fmt.Sprint(v) + "'")
-}
-func (q *RefreshTokenQuery) UpdateTime_NotEqual(v time.Time) *RefreshTokenQuery {
-	return q.w("update_time<>'" + fmt.Sprint(v) + "'")
-}
-func (q *RefreshTokenQuery) UpdateTime_Less(v time.Time) *RefreshTokenQuery {
-	return q.w("update_time<'" + fmt.Sprint(v) + "'")
-}
-func (q *RefreshTokenQuery) UpdateTime_LessEqual(v time.Time) *RefreshTokenQuery {
-	return q.w("update_time<='" + fmt.Sprint(v) + "'")
-}
-func (q *RefreshTokenQuery) UpdateTime_Greater(v time.Time) *RefreshTokenQuery {
-	return q.w("update_time>'" + fmt.Sprint(v) + "'")
-}
-func (q *RefreshTokenQuery) UpdateTime_GreaterEqual(v time.Time) *RefreshTokenQuery {
-	return q.w("update_time>='" + fmt.Sprint(v) + "'")
-}
-
-type RefreshTokenUpdate struct {
-	dao    *RefreshTokenDao
-	keys   []string
-	values []interface{}
-}
-
-func NewRefreshTokenUpdate(dao *RefreshTokenDao) *RefreshTokenUpdate {
-	q := &RefreshTokenUpdate{}
-	q.dao = dao
-	q.keys = make([]string, 0)
-	q.values = make([]interface{}, 0)
-
-	return q
-}
-
-func (u *RefreshTokenUpdate) Update(ctx context.Context, tx *wrap.Tx, id uint64) (err error) {
-	if len(u.keys) == 0 {
-		err = fmt.Errorf("RefreshTokenUpdate没有设置更新字段")
-		u.dao.logger.Error("RefreshTokenUpdate", zap.Error(err))
-		return err
-	}
-	s := "UPDATE refresh_token SET " + strings.Join(u.keys, ",") + " WHERE id=?"
-	v := append(u.values, id)
-	if tx == nil {
-		_, err = u.dao.db.Exec(ctx, s, v...)
-	} else {
-		_, err = tx.Exec(ctx, s, v)
+func (q *RefreshTokenQuery) Select(ctx context.Context, tx *wrap.Tx) (e *RefreshToken, err error) {
+	if !q.hasLimit {
+		q.limitCount = 1
+		q.hasLimit = true
 	}
 
-	if err != nil {
-		return err
+	queryString, params := q.buildSelectQuery()
+	query := bytes.NewBufferString("")
+	query.WriteString("SELECT id,user_id,refresh_token,create_time,update_time FROM refresh_token ")
+	query.WriteString(queryString)
+	e = &RefreshToken{}
+	row := q.dao.db.QueryRow(ctx, tx, query.String(), params...)
+	err = row.Scan(&e.Id, &e.UserId, &e.RefreshToken, &e.CreateTime, &e.UpdateTime)
+	if err == wrap.ErrNoRows {
+		return nil, nil
 	}
 
-	return nil
+	return e, err
 }
 
-func (u *RefreshTokenUpdate) UserId(v string) *RefreshTokenUpdate {
-	u.keys = append(u.keys, "user_id=?")
-	u.values = append(u.values, v)
-	return u
-}
-
-func (u *RefreshTokenUpdate) RefreshToken(v string) *RefreshTokenUpdate {
-	u.keys = append(u.keys, "refresh_token=?")
-	u.values = append(u.values, v)
-	return u
-}
-
-func (u *RefreshTokenUpdate) IsLogout(v int32) *RefreshTokenUpdate {
-	u.keys = append(u.keys, "is_logout=?")
-	u.values = append(u.values, v)
-	return u
-}
-
-func (u *RefreshTokenUpdate) LogoutTime(v time.Time) *RefreshTokenUpdate {
-	u.keys = append(u.keys, "logout_time=?")
-	u.values = append(u.values, v)
-	return u
-}
-
-type RefreshTokenDao struct {
-	logger     *zap.Logger
-	db         *DB
-	insertStmt *wrap.Stmt
-	deleteStmt *wrap.Stmt
-}
-
-func NewRefreshTokenDao(db *DB) (t *RefreshTokenDao, err error) {
-	t = &RefreshTokenDao{}
-	t.logger = log.TypedLogger(t)
-	t.db = db
-	err = t.init()
+func (q *RefreshTokenQuery) SelectList(ctx context.Context, tx *wrap.Tx) (list []*RefreshToken, err error) {
+	queryString, params := q.buildSelectQuery()
+	query := bytes.NewBufferString("")
+	query.WriteString("SELECT id,user_id,refresh_token,create_time,update_time FROM refresh_token ")
+	query.WriteString(queryString)
+	rows, err := q.dao.db.Query(ctx, tx, query.String(), params...)
 	if err != nil {
 		return nil, err
 	}
-
-	return t, nil
-}
-
-func (dao *RefreshTokenDao) init() (err error) {
-	err = dao.prepareInsertStmt()
-	if err != nil {
-		return err
-	}
-
-	err = dao.prepareDeleteStmt()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (dao *RefreshTokenDao) prepareInsertStmt() (err error) {
-	dao.insertStmt, err = dao.db.Prepare(context.Background(), "INSERT INTO refresh_token (user_id,refresh_token,is_logout,logout_time) VALUES (?,?,?,?)")
-	return err
-}
-
-func (dao *RefreshTokenDao) prepareDeleteStmt() (err error) {
-	dao.deleteStmt, err = dao.db.Prepare(context.Background(), "DELETE FROM refresh_token WHERE id=?")
-	return err
-}
-
-func (dao *RefreshTokenDao) Insert(ctx context.Context, tx *wrap.Tx, e *RefreshToken) (id int64, err error) {
-	stmt := dao.insertStmt
-	if tx != nil {
-		stmt = tx.Stmt(ctx, stmt)
-	}
-
-	result, err := stmt.Exec(ctx, e.UserId, e.RefreshToken, e.IsLogout, e.LogoutTime)
-	if err != nil {
-		return 0, err
-	}
-
-	id, err = result.LastInsertId()
-	if err != nil {
-		return 0, err
-	}
-
-	return id, nil
-}
-
-func (dao *RefreshTokenDao) Delete(ctx context.Context, tx *wrap.Tx, id uint64) (err error) {
-	stmt := dao.deleteStmt
-	if tx != nil {
-		stmt = tx.Stmt(ctx, stmt)
-	}
-
-	_, err = stmt.Exec(ctx, id)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (dao *RefreshTokenDao) scanRow(row *wrap.Row) (*RefreshToken, error) {
-	e := &RefreshToken{}
-	err := row.Scan(&e.Id, &e.UserId, &e.RefreshToken, &e.IsLogout, &e.LogoutTime, &e.CreateTime, &e.UpdateTime)
-	if err != nil {
-		if err == wrap.ErrNoRows {
-			return nil, nil
-		} else {
-			return nil, err
-		}
-	}
-
-	return e, nil
-}
-
-func (dao *RefreshTokenDao) scanRows(rows *wrap.Rows) (list []*RefreshToken, err error) {
-	list = make([]*RefreshToken, 0)
 	for rows.Next() {
 		e := RefreshToken{}
-		err = rows.Scan(&e.Id, &e.UserId, &e.RefreshToken, &e.IsLogout, &e.LogoutTime, &e.CreateTime, &e.UpdateTime)
+		err = rows.Scan(&e.Id, &e.UserId, &e.RefreshToken, &e.CreateTime, &e.UpdateTime)
 		if err != nil {
 			return nil, err
 		}
@@ -2401,84 +2882,130 @@ func (dao *RefreshTokenDao) scanRows(rows *wrap.Rows) (list []*RefreshToken, err
 	return list, nil
 }
 
-func (dao *RefreshTokenDao) QueryOne(ctx context.Context, tx *wrap.Tx, query string) (*RefreshToken, error) {
-	querySql := "SELECT " + REFRESH_TOKEN_ALL_FIELDS_STRING + " FROM refresh_token " + query
-	var row *wrap.Row
-	if tx == nil {
-		row = dao.db.QueryRow(ctx, querySql)
-	} else {
-		row = tx.QueryRow(ctx, querySql)
-	}
-	return dao.scanRow(row)
-}
-
-func (dao *RefreshTokenDao) QueryList(ctx context.Context, tx *wrap.Tx, query string) (list []*RefreshToken, err error) {
-	querySql := "SELECT " + REFRESH_TOKEN_ALL_FIELDS_STRING + " FROM refresh_token " + query
-	var rows *wrap.Rows
-	if tx == nil {
-		rows, err = dao.db.Query(ctx, querySql)
-	} else {
-		rows, err = tx.Query(ctx, querySql)
-	}
-	if err != nil {
-		dao.logger.Error("sqlDriver", zap.Error(err))
-		return nil, err
-	}
-
-	return dao.scanRows(rows)
-}
-
-func (dao *RefreshTokenDao) QueryCount(ctx context.Context, tx *wrap.Tx, query string) (count int64, err error) {
-	querySql := "SELECT COUNT(1) FROM refresh_token " + query
-	var row *wrap.Row
-	if tx == nil {
-		row = dao.db.QueryRow(ctx, querySql)
-	} else {
-		row = tx.QueryRow(ctx, querySql)
-	}
-	if err != nil {
-		dao.logger.Error("sqlDriver", zap.Error(err))
-		return 0, err
-	}
-
+func (q *RefreshTokenQuery) SelectCount(ctx context.Context, tx *wrap.Tx) (count int64, err error) {
+	queryString, params := q.buildSelectQuery()
+	query := bytes.NewBufferString("")
+	query.WriteString("SELECT COUNT(*) FROM refresh_token ")
+	query.WriteString(queryString)
+	row := q.dao.db.QueryRow(ctx, tx, query.String(), params...)
 	err = row.Scan(&count)
-	if err != nil {
-		return 0, err
+
+	return count, err
+}
+
+func (q *RefreshTokenQuery) SelectGroupBy(ctx context.Context, tx *wrap.Tx, withCount bool) (rows *wrap.Rows, err error) {
+	queryString, params := q.buildSelectQuery()
+	query := bytes.NewBufferString("")
+	query.WriteString("SELECT ")
+	query.WriteString(strings.Join(q.groupByFields, ","))
+	if withCount {
+		query.WriteString(",Count(*) ")
+	}
+	query.WriteString(" FROM refresh_token ")
+	query.WriteString(queryString)
+
+	return q.dao.db.Query(ctx, tx, query.String(), params...)
+}
+
+func (q *RefreshTokenQuery) SetUserId(v string) *RefreshTokenQuery {
+	q.updateFields = append(q.updateFields, "user_id")
+	q.updateParams = append(q.updateParams, v)
+	return q
+}
+
+func (q *RefreshTokenQuery) SetRefreshToken(v string) *RefreshTokenQuery {
+	q.updateFields = append(q.updateFields, "refresh_token")
+	q.updateParams = append(q.updateParams, v)
+	return q
+}
+
+func (q *RefreshTokenQuery) Update(ctx context.Context, tx *wrap.Tx) (result *wrap.Result, err error) {
+	query := bytes.NewBufferString("")
+	var params []interface{}
+	params = append(params, q.updateParams)
+	query.WriteString("UPDATE refresh_token SET ")
+	updateItems := make([]string, len(q.updateFields))
+	for i, v := range q.updateFields {
+		updateItems[i] = v + "=?"
+	}
+	query.WriteString(strings.Join(updateItems, ","))
+	where := q.where.String()
+	if where != "" {
+		query.WriteString(" WHERE ")
+		query.WriteString(where)
+		params = append(params, q.whereParams)
 	}
 
-	return count, nil
+	return q.dao.db.Exec(ctx, tx, query.String(), params...)
 }
 
-func (dao *RefreshTokenDao) QueryGroupBy(ctx context.Context, tx *wrap.Tx, groupByFields []string, query string) (rows *wrap.Rows, err error) {
-	querySql := "SELECT " + strings.Join(groupByFields, ",") + ",count(1) FROM refresh_token " + query
-	if tx == nil {
-		return dao.db.Query(ctx, querySql)
-	} else {
-		return tx.Query(ctx, querySql)
+func (q *RefreshTokenQuery) Delete(ctx context.Context, tx *wrap.Tx) (result *wrap.Result, err error) {
+	query := "DELETE FROM refresh_token WHERE " + q.where.String()
+	return q.dao.db.Exec(ctx, tx, query, q.whereParams...)
+}
+
+type RefreshTokenDao struct {
+	logger *zap.Logger
+	db     *DB
+}
+
+func NewRefreshTokenDao(db *DB) (t *RefreshTokenDao, err error) {
+	t = &RefreshTokenDao{}
+	t.logger = log.TypedLogger(t)
+	t.db = db
+
+	return t, nil
+}
+
+func (dao *RefreshTokenDao) Insert(ctx context.Context, tx *wrap.Tx, e *RefreshToken, onDuplicatedKeyUpdate bool) (result *wrap.Result, err error) {
+	query := bytes.NewBufferString("")
+	query.WriteString("INSERT INTO refresh_token (user_id,refresh_token) VALUES (?,?)")
+	if onDuplicatedKeyUpdate {
+		query.WriteString(" ON DUPLICATED KEY UPDATE ")
 	}
+	params := []interface{}{e.UserId, e.RefreshToken}
+	return dao.db.Exec(ctx, tx, query.String(), params...)
 }
 
-func (dao *RefreshTokenDao) GetQuery() *RefreshTokenQuery {
-	return NewRefreshTokenQuery(dao)
+func (dao *RefreshTokenDao) BatchInsert(ctx context.Context, tx *wrap.Tx, list []*RefreshToken, onDuplicatedKeyUpdate bool) (result *wrap.Result, err error) {
+	query := bytes.NewBufferString("")
+	query.WriteString("INSERT INTO refresh_token (user_id,refresh_token) VALUES ")
+	query.WriteString(wrap.RepeatWithSeparator("(?,?)", len(list), ","))
+	if onDuplicatedKeyUpdate {
+		query.WriteString(" ON DUPLICATED KEY UPDATE ")
+	}
+	params := make([]interface{}, len(list)*2)
+	offset := 0
+	for _, e := range list {
+		params[offset+0] = e.UserId
+		params[offset+1] = e.RefreshToken
+		offset += 2
+	}
+
+	return dao.db.Exec(ctx, tx, query.String(), params...)
 }
 
-func (dao *RefreshTokenDao) GetUpdate() *RefreshTokenUpdate {
-	return NewRefreshTokenUpdate(dao)
+func (dao *RefreshTokenDao) DeleteById(ctx context.Context, tx *wrap.Tx, id uint64) (result *wrap.Result, err error) {
+	query := "DELETE FROM RefreshToken WHERE id=?"
+	return dao.db.Exec(ctx, tx, query, id)
 }
 
-const SMS_CODE_TABLE_NAME = "sms_code"
+func (dao *RefreshTokenDao) UpdateById(ctx context.Context, tx *wrap.Tx, e *RefreshToken) (result *wrap.Result, err error) {
+	query := "UPDATE refresh_token SET user_id=?,refresh_token=? WHERE id=?"
+	params := []interface{}{e.UserId, e.RefreshToken, e.Id}
+	return dao.db.Exec(ctx, tx, query, params...)
+}
 
-type SMS_CODE_FIELD string
-
-const SMS_CODE_FIELD_ID = SMS_CODE_FIELD("id")
-const SMS_CODE_FIELD_SMS_SCENE = SMS_CODE_FIELD("sms_scene")
-const SMS_CODE_FIELD_PHONE_ENCRYPTED = SMS_CODE_FIELD("phone_encrypted")
-const SMS_CODE_FIELD_SMS_CODE = SMS_CODE_FIELD("sms_code")
-const SMS_CODE_FIELD_USER_ID = SMS_CODE_FIELD("user_id")
-const SMS_CODE_FIELD_CREATE_TIME = SMS_CODE_FIELD("create_time")
-const SMS_CODE_FIELD_UPDATE_TIME = SMS_CODE_FIELD("update_time")
-
-const SMS_CODE_ALL_FIELDS_STRING = "id,sms_scene,phone_encrypted,sms_code,user_id,create_time,update_time"
+func (dao *RefreshTokenDao) SelectById(ctx context.Context, tx *wrap.Tx, id int64) (e *RefreshToken, err error) {
+	query := "SELECT id,user_id,refresh_token,create_time,update_time FROM refresh_token WHERE id=?"
+	row := dao.db.QueryRow(ctx, tx, query, id)
+	e = &RefreshToken{}
+	err = row.Scan(&e.Id, &e.UserId, &e.RefreshToken, &e.CreateTime, &e.UpdateTime)
+	if err == wrap.ErrNoRows {
+		return nil, nil
+	}
+	return e, err
+}
 
 type SmsCode struct {
 	Id             uint64 //size=20
@@ -2491,31 +3018,315 @@ type SmsCode struct {
 }
 
 type SmsCodeQuery struct {
-	BaseQuery
+	QueryBase
 	dao *SmsCodeDao
 }
 
-func NewSmsCodeQuery(dao *SmsCodeDao) *SmsCodeQuery {
+func (dao *SmsCodeDao) Query() *SmsCodeQuery {
 	q := &SmsCodeQuery{}
 	q.dao = dao
-
+	q.where = bytes.NewBufferString("")
 	return q
 }
 
-func (q *SmsCodeQuery) QueryOne(ctx context.Context, tx *wrap.Tx) (*SmsCode, error) {
-	return q.dao.QueryOne(ctx, tx, q.buildQueryString())
+func (q *SmsCodeQuery) Left() *SmsCodeQuery {
+	q.where.WriteString(" (")
+	return q
 }
 
-func (q *SmsCodeQuery) QueryList(ctx context.Context, tx *wrap.Tx) (list []*SmsCode, err error) {
-	return q.dao.QueryList(ctx, tx, q.buildQueryString())
+func (q *SmsCodeQuery) Right() *SmsCodeQuery {
+	q.where.WriteString(" )")
+	return q
 }
 
-func (q *SmsCodeQuery) QueryCount(ctx context.Context, tx *wrap.Tx) (count int64, err error) {
-	return q.dao.QueryCount(ctx, tx, q.buildQueryString())
+func (q *SmsCodeQuery) And() *SmsCodeQuery {
+	q.where.WriteString(" AND")
+	return q
 }
 
-func (q *SmsCodeQuery) QueryGroupBy(ctx context.Context, tx *wrap.Tx) (rows *wrap.Rows, err error) {
-	return q.dao.QueryGroupBy(ctx, tx, q.groupByFields, q.buildQueryString())
+func (q *SmsCodeQuery) Or() *SmsCodeQuery {
+	q.where.WriteString(" OR")
+	return q
+}
+
+func (q *SmsCodeQuery) Not() *SmsCodeQuery {
+	q.where.WriteString(" NOT")
+	return q
+}
+
+func (q *SmsCodeQuery) IdEqual(v uint64) *SmsCodeQuery {
+	q.where.WriteString(" id=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *SmsCodeQuery) IdNotEqual(v uint64) *SmsCodeQuery {
+	q.where.WriteString(" id<>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *SmsCodeQuery) IdLess(v uint64) *SmsCodeQuery {
+	q.where.WriteString(" id<?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *SmsCodeQuery) IdLessEqual(v uint64) *SmsCodeQuery {
+	q.where.WriteString(" id<=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *SmsCodeQuery) IdGreater(v uint64) *SmsCodeQuery {
+	q.where.WriteString(" id>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *SmsCodeQuery) IdGreaterEqual(v uint64) *SmsCodeQuery {
+	q.where.WriteString(" id>=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *SmsCodeQuery) IdIn(items []uint64) *SmsCodeQuery {
+	q.where.WriteString(" id IN(")
+	q.where.WriteString(wrap.RepeatWithSeparator("?", len(items), ","))
+	q.where.WriteString(")")
+	q.whereParams = append(q.whereParams, items)
+	return q
+}
+
+func (q *SmsCodeQuery) SmsSceneEqual(v string) *SmsCodeQuery {
+	q.where.WriteString(" sms_scene=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *SmsCodeQuery) SmsSceneNotEqual(v string) *SmsCodeQuery {
+	q.where.WriteString(" sms_scene<>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *SmsCodeQuery) SmsSceneIn(items []string) *SmsCodeQuery {
+	q.where.WriteString(" sms_scene IN(")
+	q.where.WriteString(wrap.RepeatWithSeparator("?", len(items), ","))
+	q.where.WriteString(")")
+	q.whereParams = append(q.whereParams, items)
+	return q
+}
+
+func (q *SmsCodeQuery) PhoneEncryptedEqual(v string) *SmsCodeQuery {
+	q.where.WriteString(" phone_encrypted=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *SmsCodeQuery) PhoneEncryptedNotEqual(v string) *SmsCodeQuery {
+	q.where.WriteString(" phone_encrypted<>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *SmsCodeQuery) PhoneEncryptedIn(items []string) *SmsCodeQuery {
+	q.where.WriteString(" phone_encrypted IN(")
+	q.where.WriteString(wrap.RepeatWithSeparator("?", len(items), ","))
+	q.where.WriteString(")")
+	q.whereParams = append(q.whereParams, items)
+	return q
+}
+
+func (q *SmsCodeQuery) SmsCodeEqual(v string) *SmsCodeQuery {
+	q.where.WriteString(" sms_code=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *SmsCodeQuery) SmsCodeNotEqual(v string) *SmsCodeQuery {
+	q.where.WriteString(" sms_code<>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *SmsCodeQuery) SmsCodeIn(items []string) *SmsCodeQuery {
+	q.where.WriteString(" sms_code IN(")
+	q.where.WriteString(wrap.RepeatWithSeparator("?", len(items), ","))
+	q.where.WriteString(")")
+	q.whereParams = append(q.whereParams, items)
+	return q
+}
+
+func (q *SmsCodeQuery) UserIdEqual(v string) *SmsCodeQuery {
+	q.where.WriteString(" user_id=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *SmsCodeQuery) UserIdNotEqual(v string) *SmsCodeQuery {
+	q.where.WriteString(" user_id<>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *SmsCodeQuery) UserIdIn(items []string) *SmsCodeQuery {
+	q.where.WriteString(" user_id IN(")
+	q.where.WriteString(wrap.RepeatWithSeparator("?", len(items), ","))
+	q.where.WriteString(")")
+	q.whereParams = append(q.whereParams, items)
+	return q
+}
+
+func (q *SmsCodeQuery) CreateTimeEqual(v time.Time) *SmsCodeQuery {
+	q.where.WriteString(" create_time=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *SmsCodeQuery) CreateTimeNotEqual(v time.Time) *SmsCodeQuery {
+	q.where.WriteString(" create_time<>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *SmsCodeQuery) CreateTimeLess(v time.Time) *SmsCodeQuery {
+	q.where.WriteString(" create_time<?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *SmsCodeQuery) CreateTimeLessEqual(v time.Time) *SmsCodeQuery {
+	q.where.WriteString(" create_time<=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *SmsCodeQuery) CreateTimeGreater(v time.Time) *SmsCodeQuery {
+	q.where.WriteString(" create_time>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *SmsCodeQuery) CreateTimeGreaterEqual(v time.Time) *SmsCodeQuery {
+	q.where.WriteString(" create_time>=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *SmsCodeQuery) UpdateTimeEqual(v time.Time) *SmsCodeQuery {
+	q.where.WriteString(" update_time=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *SmsCodeQuery) UpdateTimeNotEqual(v time.Time) *SmsCodeQuery {
+	q.where.WriteString(" update_time<>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *SmsCodeQuery) UpdateTimeLess(v time.Time) *SmsCodeQuery {
+	q.where.WriteString(" update_time<?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *SmsCodeQuery) UpdateTimeLessEqual(v time.Time) *SmsCodeQuery {
+	q.where.WriteString(" update_time<=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *SmsCodeQuery) UpdateTimeGreater(v time.Time) *SmsCodeQuery {
+	q.where.WriteString(" update_time>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *SmsCodeQuery) UpdateTimeGreaterEqual(v time.Time) *SmsCodeQuery {
+	q.where.WriteString(" update_time>=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *SmsCodeQuery) GroupBySmsScene(asc bool) *SmsCodeQuery {
+	q.groupByFields = append(q.groupByFields, "sms_scene")
+	q.groupByOrders = append(q.groupByOrders, asc)
+	return q
+}
+
+func (q *SmsCodeQuery) GroupByPhoneEncrypted(asc bool) *SmsCodeQuery {
+	q.groupByFields = append(q.groupByFields, "phone_encrypted")
+	q.groupByOrders = append(q.groupByOrders, asc)
+	return q
+}
+
+func (q *SmsCodeQuery) GroupBySmsCode(asc bool) *SmsCodeQuery {
+	q.groupByFields = append(q.groupByFields, "sms_code")
+	q.groupByOrders = append(q.groupByOrders, asc)
+	return q
+}
+
+func (q *SmsCodeQuery) GroupByUserId(asc bool) *SmsCodeQuery {
+	q.groupByFields = append(q.groupByFields, "user_id")
+	q.groupByOrders = append(q.groupByOrders, asc)
+	return q
+}
+
+func (q *SmsCodeQuery) OrderById(asc bool) *SmsCodeQuery {
+	q.orderByFields = append(q.orderByFields, "id")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *SmsCodeQuery) OrderBySmsScene(asc bool) *SmsCodeQuery {
+	q.orderByFields = append(q.orderByFields, "sms_scene")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *SmsCodeQuery) OrderByPhoneEncrypted(asc bool) *SmsCodeQuery {
+	q.orderByFields = append(q.orderByFields, "phone_encrypted")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *SmsCodeQuery) OrderBySmsCode(asc bool) *SmsCodeQuery {
+	q.orderByFields = append(q.orderByFields, "sms_code")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *SmsCodeQuery) OrderByUserId(asc bool) *SmsCodeQuery {
+	q.orderByFields = append(q.orderByFields, "user_id")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *SmsCodeQuery) OrderByCreateTime(asc bool) *SmsCodeQuery {
+	q.orderByFields = append(q.orderByFields, "create_time")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *SmsCodeQuery) OrderByUpdateTime(asc bool) *SmsCodeQuery {
+	q.orderByFields = append(q.orderByFields, "update_time")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *SmsCodeQuery) OrderByGroupCount(asc bool) *SmsCodeQuery {
+	q.orderByFields = append(q.orderByFields, "count(*)")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *SmsCodeQuery) Limit(startIncluded int64, count int64) *SmsCodeQuery {
+	q.hasLimit = true
+	q.limitStartIncluded = startIncluded
+	q.limitCount = count
+	return q
 }
 
 func (q *SmsCodeQuery) ForUpdate() *SmsCodeQuery {
@@ -2528,261 +3339,35 @@ func (q *SmsCodeQuery) ForShare() *SmsCodeQuery {
 	return q
 }
 
-func (q *SmsCodeQuery) GroupBy(fields ...SMS_CODE_FIELD) *SmsCodeQuery {
-	q.groupByFields = make([]string, len(fields))
-	for i, v := range fields {
-		q.groupByFields[i] = string(v)
-	}
-	return q
-}
-
-func (q *SmsCodeQuery) Limit(startIncluded int64, count int64) *SmsCodeQuery {
-	q.setLimit(startIncluded, count)
-	return q
-}
-
-func (q *SmsCodeQuery) OrderBy(fieldName SMS_CODE_FIELD, asc bool) *SmsCodeQuery {
-	q.orderBy(string(fieldName), asc)
-	return q
-}
-
-func (q *SmsCodeQuery) OrderByGroupCount(asc bool) *SmsCodeQuery {
-	q.orderByGroupCount(asc)
-	return q
-}
-
-func (q *SmsCodeQuery) w(format string, a ...interface{}) *SmsCodeQuery {
-	q.setWhere(format, a...)
-	return q
-}
-
-func (q *SmsCodeQuery) Left() *SmsCodeQuery  { return q.w(" ( ") }
-func (q *SmsCodeQuery) Right() *SmsCodeQuery { return q.w(" ) ") }
-func (q *SmsCodeQuery) And() *SmsCodeQuery   { return q.w(" AND ") }
-func (q *SmsCodeQuery) Or() *SmsCodeQuery    { return q.w(" OR ") }
-func (q *SmsCodeQuery) Not() *SmsCodeQuery   { return q.w(" NOT ") }
-
-func (q *SmsCodeQuery) Id_Equal(v uint64) *SmsCodeQuery     { return q.w("id='" + fmt.Sprint(v) + "'") }
-func (q *SmsCodeQuery) Id_NotEqual(v uint64) *SmsCodeQuery  { return q.w("id<>'" + fmt.Sprint(v) + "'") }
-func (q *SmsCodeQuery) Id_Less(v uint64) *SmsCodeQuery      { return q.w("id<'" + fmt.Sprint(v) + "'") }
-func (q *SmsCodeQuery) Id_LessEqual(v uint64) *SmsCodeQuery { return q.w("id<='" + fmt.Sprint(v) + "'") }
-func (q *SmsCodeQuery) Id_Greater(v uint64) *SmsCodeQuery   { return q.w("id>'" + fmt.Sprint(v) + "'") }
-func (q *SmsCodeQuery) Id_GreaterEqual(v uint64) *SmsCodeQuery {
-	return q.w("id>='" + fmt.Sprint(v) + "'")
-}
-func (q *SmsCodeQuery) SmsScene_Equal(v string) *SmsCodeQuery {
-	return q.w("sms_scene='" + fmt.Sprint(v) + "'")
-}
-func (q *SmsCodeQuery) SmsScene_NotEqual(v string) *SmsCodeQuery {
-	return q.w("sms_scene<>'" + fmt.Sprint(v) + "'")
-}
-func (q *SmsCodeQuery) PhoneEncrypted_Equal(v string) *SmsCodeQuery {
-	return q.w("phone_encrypted='" + fmt.Sprint(v) + "'")
-}
-func (q *SmsCodeQuery) PhoneEncrypted_NotEqual(v string) *SmsCodeQuery {
-	return q.w("phone_encrypted<>'" + fmt.Sprint(v) + "'")
-}
-func (q *SmsCodeQuery) SmsCode_Equal(v string) *SmsCodeQuery {
-	return q.w("sms_code='" + fmt.Sprint(v) + "'")
-}
-func (q *SmsCodeQuery) SmsCode_NotEqual(v string) *SmsCodeQuery {
-	return q.w("sms_code<>'" + fmt.Sprint(v) + "'")
-}
-func (q *SmsCodeQuery) UserId_Equal(v string) *SmsCodeQuery {
-	return q.w("user_id='" + fmt.Sprint(v) + "'")
-}
-func (q *SmsCodeQuery) UserId_NotEqual(v string) *SmsCodeQuery {
-	return q.w("user_id<>'" + fmt.Sprint(v) + "'")
-}
-func (q *SmsCodeQuery) CreateTime_Equal(v time.Time) *SmsCodeQuery {
-	return q.w("create_time='" + fmt.Sprint(v) + "'")
-}
-func (q *SmsCodeQuery) CreateTime_NotEqual(v time.Time) *SmsCodeQuery {
-	return q.w("create_time<>'" + fmt.Sprint(v) + "'")
-}
-func (q *SmsCodeQuery) CreateTime_Less(v time.Time) *SmsCodeQuery {
-	return q.w("create_time<'" + fmt.Sprint(v) + "'")
-}
-func (q *SmsCodeQuery) CreateTime_LessEqual(v time.Time) *SmsCodeQuery {
-	return q.w("create_time<='" + fmt.Sprint(v) + "'")
-}
-func (q *SmsCodeQuery) CreateTime_Greater(v time.Time) *SmsCodeQuery {
-	return q.w("create_time>'" + fmt.Sprint(v) + "'")
-}
-func (q *SmsCodeQuery) CreateTime_GreaterEqual(v time.Time) *SmsCodeQuery {
-	return q.w("create_time>='" + fmt.Sprint(v) + "'")
-}
-func (q *SmsCodeQuery) UpdateTime_Equal(v time.Time) *SmsCodeQuery {
-	return q.w("update_time='" + fmt.Sprint(v) + "'")
-}
-func (q *SmsCodeQuery) UpdateTime_NotEqual(v time.Time) *SmsCodeQuery {
-	return q.w("update_time<>'" + fmt.Sprint(v) + "'")
-}
-func (q *SmsCodeQuery) UpdateTime_Less(v time.Time) *SmsCodeQuery {
-	return q.w("update_time<'" + fmt.Sprint(v) + "'")
-}
-func (q *SmsCodeQuery) UpdateTime_LessEqual(v time.Time) *SmsCodeQuery {
-	return q.w("update_time<='" + fmt.Sprint(v) + "'")
-}
-func (q *SmsCodeQuery) UpdateTime_Greater(v time.Time) *SmsCodeQuery {
-	return q.w("update_time>'" + fmt.Sprint(v) + "'")
-}
-func (q *SmsCodeQuery) UpdateTime_GreaterEqual(v time.Time) *SmsCodeQuery {
-	return q.w("update_time>='" + fmt.Sprint(v) + "'")
-}
-
-type SmsCodeUpdate struct {
-	dao    *SmsCodeDao
-	keys   []string
-	values []interface{}
-}
-
-func NewSmsCodeUpdate(dao *SmsCodeDao) *SmsCodeUpdate {
-	q := &SmsCodeUpdate{}
-	q.dao = dao
-	q.keys = make([]string, 0)
-	q.values = make([]interface{}, 0)
-
-	return q
-}
-
-func (u *SmsCodeUpdate) Update(ctx context.Context, tx *wrap.Tx, id uint64) (err error) {
-	if len(u.keys) == 0 {
-		err = fmt.Errorf("SmsCodeUpdate没有设置更新字段")
-		u.dao.logger.Error("SmsCodeUpdate", zap.Error(err))
-		return err
-	}
-	s := "UPDATE sms_code SET " + strings.Join(u.keys, ",") + " WHERE id=?"
-	v := append(u.values, id)
-	if tx == nil {
-		_, err = u.dao.db.Exec(ctx, s, v...)
-	} else {
-		_, err = tx.Exec(ctx, s, v)
+func (q *SmsCodeQuery) Select(ctx context.Context, tx *wrap.Tx) (e *SmsCode, err error) {
+	if !q.hasLimit {
+		q.limitCount = 1
+		q.hasLimit = true
 	}
 
-	if err != nil {
-		return err
+	queryString, params := q.buildSelectQuery()
+	query := bytes.NewBufferString("")
+	query.WriteString("SELECT id,sms_scene,phone_encrypted,sms_code,user_id,create_time,update_time FROM sms_code ")
+	query.WriteString(queryString)
+	e = &SmsCode{}
+	row := q.dao.db.QueryRow(ctx, tx, query.String(), params...)
+	err = row.Scan(&e.Id, &e.SmsScene, &e.PhoneEncrypted, &e.SmsCode, &e.UserId, &e.CreateTime, &e.UpdateTime)
+	if err == wrap.ErrNoRows {
+		return nil, nil
 	}
 
-	return nil
+	return e, err
 }
 
-func (u *SmsCodeUpdate) SmsScene(v string) *SmsCodeUpdate {
-	u.keys = append(u.keys, "sms_scene=?")
-	u.values = append(u.values, v)
-	return u
-}
-
-func (u *SmsCodeUpdate) PhoneEncrypted(v string) *SmsCodeUpdate {
-	u.keys = append(u.keys, "phone_encrypted=?")
-	u.values = append(u.values, v)
-	return u
-}
-
-func (u *SmsCodeUpdate) SmsCode(v string) *SmsCodeUpdate {
-	u.keys = append(u.keys, "sms_code=?")
-	u.values = append(u.values, v)
-	return u
-}
-
-func (u *SmsCodeUpdate) UserId(v string) *SmsCodeUpdate {
-	u.keys = append(u.keys, "user_id=?")
-	u.values = append(u.values, v)
-	return u
-}
-
-type SmsCodeDao struct {
-	logger     *zap.Logger
-	db         *DB
-	insertStmt *wrap.Stmt
-	deleteStmt *wrap.Stmt
-}
-
-func NewSmsCodeDao(db *DB) (t *SmsCodeDao, err error) {
-	t = &SmsCodeDao{}
-	t.logger = log.TypedLogger(t)
-	t.db = db
-	err = t.init()
+func (q *SmsCodeQuery) SelectList(ctx context.Context, tx *wrap.Tx) (list []*SmsCode, err error) {
+	queryString, params := q.buildSelectQuery()
+	query := bytes.NewBufferString("")
+	query.WriteString("SELECT id,sms_scene,phone_encrypted,sms_code,user_id,create_time,update_time FROM sms_code ")
+	query.WriteString(queryString)
+	rows, err := q.dao.db.Query(ctx, tx, query.String(), params...)
 	if err != nil {
 		return nil, err
 	}
-
-	return t, nil
-}
-
-func (dao *SmsCodeDao) init() (err error) {
-	err = dao.prepareInsertStmt()
-	if err != nil {
-		return err
-	}
-
-	err = dao.prepareDeleteStmt()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (dao *SmsCodeDao) prepareInsertStmt() (err error) {
-	dao.insertStmt, err = dao.db.Prepare(context.Background(), "INSERT INTO sms_code (sms_scene,phone_encrypted,sms_code,user_id) VALUES (?,?,?,?)")
-	return err
-}
-
-func (dao *SmsCodeDao) prepareDeleteStmt() (err error) {
-	dao.deleteStmt, err = dao.db.Prepare(context.Background(), "DELETE FROM sms_code WHERE id=?")
-	return err
-}
-
-func (dao *SmsCodeDao) Insert(ctx context.Context, tx *wrap.Tx, e *SmsCode) (id int64, err error) {
-	stmt := dao.insertStmt
-	if tx != nil {
-		stmt = tx.Stmt(ctx, stmt)
-	}
-
-	result, err := stmt.Exec(ctx, e.SmsScene, e.PhoneEncrypted, e.SmsCode, e.UserId)
-	if err != nil {
-		return 0, err
-	}
-
-	id, err = result.LastInsertId()
-	if err != nil {
-		return 0, err
-	}
-
-	return id, nil
-}
-
-func (dao *SmsCodeDao) Delete(ctx context.Context, tx *wrap.Tx, id uint64) (err error) {
-	stmt := dao.deleteStmt
-	if tx != nil {
-		stmt = tx.Stmt(ctx, stmt)
-	}
-
-	_, err = stmt.Exec(ctx, id)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (dao *SmsCodeDao) scanRow(row *wrap.Row) (*SmsCode, error) {
-	e := &SmsCode{}
-	err := row.Scan(&e.Id, &e.SmsScene, &e.PhoneEncrypted, &e.SmsCode, &e.UserId, &e.CreateTime, &e.UpdateTime)
-	if err != nil {
-		if err == wrap.ErrNoRows {
-			return nil, nil
-		} else {
-			return nil, err
-		}
-	}
-
-	return e, nil
-}
-
-func (dao *SmsCodeDao) scanRows(rows *wrap.Rows) (list []*SmsCode, err error) {
-	list = make([]*SmsCode, 0)
 	for rows.Next() {
 		e := SmsCode{}
 		err = rows.Scan(&e.Id, &e.SmsScene, &e.PhoneEncrypted, &e.SmsCode, &e.UserId, &e.CreateTime, &e.UpdateTime)
@@ -2799,119 +3384,447 @@ func (dao *SmsCodeDao) scanRows(rows *wrap.Rows) (list []*SmsCode, err error) {
 	return list, nil
 }
 
-func (dao *SmsCodeDao) QueryOne(ctx context.Context, tx *wrap.Tx, query string) (*SmsCode, error) {
-	querySql := "SELECT " + SMS_CODE_ALL_FIELDS_STRING + " FROM sms_code " + query
-	var row *wrap.Row
-	if tx == nil {
-		row = dao.db.QueryRow(ctx, querySql)
-	} else {
-		row = tx.QueryRow(ctx, querySql)
-	}
-	return dao.scanRow(row)
-}
-
-func (dao *SmsCodeDao) QueryList(ctx context.Context, tx *wrap.Tx, query string) (list []*SmsCode, err error) {
-	querySql := "SELECT " + SMS_CODE_ALL_FIELDS_STRING + " FROM sms_code " + query
-	var rows *wrap.Rows
-	if tx == nil {
-		rows, err = dao.db.Query(ctx, querySql)
-	} else {
-		rows, err = tx.Query(ctx, querySql)
-	}
-	if err != nil {
-		dao.logger.Error("sqlDriver", zap.Error(err))
-		return nil, err
-	}
-
-	return dao.scanRows(rows)
-}
-
-func (dao *SmsCodeDao) QueryCount(ctx context.Context, tx *wrap.Tx, query string) (count int64, err error) {
-	querySql := "SELECT COUNT(1) FROM sms_code " + query
-	var row *wrap.Row
-	if tx == nil {
-		row = dao.db.QueryRow(ctx, querySql)
-	} else {
-		row = tx.QueryRow(ctx, querySql)
-	}
-	if err != nil {
-		dao.logger.Error("sqlDriver", zap.Error(err))
-		return 0, err
-	}
-
+func (q *SmsCodeQuery) SelectCount(ctx context.Context, tx *wrap.Tx) (count int64, err error) {
+	queryString, params := q.buildSelectQuery()
+	query := bytes.NewBufferString("")
+	query.WriteString("SELECT COUNT(*) FROM sms_code ")
+	query.WriteString(queryString)
+	row := q.dao.db.QueryRow(ctx, tx, query.String(), params...)
 	err = row.Scan(&count)
-	if err != nil {
-		return 0, err
+
+	return count, err
+}
+
+func (q *SmsCodeQuery) SelectGroupBy(ctx context.Context, tx *wrap.Tx, withCount bool) (rows *wrap.Rows, err error) {
+	queryString, params := q.buildSelectQuery()
+	query := bytes.NewBufferString("")
+	query.WriteString("SELECT ")
+	query.WriteString(strings.Join(q.groupByFields, ","))
+	if withCount {
+		query.WriteString(",Count(*) ")
 	}
+	query.WriteString(" FROM sms_code ")
+	query.WriteString(queryString)
 
-	return count, nil
+	return q.dao.db.Query(ctx, tx, query.String(), params...)
 }
 
-func (dao *SmsCodeDao) QueryGroupBy(ctx context.Context, tx *wrap.Tx, groupByFields []string, query string) (rows *wrap.Rows, err error) {
-	querySql := "SELECT " + strings.Join(groupByFields, ",") + ",count(1) FROM sms_code " + query
-	if tx == nil {
-		return dao.db.Query(ctx, querySql)
-	} else {
-		return tx.Query(ctx, querySql)
-	}
-}
-
-func (dao *SmsCodeDao) GetQuery() *SmsCodeQuery {
-	return NewSmsCodeQuery(dao)
-}
-
-func (dao *SmsCodeDao) GetUpdate() *SmsCodeUpdate {
-	return NewSmsCodeUpdate(dao)
-}
-
-const USER_INFO_TABLE_NAME = "user_info"
-
-type USER_INFO_FIELD string
-
-const USER_INFO_FIELD_ID = USER_INFO_FIELD("id")
-const USER_INFO_FIELD_USER_ID = USER_INFO_FIELD("user_id")
-const USER_INFO_FIELD_USER_NAME = USER_INFO_FIELD("user_name")
-const USER_INFO_FIELD_USER_ICON = USER_INFO_FIELD("user_icon")
-const USER_INFO_FIELD_CREATE_TIME = USER_INFO_FIELD("create_time")
-const USER_INFO_FIELD_UPDATE_TIME = USER_INFO_FIELD("update_time")
-
-const USER_INFO_ALL_FIELDS_STRING = "id,user_id,user_name,user_icon,create_time,update_time"
-
-type UserInfo struct {
-	Id         uint64 //size=20
-	UserId     string //size=32
-	UserName   string //size=32
-	UserIcon   string //size=256
-	CreateTime time.Time
-	UpdateTime time.Time
-}
-
-type UserInfoQuery struct {
-	BaseQuery
-	dao *UserInfoDao
-}
-
-func NewUserInfoQuery(dao *UserInfoDao) *UserInfoQuery {
-	q := &UserInfoQuery{}
-	q.dao = dao
-
+func (q *SmsCodeQuery) SetSmsScene(v string) *SmsCodeQuery {
+	q.updateFields = append(q.updateFields, "sms_scene")
+	q.updateParams = append(q.updateParams, v)
 	return q
 }
 
-func (q *UserInfoQuery) QueryOne(ctx context.Context, tx *wrap.Tx) (*UserInfo, error) {
-	return q.dao.QueryOne(ctx, tx, q.buildQueryString())
+func (q *SmsCodeQuery) SetPhoneEncrypted(v string) *SmsCodeQuery {
+	q.updateFields = append(q.updateFields, "phone_encrypted")
+	q.updateParams = append(q.updateParams, v)
+	return q
 }
 
-func (q *UserInfoQuery) QueryList(ctx context.Context, tx *wrap.Tx) (list []*UserInfo, err error) {
-	return q.dao.QueryList(ctx, tx, q.buildQueryString())
+func (q *SmsCodeQuery) SetSmsCode(v string) *SmsCodeQuery {
+	q.updateFields = append(q.updateFields, "sms_code")
+	q.updateParams = append(q.updateParams, v)
+	return q
 }
 
-func (q *UserInfoQuery) QueryCount(ctx context.Context, tx *wrap.Tx) (count int64, err error) {
-	return q.dao.QueryCount(ctx, tx, q.buildQueryString())
+func (q *SmsCodeQuery) SetUserId(v string) *SmsCodeQuery {
+	q.updateFields = append(q.updateFields, "user_id")
+	q.updateParams = append(q.updateParams, v)
+	return q
 }
 
-func (q *UserInfoQuery) QueryGroupBy(ctx context.Context, tx *wrap.Tx) (rows *wrap.Rows, err error) {
-	return q.dao.QueryGroupBy(ctx, tx, q.groupByFields, q.buildQueryString())
+func (q *SmsCodeQuery) Update(ctx context.Context, tx *wrap.Tx) (result *wrap.Result, err error) {
+	query := bytes.NewBufferString("")
+	var params []interface{}
+	params = append(params, q.updateParams)
+	query.WriteString("UPDATE sms_code SET ")
+	updateItems := make([]string, len(q.updateFields))
+	for i, v := range q.updateFields {
+		updateItems[i] = v + "=?"
+	}
+	query.WriteString(strings.Join(updateItems, ","))
+	where := q.where.String()
+	if where != "" {
+		query.WriteString(" WHERE ")
+		query.WriteString(where)
+		params = append(params, q.whereParams)
+	}
+
+	return q.dao.db.Exec(ctx, tx, query.String(), params...)
+}
+
+func (q *SmsCodeQuery) Delete(ctx context.Context, tx *wrap.Tx) (result *wrap.Result, err error) {
+	query := "DELETE FROM sms_code WHERE " + q.where.String()
+	return q.dao.db.Exec(ctx, tx, query, q.whereParams...)
+}
+
+type SmsCodeDao struct {
+	logger *zap.Logger
+	db     *DB
+}
+
+func NewSmsCodeDao(db *DB) (t *SmsCodeDao, err error) {
+	t = &SmsCodeDao{}
+	t.logger = log.TypedLogger(t)
+	t.db = db
+
+	return t, nil
+}
+
+func (dao *SmsCodeDao) Insert(ctx context.Context, tx *wrap.Tx, e *SmsCode) (result *wrap.Result, err error) {
+	query := bytes.NewBufferString("")
+	query.WriteString("INSERT INTO sms_code (sms_scene,phone_encrypted,sms_code,user_id) VALUES (?,?,?,?)")
+	params := []interface{}{e.SmsScene, e.PhoneEncrypted, e.SmsCode, e.UserId}
+	return dao.db.Exec(ctx, tx, query.String(), params...)
+}
+
+func (dao *SmsCodeDao) BatchInsert(ctx context.Context, tx *wrap.Tx, list []*SmsCode) (result *wrap.Result, err error) {
+	query := bytes.NewBufferString("")
+	query.WriteString("INSERT INTO sms_code (sms_scene,phone_encrypted,sms_code,user_id) VALUES ")
+	query.WriteString(wrap.RepeatWithSeparator("(?,?,?,?)", len(list), ","))
+	params := make([]interface{}, len(list)*4)
+	offset := 0
+	for _, e := range list {
+		params[offset+0] = e.SmsScene
+		params[offset+1] = e.PhoneEncrypted
+		params[offset+2] = e.SmsCode
+		params[offset+3] = e.UserId
+		offset += 4
+	}
+
+	return dao.db.Exec(ctx, tx, query.String(), params...)
+}
+
+func (dao *SmsCodeDao) DeleteById(ctx context.Context, tx *wrap.Tx, id uint64) (result *wrap.Result, err error) {
+	query := "DELETE FROM SmsCode WHERE id=?"
+	return dao.db.Exec(ctx, tx, query, id)
+}
+
+func (dao *SmsCodeDao) UpdateById(ctx context.Context, tx *wrap.Tx, e *SmsCode) (result *wrap.Result, err error) {
+	query := "UPDATE sms_code SET sms_scene=?,phone_encrypted=?,sms_code=?,user_id=? WHERE id=?"
+	params := []interface{}{e.SmsScene, e.PhoneEncrypted, e.SmsCode, e.UserId, e.Id}
+	return dao.db.Exec(ctx, tx, query, params...)
+}
+
+func (dao *SmsCodeDao) SelectById(ctx context.Context, tx *wrap.Tx, id int64) (e *SmsCode, err error) {
+	query := "SELECT id,sms_scene,phone_encrypted,sms_code,user_id,create_time,update_time FROM sms_code WHERE id=?"
+	row := dao.db.QueryRow(ctx, tx, query, id)
+	e = &SmsCode{}
+	err = row.Scan(&e.Id, &e.SmsScene, &e.PhoneEncrypted, &e.SmsCode, &e.UserId, &e.CreateTime, &e.UpdateTime)
+	if err == wrap.ErrNoRows {
+		return nil, nil
+	}
+	return e, err
+}
+
+type UserInfo struct {
+	Id           uint64 //size=20
+	UserId       string //size=32
+	UserName     string //size=32
+	UserIcon     string //size=256
+	PasswordHash string //size=1024
+	CreateTime   time.Time
+	UpdateTime   time.Time
+}
+
+type UserInfoQuery struct {
+	QueryBase
+	dao *UserInfoDao
+}
+
+func (dao *UserInfoDao) Query() *UserInfoQuery {
+	q := &UserInfoQuery{}
+	q.dao = dao
+	q.where = bytes.NewBufferString("")
+	return q
+}
+
+func (q *UserInfoQuery) Left() *UserInfoQuery {
+	q.where.WriteString(" (")
+	return q
+}
+
+func (q *UserInfoQuery) Right() *UserInfoQuery {
+	q.where.WriteString(" )")
+	return q
+}
+
+func (q *UserInfoQuery) And() *UserInfoQuery {
+	q.where.WriteString(" AND")
+	return q
+}
+
+func (q *UserInfoQuery) Or() *UserInfoQuery {
+	q.where.WriteString(" OR")
+	return q
+}
+
+func (q *UserInfoQuery) Not() *UserInfoQuery {
+	q.where.WriteString(" NOT")
+	return q
+}
+
+func (q *UserInfoQuery) IdEqual(v uint64) *UserInfoQuery {
+	q.where.WriteString(" id=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *UserInfoQuery) IdNotEqual(v uint64) *UserInfoQuery {
+	q.where.WriteString(" id<>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *UserInfoQuery) IdLess(v uint64) *UserInfoQuery {
+	q.where.WriteString(" id<?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *UserInfoQuery) IdLessEqual(v uint64) *UserInfoQuery {
+	q.where.WriteString(" id<=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *UserInfoQuery) IdGreater(v uint64) *UserInfoQuery {
+	q.where.WriteString(" id>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *UserInfoQuery) IdGreaterEqual(v uint64) *UserInfoQuery {
+	q.where.WriteString(" id>=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *UserInfoQuery) IdIn(items []uint64) *UserInfoQuery {
+	q.where.WriteString(" id IN(")
+	q.where.WriteString(wrap.RepeatWithSeparator("?", len(items), ","))
+	q.where.WriteString(")")
+	q.whereParams = append(q.whereParams, items)
+	return q
+}
+
+func (q *UserInfoQuery) UserIdEqual(v string) *UserInfoQuery {
+	q.where.WriteString(" user_id=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *UserInfoQuery) UserIdNotEqual(v string) *UserInfoQuery {
+	q.where.WriteString(" user_id<>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *UserInfoQuery) UserIdIn(items []string) *UserInfoQuery {
+	q.where.WriteString(" user_id IN(")
+	q.where.WriteString(wrap.RepeatWithSeparator("?", len(items), ","))
+	q.where.WriteString(")")
+	q.whereParams = append(q.whereParams, items)
+	return q
+}
+
+func (q *UserInfoQuery) UserNameEqual(v string) *UserInfoQuery {
+	q.where.WriteString(" user_name=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *UserInfoQuery) UserNameNotEqual(v string) *UserInfoQuery {
+	q.where.WriteString(" user_name<>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *UserInfoQuery) UserNameIn(items []string) *UserInfoQuery {
+	q.where.WriteString(" user_name IN(")
+	q.where.WriteString(wrap.RepeatWithSeparator("?", len(items), ","))
+	q.where.WriteString(")")
+	q.whereParams = append(q.whereParams, items)
+	return q
+}
+
+func (q *UserInfoQuery) UserIconEqual(v string) *UserInfoQuery {
+	q.where.WriteString(" user_icon=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *UserInfoQuery) UserIconNotEqual(v string) *UserInfoQuery {
+	q.where.WriteString(" user_icon<>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *UserInfoQuery) UserIconIn(items []string) *UserInfoQuery {
+	q.where.WriteString(" user_icon IN(")
+	q.where.WriteString(wrap.RepeatWithSeparator("?", len(items), ","))
+	q.where.WriteString(")")
+	q.whereParams = append(q.whereParams, items)
+	return q
+}
+
+func (q *UserInfoQuery) PasswordHashEqual(v string) *UserInfoQuery {
+	q.where.WriteString(" password_hash=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *UserInfoQuery) PasswordHashNotEqual(v string) *UserInfoQuery {
+	q.where.WriteString(" password_hash<>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *UserInfoQuery) PasswordHashIn(items []string) *UserInfoQuery {
+	q.where.WriteString(" password_hash IN(")
+	q.where.WriteString(wrap.RepeatWithSeparator("?", len(items), ","))
+	q.where.WriteString(")")
+	q.whereParams = append(q.whereParams, items)
+	return q
+}
+
+func (q *UserInfoQuery) CreateTimeEqual(v time.Time) *UserInfoQuery {
+	q.where.WriteString(" create_time=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *UserInfoQuery) CreateTimeNotEqual(v time.Time) *UserInfoQuery {
+	q.where.WriteString(" create_time<>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *UserInfoQuery) CreateTimeLess(v time.Time) *UserInfoQuery {
+	q.where.WriteString(" create_time<?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *UserInfoQuery) CreateTimeLessEqual(v time.Time) *UserInfoQuery {
+	q.where.WriteString(" create_time<=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *UserInfoQuery) CreateTimeGreater(v time.Time) *UserInfoQuery {
+	q.where.WriteString(" create_time>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *UserInfoQuery) CreateTimeGreaterEqual(v time.Time) *UserInfoQuery {
+	q.where.WriteString(" create_time>=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *UserInfoQuery) UpdateTimeEqual(v time.Time) *UserInfoQuery {
+	q.where.WriteString(" update_time=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *UserInfoQuery) UpdateTimeNotEqual(v time.Time) *UserInfoQuery {
+	q.where.WriteString(" update_time<>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *UserInfoQuery) UpdateTimeLess(v time.Time) *UserInfoQuery {
+	q.where.WriteString(" update_time<?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *UserInfoQuery) UpdateTimeLessEqual(v time.Time) *UserInfoQuery {
+	q.where.WriteString(" update_time<=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *UserInfoQuery) UpdateTimeGreater(v time.Time) *UserInfoQuery {
+	q.where.WriteString(" update_time>?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *UserInfoQuery) UpdateTimeGreaterEqual(v time.Time) *UserInfoQuery {
+	q.where.WriteString(" update_time>=?")
+	q.whereParams = append(q.whereParams, v)
+	return q
+}
+
+func (q *UserInfoQuery) GroupByUserIcon(asc bool) *UserInfoQuery {
+	q.groupByFields = append(q.groupByFields, "user_icon")
+	q.groupByOrders = append(q.groupByOrders, asc)
+	return q
+}
+
+func (q *UserInfoQuery) GroupByPasswordHash(asc bool) *UserInfoQuery {
+	q.groupByFields = append(q.groupByFields, "password_hash")
+	q.groupByOrders = append(q.groupByOrders, asc)
+	return q
+}
+
+func (q *UserInfoQuery) OrderById(asc bool) *UserInfoQuery {
+	q.orderByFields = append(q.orderByFields, "id")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *UserInfoQuery) OrderByUserId(asc bool) *UserInfoQuery {
+	q.orderByFields = append(q.orderByFields, "user_id")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *UserInfoQuery) OrderByUserName(asc bool) *UserInfoQuery {
+	q.orderByFields = append(q.orderByFields, "user_name")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *UserInfoQuery) OrderByUserIcon(asc bool) *UserInfoQuery {
+	q.orderByFields = append(q.orderByFields, "user_icon")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *UserInfoQuery) OrderByPasswordHash(asc bool) *UserInfoQuery {
+	q.orderByFields = append(q.orderByFields, "password_hash")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *UserInfoQuery) OrderByCreateTime(asc bool) *UserInfoQuery {
+	q.orderByFields = append(q.orderByFields, "create_time")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *UserInfoQuery) OrderByUpdateTime(asc bool) *UserInfoQuery {
+	q.orderByFields = append(q.orderByFields, "update_time")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *UserInfoQuery) OrderByGroupCount(asc bool) *UserInfoQuery {
+	q.orderByFields = append(q.orderByFields, "count(*)")
+	q.orderByOrders = append(q.orderByOrders, asc)
+	return q
+}
+
+func (q *UserInfoQuery) Limit(startIncluded int64, count int64) *UserInfoQuery {
+	q.hasLimit = true
+	q.limitStartIncluded = startIncluded
+	q.limitCount = count
+	return q
 }
 
 func (q *UserInfoQuery) ForUpdate() *UserInfoQuery {
@@ -2924,252 +3837,38 @@ func (q *UserInfoQuery) ForShare() *UserInfoQuery {
 	return q
 }
 
-func (q *UserInfoQuery) GroupBy(fields ...USER_INFO_FIELD) *UserInfoQuery {
-	q.groupByFields = make([]string, len(fields))
-	for i, v := range fields {
-		q.groupByFields[i] = string(v)
-	}
-	return q
-}
-
-func (q *UserInfoQuery) Limit(startIncluded int64, count int64) *UserInfoQuery {
-	q.setLimit(startIncluded, count)
-	return q
-}
-
-func (q *UserInfoQuery) OrderBy(fieldName USER_INFO_FIELD, asc bool) *UserInfoQuery {
-	q.orderBy(string(fieldName), asc)
-	return q
-}
-
-func (q *UserInfoQuery) OrderByGroupCount(asc bool) *UserInfoQuery {
-	q.orderByGroupCount(asc)
-	return q
-}
-
-func (q *UserInfoQuery) w(format string, a ...interface{}) *UserInfoQuery {
-	q.setWhere(format, a...)
-	return q
-}
-
-func (q *UserInfoQuery) Left() *UserInfoQuery  { return q.w(" ( ") }
-func (q *UserInfoQuery) Right() *UserInfoQuery { return q.w(" ) ") }
-func (q *UserInfoQuery) And() *UserInfoQuery   { return q.w(" AND ") }
-func (q *UserInfoQuery) Or() *UserInfoQuery    { return q.w(" OR ") }
-func (q *UserInfoQuery) Not() *UserInfoQuery   { return q.w(" NOT ") }
-
-func (q *UserInfoQuery) Id_Equal(v uint64) *UserInfoQuery     { return q.w("id='" + fmt.Sprint(v) + "'") }
-func (q *UserInfoQuery) Id_NotEqual(v uint64) *UserInfoQuery  { return q.w("id<>'" + fmt.Sprint(v) + "'") }
-func (q *UserInfoQuery) Id_Less(v uint64) *UserInfoQuery      { return q.w("id<'" + fmt.Sprint(v) + "'") }
-func (q *UserInfoQuery) Id_LessEqual(v uint64) *UserInfoQuery { return q.w("id<='" + fmt.Sprint(v) + "'") }
-func (q *UserInfoQuery) Id_Greater(v uint64) *UserInfoQuery   { return q.w("id>'" + fmt.Sprint(v) + "'") }
-func (q *UserInfoQuery) Id_GreaterEqual(v uint64) *UserInfoQuery {
-	return q.w("id>='" + fmt.Sprint(v) + "'")
-}
-func (q *UserInfoQuery) UserId_Equal(v string) *UserInfoQuery {
-	return q.w("user_id='" + fmt.Sprint(v) + "'")
-}
-func (q *UserInfoQuery) UserId_NotEqual(v string) *UserInfoQuery {
-	return q.w("user_id<>'" + fmt.Sprint(v) + "'")
-}
-func (q *UserInfoQuery) UserName_Equal(v string) *UserInfoQuery {
-	return q.w("user_name='" + fmt.Sprint(v) + "'")
-}
-func (q *UserInfoQuery) UserName_NotEqual(v string) *UserInfoQuery {
-	return q.w("user_name<>'" + fmt.Sprint(v) + "'")
-}
-func (q *UserInfoQuery) UserIcon_Equal(v string) *UserInfoQuery {
-	return q.w("user_icon='" + fmt.Sprint(v) + "'")
-}
-func (q *UserInfoQuery) UserIcon_NotEqual(v string) *UserInfoQuery {
-	return q.w("user_icon<>'" + fmt.Sprint(v) + "'")
-}
-func (q *UserInfoQuery) CreateTime_Equal(v time.Time) *UserInfoQuery {
-	return q.w("create_time='" + fmt.Sprint(v) + "'")
-}
-func (q *UserInfoQuery) CreateTime_NotEqual(v time.Time) *UserInfoQuery {
-	return q.w("create_time<>'" + fmt.Sprint(v) + "'")
-}
-func (q *UserInfoQuery) CreateTime_Less(v time.Time) *UserInfoQuery {
-	return q.w("create_time<'" + fmt.Sprint(v) + "'")
-}
-func (q *UserInfoQuery) CreateTime_LessEqual(v time.Time) *UserInfoQuery {
-	return q.w("create_time<='" + fmt.Sprint(v) + "'")
-}
-func (q *UserInfoQuery) CreateTime_Greater(v time.Time) *UserInfoQuery {
-	return q.w("create_time>'" + fmt.Sprint(v) + "'")
-}
-func (q *UserInfoQuery) CreateTime_GreaterEqual(v time.Time) *UserInfoQuery {
-	return q.w("create_time>='" + fmt.Sprint(v) + "'")
-}
-func (q *UserInfoQuery) UpdateTime_Equal(v time.Time) *UserInfoQuery {
-	return q.w("update_time='" + fmt.Sprint(v) + "'")
-}
-func (q *UserInfoQuery) UpdateTime_NotEqual(v time.Time) *UserInfoQuery {
-	return q.w("update_time<>'" + fmt.Sprint(v) + "'")
-}
-func (q *UserInfoQuery) UpdateTime_Less(v time.Time) *UserInfoQuery {
-	return q.w("update_time<'" + fmt.Sprint(v) + "'")
-}
-func (q *UserInfoQuery) UpdateTime_LessEqual(v time.Time) *UserInfoQuery {
-	return q.w("update_time<='" + fmt.Sprint(v) + "'")
-}
-func (q *UserInfoQuery) UpdateTime_Greater(v time.Time) *UserInfoQuery {
-	return q.w("update_time>'" + fmt.Sprint(v) + "'")
-}
-func (q *UserInfoQuery) UpdateTime_GreaterEqual(v time.Time) *UserInfoQuery {
-	return q.w("update_time>='" + fmt.Sprint(v) + "'")
-}
-
-type UserInfoUpdate struct {
-	dao    *UserInfoDao
-	keys   []string
-	values []interface{}
-}
-
-func NewUserInfoUpdate(dao *UserInfoDao) *UserInfoUpdate {
-	q := &UserInfoUpdate{}
-	q.dao = dao
-	q.keys = make([]string, 0)
-	q.values = make([]interface{}, 0)
-
-	return q
-}
-
-func (u *UserInfoUpdate) Update(ctx context.Context, tx *wrap.Tx, id uint64) (err error) {
-	if len(u.keys) == 0 {
-		err = fmt.Errorf("UserInfoUpdate没有设置更新字段")
-		u.dao.logger.Error("UserInfoUpdate", zap.Error(err))
-		return err
-	}
-	s := "UPDATE user_info SET " + strings.Join(u.keys, ",") + " WHERE id=?"
-	v := append(u.values, id)
-	if tx == nil {
-		_, err = u.dao.db.Exec(ctx, s, v...)
-	} else {
-		_, err = tx.Exec(ctx, s, v)
+func (q *UserInfoQuery) Select(ctx context.Context, tx *wrap.Tx) (e *UserInfo, err error) {
+	if !q.hasLimit {
+		q.limitCount = 1
+		q.hasLimit = true
 	}
 
-	if err != nil {
-		return err
+	queryString, params := q.buildSelectQuery()
+	query := bytes.NewBufferString("")
+	query.WriteString("SELECT id,user_id,user_name,user_icon,password_hash,create_time,update_time FROM user_info ")
+	query.WriteString(queryString)
+	e = &UserInfo{}
+	row := q.dao.db.QueryRow(ctx, tx, query.String(), params...)
+	err = row.Scan(&e.Id, &e.UserId, &e.UserName, &e.UserIcon, &e.PasswordHash, &e.CreateTime, &e.UpdateTime)
+	if err == wrap.ErrNoRows {
+		return nil, nil
 	}
 
-	return nil
+	return e, err
 }
 
-func (u *UserInfoUpdate) UserId(v string) *UserInfoUpdate {
-	u.keys = append(u.keys, "user_id=?")
-	u.values = append(u.values, v)
-	return u
-}
-
-func (u *UserInfoUpdate) UserName(v string) *UserInfoUpdate {
-	u.keys = append(u.keys, "user_name=?")
-	u.values = append(u.values, v)
-	return u
-}
-
-func (u *UserInfoUpdate) UserIcon(v string) *UserInfoUpdate {
-	u.keys = append(u.keys, "user_icon=?")
-	u.values = append(u.values, v)
-	return u
-}
-
-type UserInfoDao struct {
-	logger     *zap.Logger
-	db         *DB
-	insertStmt *wrap.Stmt
-	deleteStmt *wrap.Stmt
-}
-
-func NewUserInfoDao(db *DB) (t *UserInfoDao, err error) {
-	t = &UserInfoDao{}
-	t.logger = log.TypedLogger(t)
-	t.db = db
-	err = t.init()
+func (q *UserInfoQuery) SelectList(ctx context.Context, tx *wrap.Tx) (list []*UserInfo, err error) {
+	queryString, params := q.buildSelectQuery()
+	query := bytes.NewBufferString("")
+	query.WriteString("SELECT id,user_id,user_name,user_icon,password_hash,create_time,update_time FROM user_info ")
+	query.WriteString(queryString)
+	rows, err := q.dao.db.Query(ctx, tx, query.String(), params...)
 	if err != nil {
 		return nil, err
 	}
-
-	return t, nil
-}
-
-func (dao *UserInfoDao) init() (err error) {
-	err = dao.prepareInsertStmt()
-	if err != nil {
-		return err
-	}
-
-	err = dao.prepareDeleteStmt()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (dao *UserInfoDao) prepareInsertStmt() (err error) {
-	dao.insertStmt, err = dao.db.Prepare(context.Background(), "INSERT INTO user_info (user_id,user_name,user_icon) VALUES (?,?,?)")
-	return err
-}
-
-func (dao *UserInfoDao) prepareDeleteStmt() (err error) {
-	dao.deleteStmt, err = dao.db.Prepare(context.Background(), "DELETE FROM user_info WHERE id=?")
-	return err
-}
-
-func (dao *UserInfoDao) Insert(ctx context.Context, tx *wrap.Tx, e *UserInfo) (id int64, err error) {
-	stmt := dao.insertStmt
-	if tx != nil {
-		stmt = tx.Stmt(ctx, stmt)
-	}
-
-	result, err := stmt.Exec(ctx, e.UserId, e.UserName, e.UserIcon)
-	if err != nil {
-		return 0, err
-	}
-
-	id, err = result.LastInsertId()
-	if err != nil {
-		return 0, err
-	}
-
-	return id, nil
-}
-
-func (dao *UserInfoDao) Delete(ctx context.Context, tx *wrap.Tx, id uint64) (err error) {
-	stmt := dao.deleteStmt
-	if tx != nil {
-		stmt = tx.Stmt(ctx, stmt)
-	}
-
-	_, err = stmt.Exec(ctx, id)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (dao *UserInfoDao) scanRow(row *wrap.Row) (*UserInfo, error) {
-	e := &UserInfo{}
-	err := row.Scan(&e.Id, &e.UserId, &e.UserName, &e.UserIcon, &e.CreateTime, &e.UpdateTime)
-	if err != nil {
-		if err == wrap.ErrNoRows {
-			return nil, nil
-		} else {
-			return nil, err
-		}
-	}
-
-	return e, nil
-}
-
-func (dao *UserInfoDao) scanRows(rows *wrap.Rows) (list []*UserInfo, err error) {
-	list = make([]*UserInfo, 0)
 	for rows.Next() {
 		e := UserInfo{}
-		err = rows.Scan(&e.Id, &e.UserId, &e.UserName, &e.UserIcon, &e.CreateTime, &e.UpdateTime)
+		err = rows.Scan(&e.Id, &e.UserId, &e.UserName, &e.UserIcon, &e.PasswordHash, &e.CreateTime, &e.UpdateTime)
 		if err != nil {
 			return nil, err
 		}
@@ -3183,69 +3882,143 @@ func (dao *UserInfoDao) scanRows(rows *wrap.Rows) (list []*UserInfo, err error) 
 	return list, nil
 }
 
-func (dao *UserInfoDao) QueryOne(ctx context.Context, tx *wrap.Tx, query string) (*UserInfo, error) {
-	querySql := "SELECT " + USER_INFO_ALL_FIELDS_STRING + " FROM user_info " + query
-	var row *wrap.Row
-	if tx == nil {
-		row = dao.db.QueryRow(ctx, querySql)
-	} else {
-		row = tx.QueryRow(ctx, querySql)
-	}
-	return dao.scanRow(row)
-}
-
-func (dao *UserInfoDao) QueryList(ctx context.Context, tx *wrap.Tx, query string) (list []*UserInfo, err error) {
-	querySql := "SELECT " + USER_INFO_ALL_FIELDS_STRING + " FROM user_info " + query
-	var rows *wrap.Rows
-	if tx == nil {
-		rows, err = dao.db.Query(ctx, querySql)
-	} else {
-		rows, err = tx.Query(ctx, querySql)
-	}
-	if err != nil {
-		dao.logger.Error("sqlDriver", zap.Error(err))
-		return nil, err
-	}
-
-	return dao.scanRows(rows)
-}
-
-func (dao *UserInfoDao) QueryCount(ctx context.Context, tx *wrap.Tx, query string) (count int64, err error) {
-	querySql := "SELECT COUNT(1) FROM user_info " + query
-	var row *wrap.Row
-	if tx == nil {
-		row = dao.db.QueryRow(ctx, querySql)
-	} else {
-		row = tx.QueryRow(ctx, querySql)
-	}
-	if err != nil {
-		dao.logger.Error("sqlDriver", zap.Error(err))
-		return 0, err
-	}
-
+func (q *UserInfoQuery) SelectCount(ctx context.Context, tx *wrap.Tx) (count int64, err error) {
+	queryString, params := q.buildSelectQuery()
+	query := bytes.NewBufferString("")
+	query.WriteString("SELECT COUNT(*) FROM user_info ")
+	query.WriteString(queryString)
+	row := q.dao.db.QueryRow(ctx, tx, query.String(), params...)
 	err = row.Scan(&count)
-	if err != nil {
-		return 0, err
+
+	return count, err
+}
+
+func (q *UserInfoQuery) SelectGroupBy(ctx context.Context, tx *wrap.Tx, withCount bool) (rows *wrap.Rows, err error) {
+	queryString, params := q.buildSelectQuery()
+	query := bytes.NewBufferString("")
+	query.WriteString("SELECT ")
+	query.WriteString(strings.Join(q.groupByFields, ","))
+	if withCount {
+		query.WriteString(",Count(*) ")
+	}
+	query.WriteString(" FROM user_info ")
+	query.WriteString(queryString)
+
+	return q.dao.db.Query(ctx, tx, query.String(), params...)
+}
+
+func (q *UserInfoQuery) SetUserId(v string) *UserInfoQuery {
+	q.updateFields = append(q.updateFields, "user_id")
+	q.updateParams = append(q.updateParams, v)
+	return q
+}
+
+func (q *UserInfoQuery) SetUserName(v string) *UserInfoQuery {
+	q.updateFields = append(q.updateFields, "user_name")
+	q.updateParams = append(q.updateParams, v)
+	return q
+}
+
+func (q *UserInfoQuery) SetUserIcon(v string) *UserInfoQuery {
+	q.updateFields = append(q.updateFields, "user_icon")
+	q.updateParams = append(q.updateParams, v)
+	return q
+}
+
+func (q *UserInfoQuery) SetPasswordHash(v string) *UserInfoQuery {
+	q.updateFields = append(q.updateFields, "password_hash")
+	q.updateParams = append(q.updateParams, v)
+	return q
+}
+
+func (q *UserInfoQuery) Update(ctx context.Context, tx *wrap.Tx) (result *wrap.Result, err error) {
+	query := bytes.NewBufferString("")
+	var params []interface{}
+	params = append(params, q.updateParams)
+	query.WriteString("UPDATE user_info SET ")
+	updateItems := make([]string, len(q.updateFields))
+	for i, v := range q.updateFields {
+		updateItems[i] = v + "=?"
+	}
+	query.WriteString(strings.Join(updateItems, ","))
+	where := q.where.String()
+	if where != "" {
+		query.WriteString(" WHERE ")
+		query.WriteString(where)
+		params = append(params, q.whereParams)
 	}
 
-	return count, nil
+	return q.dao.db.Exec(ctx, tx, query.String(), params...)
 }
 
-func (dao *UserInfoDao) QueryGroupBy(ctx context.Context, tx *wrap.Tx, groupByFields []string, query string) (rows *wrap.Rows, err error) {
-	querySql := "SELECT " + strings.Join(groupByFields, ",") + ",count(1) FROM user_info " + query
-	if tx == nil {
-		return dao.db.Query(ctx, querySql)
-	} else {
-		return tx.Query(ctx, querySql)
+func (q *UserInfoQuery) Delete(ctx context.Context, tx *wrap.Tx) (result *wrap.Result, err error) {
+	query := "DELETE FROM user_info WHERE " + q.where.String()
+	return q.dao.db.Exec(ctx, tx, query, q.whereParams...)
+}
+
+type UserInfoDao struct {
+	logger *zap.Logger
+	db     *DB
+}
+
+func NewUserInfoDao(db *DB) (t *UserInfoDao, err error) {
+	t = &UserInfoDao{}
+	t.logger = log.TypedLogger(t)
+	t.db = db
+
+	return t, nil
+}
+
+func (dao *UserInfoDao) Insert(ctx context.Context, tx *wrap.Tx, e *UserInfo, onDuplicatedKeyUpdate bool) (result *wrap.Result, err error) {
+	query := bytes.NewBufferString("")
+	query.WriteString("INSERT INTO user_info (user_id,user_name,user_icon,password_hash) VALUES (?,?,?,?)")
+	if onDuplicatedKeyUpdate {
+		query.WriteString(" ON DUPLICATED KEY UPDATE user_icon=VALUES(user_icon),password_hash=VALUES(password_hash)")
 	}
+	params := []interface{}{e.UserId, e.UserName, e.UserIcon, e.PasswordHash}
+	return dao.db.Exec(ctx, tx, query.String(), params...)
 }
 
-func (dao *UserInfoDao) GetQuery() *UserInfoQuery {
-	return NewUserInfoQuery(dao)
+func (dao *UserInfoDao) BatchInsert(ctx context.Context, tx *wrap.Tx, list []*UserInfo, onDuplicatedKeyUpdate bool) (result *wrap.Result, err error) {
+	query := bytes.NewBufferString("")
+	query.WriteString("INSERT INTO user_info (user_id,user_name,user_icon,password_hash) VALUES ")
+	query.WriteString(wrap.RepeatWithSeparator("(?,?,?,?)", len(list), ","))
+	if onDuplicatedKeyUpdate {
+		query.WriteString(" ON DUPLICATED KEY UPDATE user_icon=VALUES(user_icon),password_hash=VALUES(password_hash)")
+	}
+	params := make([]interface{}, len(list)*4)
+	offset := 0
+	for _, e := range list {
+		params[offset+0] = e.UserId
+		params[offset+1] = e.UserName
+		params[offset+2] = e.UserIcon
+		params[offset+3] = e.PasswordHash
+		offset += 4
+	}
+
+	return dao.db.Exec(ctx, tx, query.String(), params...)
 }
 
-func (dao *UserInfoDao) GetUpdate() *UserInfoUpdate {
-	return NewUserInfoUpdate(dao)
+func (dao *UserInfoDao) DeleteById(ctx context.Context, tx *wrap.Tx, id uint64) (result *wrap.Result, err error) {
+	query := "DELETE FROM UserInfo WHERE id=?"
+	return dao.db.Exec(ctx, tx, query, id)
+}
+
+func (dao *UserInfoDao) UpdateById(ctx context.Context, tx *wrap.Tx, e *UserInfo) (result *wrap.Result, err error) {
+	query := "UPDATE user_info SET user_id=?,user_name=?,user_icon=?,password_hash=? WHERE id=?"
+	params := []interface{}{e.UserId, e.UserName, e.UserIcon, e.PasswordHash, e.Id}
+	return dao.db.Exec(ctx, tx, query, params...)
+}
+
+func (dao *UserInfoDao) SelectById(ctx context.Context, tx *wrap.Tx, id int64) (e *UserInfo, err error) {
+	query := "SELECT id,user_id,user_name,user_icon,password_hash,create_time,update_time FROM user_info WHERE id=?"
+	row := dao.db.QueryRow(ctx, tx, query, id)
+	e = &UserInfo{}
+	err = row.Scan(&e.Id, &e.UserId, &e.UserName, &e.UserIcon, &e.PasswordHash, &e.CreateTime, &e.UpdateTime)
+	if err == wrap.ErrNoRows {
+		return nil, nil
+	}
+	return e, err
 }
 
 type DB struct {

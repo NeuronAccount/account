@@ -29,37 +29,6 @@
   "parameters": {
   },
   "paths": {
-    "/sendLoginSmsCode": {
-      "post": {
-        "summary": "",
-        "operationId": "SendLoginSmsCode",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "phone",
-            "type": "string",
-            "required": true
-          },
-          {
-            "in": "query",
-            "name": "captchaId",
-            "type": "string",
-            "required": true
-          },
-          {
-            "in": "query",
-            "name": "captchaCode",
-            "type": "string",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "ok"
-          }
-        }
-      }
-    },
     "/sendSmsCode": {
       "post": {
         "summary": "",
@@ -92,8 +61,41 @@
         ],
         "security": [
           {
+          },
+          {
             "Bearer": [
             ]
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        }
+      }
+    },
+    "/sendLoginSmsCode":{
+      "post": {
+        "summary": "",
+        "operationId": "SendLoginSmsCode",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "phone",
+            "type": "string",
+            "required": true
+          },
+          {
+            "in": "query",
+            "name": "captchaId",
+            "type": "string",
+            "required": true
+          },
+          {
+            "in": "query",
+            "name": "captchaCode",
+            "type": "string",
+            "required": true
           }
         ],
         "responses": {
@@ -131,22 +133,44 @@
         }
       }
     },
-    "/logout": {
+    "/phonePasswordLogin":{
       "post": {
         "summary": "",
-        "operationId": "Logout",
+        "operationId": "PhonePasswordLogin",
         "parameters": [
           {
             "in": "query",
-            "name": "accessToken",
+            "name": "phone",
             "type": "string",
             "required": true
           },
           {
             "in": "query",
-            "name": "refreshToken",
+            "name": "passwordHash1",
             "type": "string",
             "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/userToken"
+            }
+          }
+        }
+      }
+    },
+    "/logout": {
+      "post": {
+        "summary": "",
+        "operationId": "Logout",
+        "parameters": [
+        ],
+        "security": [
+          {
+            "Bearer": [
+            ]
           }
         ],
         "responses": {
@@ -224,6 +248,37 @@
             "schema": {
               "$ref": "#/definitions/userToken"
             }
+          }
+        }
+      }
+    },
+    "/resetPassword":{
+      "post": {
+        "summary": "",
+        "operationId": "ResetPassword",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "phone",
+            "type": "string",
+            "required": true
+          },
+          {
+            "in": "query",
+            "name": "smsCode",
+            "type": "string",
+            "required": true
+          },
+          {
+            "in": "query",
+            "name": "newPasswordHash1",
+            "type": "string",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ok"
           }
         }
       }
@@ -462,14 +517,6 @@
     }
   },
   "definitions": {
-    "smsScene": {
-      "type": "string",
-      "enum": [
-        "SMS_LOGIN",
-        "BIND_PHONE",
-        "UNBIND_PHONE"
-      ]
-    },
     "userToken": {
       "type": "object",
       "properties": {
@@ -561,14 +608,6 @@
         "userIcon"
       ]
     },
-    "operationType": {
-      "type": "string",
-      "enum": [
-        "SEND_SMS_CODE",
-        "SMS_LOGIN",
-        "LOGOUT"
-      ]
-    },
     "operation": {
       "type": "object",
       "properties": {
@@ -579,7 +618,7 @@
           "type": "string"
         },
         "operationType":{
-          "$ref": "#/definitions/operationType"
+          "type": "string"
         },
         "operationTime":{
           "type": "string",
@@ -592,7 +631,7 @@
           "type": "string"
         },
         "smsScene":{
-          "$ref": "#/definitions/smsScene"
+          "type": "string"
         }
       },
       "required": [

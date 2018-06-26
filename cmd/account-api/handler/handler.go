@@ -49,10 +49,10 @@ func (h *AccountHandler) BearerAuth(token string) (userId interface{}, err error
 	return claims.Subject, nil
 }
 
-func (h *AccountHandler) SendLoginSmsCode(p operations.SendLoginSmsCodeParams) middleware.Responder {
+func (h *AccountHandler) SendSmsCode(p operations.SendSmsCodeParams, userId interface{}) middleware.Responder {
 	err := h.service.SendSmsCode(rest.NewContext(p.HTTPRequest), &models.SendSmsCodeParams{
-		UserId:      "",
-		Scene:       models.SmsSceneSmsLogin,
+		UserId:      userId.(string),
+		Scene:       p.Scene,
 		Phone:       p.Phone,
 		CaptchaId:   p.CaptchaID,
 		CaptchaCode: p.CaptchaCode,
@@ -61,13 +61,13 @@ func (h *AccountHandler) SendLoginSmsCode(p operations.SendLoginSmsCodeParams) m
 		return errors.Wrap(err)
 	}
 
-	return operations.NewSendLoginSmsCodeOK()
+	return operations.NewSendSmsCodeOK()
 }
 
-func (h *AccountHandler) SendSmsCode(p operations.SendSmsCodeParams, userId interface{}) middleware.Responder {
+func (h *AccountHandler) SendLoginSmsCode(p operations.SendLoginSmsCodeParams) middleware.Responder {
 	err := h.service.SendSmsCode(rest.NewContext(p.HTTPRequest), &models.SendSmsCodeParams{
-		UserId:      userId.(string),
-		Scene:       models.SmsScene(p.Scene),
+		UserId:      "",
+		Scene:       models.SmsSceneSmsLogin,
 		Phone:       p.Phone,
 		CaptchaId:   p.CaptchaID,
 		CaptchaCode: p.CaptchaCode,
@@ -88,8 +88,17 @@ func (h *AccountHandler) SmsLogin(p operations.SmsLoginParams) middleware.Respon
 	return operations.NewSmsLoginOK().WithPayload(fromUserToken(userToken))
 }
 
-func (h *AccountHandler) Logout(p operations.LogoutParams) middleware.Responder {
-	err := h.service.Logout(rest.NewContext(p.HTTPRequest), p.AccessToken, p.RefreshToken)
+func (h *AccountHandler) PhonePasswordLogin(p operations.PhonePasswordLoginParams) middleware.Responder {
+	userToken, err := h.service.PhonePasswordLogin(rest.NewContext(p.HTTPRequest), p.Phone, p.PasswordHash1)
+	if err != nil {
+		return errors.Wrap(err)
+	}
+
+	return operations.NewPhonePasswordLoginOK().WithPayload(fromUserToken(userToken))
+}
+
+func (h *AccountHandler) Logout(p operations.LogoutParams, userId interface{}) middleware.Responder {
+	err := h.service.Logout(rest.NewContext(p.HTTPRequest), userId.(string))
 	if err != nil {
 		return errors.Wrap(err)
 	}
@@ -129,6 +138,15 @@ func (h *AccountHandler) OauthJump(p operations.OauthJumpParams) middleware.Resp
 	}
 
 	return operations.NewOauthJumpOK().WithPayload(fromUserToken(userToken))
+}
+
+func (h *AccountHandler) ResetPassword(p operations.ResetPasswordParams) middleware.Responder {
+	err := h.service.ResetPassword(rest.NewContext(p.HTTPRequest), p.Phone, p.SmsCode, p.NewPasswordHash1)
+	if err != nil {
+		return errors.Wrap(err)
+	}
+
+	return operations.NewResetPasswordOK()
 }
 
 func (h *AccountHandler) GetUserInfo(p operations.GetUserInfoParams, userId interface{}) middleware.Responder {

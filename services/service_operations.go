@@ -21,9 +21,9 @@ func (s *AccountService) addOperation(ctx *rest.Context, operation *models.Accou
 }
 
 func (s *AccountService) GetOperationList(ctx *rest.Context, userId string, query *models.OperationQuery) (items []*models.AccountOperation, nextPageToken string, err error) {
-	q := s.accountDB.AccountOperation.GetQuery()
+	q := s.accountDB.AccountOperation.Query()
 	if query.OperationType != "" {
-		q.OperationType_Equal(query.OperationType)
+		q.OperationTypeEqual(query.OperationType)
 	}
 	pageToken := int64(0)
 	pageSize := int64(40)
@@ -37,8 +37,8 @@ func (s *AccountService) GetOperationList(ctx *rest.Context, userId string, quer
 	if query.PageSize > 0 {
 		pageSize = int64(query.PageSize)
 	}
-	q.Limit(pageToken, pageSize)
-	dbOperationList, err := q.QueryList(ctx, nil)
+
+	dbOperationList, err := q.Limit(pageToken, pageSize).SelectList(ctx, nil)
 	if err != nil {
 		return nil, "", err
 	}

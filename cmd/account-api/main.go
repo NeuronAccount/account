@@ -23,13 +23,15 @@ func main() {
 
 		api := operations.NewAccountAPI(swaggerSpec)
 		api.BearerAuth = h.BearerAuth
-		api.SendLoginSmsCodeHandler = operations.SendLoginSmsCodeHandlerFunc(h.SendLoginSmsCode)
 		api.SendSmsCodeHandler = operations.SendSmsCodeHandlerFunc(h.SendSmsCode)
+		api.SendLoginSmsCodeHandler = operations.SendLoginSmsCodeHandlerFunc(h.SendLoginSmsCode)
 		api.SmsLoginHandler = operations.SmsLoginHandlerFunc(h.SmsLogin)
+		api.PhonePasswordLoginHandler = operations.PhonePasswordLoginHandlerFunc(h.PhonePasswordLogin)
 		api.LogoutHandler = operations.LogoutHandlerFunc(h.Logout)
 		api.RefreshTokenHandler = operations.RefreshTokenHandlerFunc(h.RefreshToken)
 		api.OauthStateHandler = operations.OauthStateHandlerFunc(h.OauthState)
 		api.OauthJumpHandler = operations.OauthJumpHandlerFunc(h.OauthJump)
+		api.ResetPasswordHandler = operations.ResetPasswordHandlerFunc(h.ResetPassword)
 		api.GetUserInfoHandler = operations.GetUserInfoHandlerFunc(h.GetUserInfo)
 		api.SetUserNameHandler = operations.SetUserNameHandlerFunc(h.SetUserName)
 		api.SetUserIconHandler = operations.SetUserIconHandlerFunc(h.SetUserIcon)

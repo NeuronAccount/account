@@ -16,12 +16,11 @@ func (s *AccountService) SendSmsCode(ctx *rest.Context, p *models.SendSmsCodePar
 	}
 
 	smsCode := rand.NextNumberFixedLength(models.SmsCodeLength)
-	_, err = s.smsService.SendSms(p.Phone, smsCode, "")
-	if err != nil {
-		return err
-	}
-
 	smsCode = "1234"
+	//_, err = s.smsService.SendSms(p.Phone, smsCode, "")
+	//if err != nil {
+	//	return err
+	//}
 
 	dbSmsCode := &neuron_account_db.SmsCode{}
 	dbSmsCode.SmsScene = string(p.Scene)
@@ -44,17 +43,16 @@ func (s *AccountService) SendSmsCode(ctx *rest.Context, p *models.SendSmsCodePar
 
 func (s *AccountService) validateSmsCode(
 	ctx *rest.Context,
-	scene models.SmsScene,
+	scene string,
 	phoneEncrypted string,
 	smsCode string,
 	userId string) (
 	err error) {
-	dbSmsCode, err := s.accountDB.SmsCode.GetQuery().
-		SmsScene_Equal(string(scene)).
-		And().PhoneEncrypted_Equal(phoneEncrypted).
-		And().UserId_Equal(userId).
-		OrderBy(neuron_account_db.SMS_CODE_FIELD_ID, false).
-		QueryOne(ctx, nil)
+	dbSmsCode, err := s.accountDB.SmsCode.Query().
+		SmsSceneEqual(string(scene)).
+		And().PhoneEncryptedEqual(phoneEncrypted).
+		And().UserIdEqual(userId).
+		OrderById(false).Select(ctx, nil)
 	if err != nil {
 		return err
 	}

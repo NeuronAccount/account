@@ -3,34 +3,17 @@ package services
 import (
 	"github.com/NeuronAccount/account/models"
 	"github.com/NeuronFramework/rest"
-	"time"
 )
 
-//可重入
-func (s *AccountService) Logout(ctx *rest.Context, accessToken string, refreshToken string) (err error) {
-	dbRefreshToken, err := s.accountDB.RefreshToken.GetQuery().RefreshToken_Equal(refreshToken).QueryOne(ctx, nil)
-	if err != nil {
-		return err
-	}
-	if dbRefreshToken == nil {
-		return nil
-	}
-
-	if dbRefreshToken.IsLogout == 1 {
-		return nil
-	}
-
-	err = s.accountDB.RefreshToken.GetUpdate().
-		IsLogout(1).
-		LogoutTime(time.Now().UTC()).
-		Update(ctx, nil, dbRefreshToken.Id)
+func (s *AccountService) Logout(ctx *rest.Context, userId string) (err error) {
+	_, err = s.accountDB.RefreshToken.Query().UserIdEqual(userId).Delete(ctx, nil)
 	if err != nil {
 		return err
 	}
 
 	s.addOperation(ctx, &models.AccountOperation{
 		OperationType: models.OperationLogout,
-		UserId:        dbRefreshToken.UserId,
+		UserId:        userId,
 	})
 
 	return nil

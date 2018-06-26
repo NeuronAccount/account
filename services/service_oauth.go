@@ -13,3 +13,11 @@ func (s *AccountService) OauthJump(ctx *rest.Context, params *models.OauthJumpPa
 	userToken *models.UserToken, err error) {
 	return nil, nil
 }
+
+func (s *AccountService) BindOauthAccount(ctx *rest.Context, userId string) (err error) {
+	return nil
+}
+
+func (s *AccountService) UnbindOauthAccount(ctx *rest.Context, userId string) (err error) {
+	return nil
+}

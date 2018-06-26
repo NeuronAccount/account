@@ -86,3 +86,7 @@ func (s *AccountService) maskString(p string, nPrefix int, nSuffix int) (r strin
 
 	return p[0:nPrefix] + strings.Repeat("*", l-nPrefix-nSuffix) + p[l-nSuffix-1:l-1]
 }
+
+func (s *AccountService) calcPasswordHash(passwordHash1 string) (passwordHash2 string, err error) {
+	return passwordHash1, nil
+}

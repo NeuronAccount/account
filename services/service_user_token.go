@@ -30,7 +30,7 @@ func (s *AccountService) createAccessToken(ctx *rest.Context, userId string) (ac
 	dbAccessToken := &neuron_account_db.AccessToken{}
 	dbAccessToken.UserId = userId
 	dbAccessToken.AccessToken = accessToken
-	_, err = s.accountDB.AccessToken.Insert(ctx, nil, dbAccessToken, false)
+	_, err = s.accountDB.AccessToken.Query().Insert(ctx, nil, dbAccessToken)
 	if err != nil {
 		return "", err
 	}
@@ -69,7 +69,7 @@ func (s *AccountService) createRefreshToken(ctx *rest.Context, userId string) (r
 			dbRefreshToken := &neuron_account_db.RefreshToken{}
 			dbRefreshToken.UserId = userId
 			dbRefreshToken.RefreshToken = refreshToken
-			_, err = s.accountDB.RefreshToken.Insert(ctx, nil, dbRefreshToken, false)
+			_, err = s.accountDB.RefreshToken.Query().Insert(ctx, nil, dbRefreshToken)
 			if err != nil {
 				//UserId重复，到第一步直接更新
 				//RefreshToken重复，到第一步直接更新，影响行数为0继续插入

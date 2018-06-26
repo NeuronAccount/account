@@ -11,7 +11,7 @@ import (
 func (s *AccountService) addOperation(ctx *rest.Context, operation *models.AccountOperation) (err error) {
 	operation.UserAgent = ctx.UserAgent
 	dbOperation := toOperation(operation)
-	_, err = s.accountDB.AccountOperation.Insert(ctx, nil, dbOperation)
+	_, err = s.accountDB.AccountOperation.Query().Insert(ctx, nil, dbOperation)
 	if err != nil {
 		s.logger.Error("addOperation", zap.Error(err))
 		return err

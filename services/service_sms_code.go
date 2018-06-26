@@ -16,18 +16,17 @@ func (s *AccountService) SendSmsCode(ctx *rest.Context, p *models.SendSmsCodePar
 	}
 
 	smsCode := rand.NextNumberFixedLength(models.SmsCodeLength)
-	smsCode = "1234"
-	//_, err = s.smsService.SendSms(p.Phone, smsCode, "")
-	//if err != nil {
-	//	return err
-	//}
+	_, err = s.smsService.SendSms(p.Phone, smsCode, "")
+	if err != nil {
+		return err
+	}
 
 	dbSmsCode := &neuron_account_db.SmsCode{}
 	dbSmsCode.SmsScene = string(p.Scene)
 	dbSmsCode.PhoneEncrypted = phoneEncrypted
 	dbSmsCode.SmsCode = smsCode
 	dbSmsCode.UserId = p.UserId
-	_, err = s.accountDB.SmsCode.Insert(ctx, nil, dbSmsCode)
+	_, err = s.accountDB.SmsCode.Query().Insert(ctx, nil, dbSmsCode)
 	if err != nil {
 		return err
 	}

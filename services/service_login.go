@@ -40,7 +40,7 @@ func (s *AccountService) SmsLogin(ctx *rest.Context, phone string, smsCode strin
 			dbPhoneAccount = &neuron_account_db.PhoneAccount{}
 			dbPhoneAccount.PhoneEncrypted = phoneEncrypted
 			dbPhoneAccount.UserId = dbUserInfo.UserId
-			_, err = s.accountDB.PhoneAccount.Insert(ctx, tx, dbPhoneAccount, false)
+			_, err = s.accountDB.PhoneAccount.Query().Insert(ctx, tx, dbPhoneAccount)
 			if err != nil {
 				//手机号已被注册的情况不需要单独判断
 				//因为其UserID不太可能和新建的UserID相同，故直接返回错误

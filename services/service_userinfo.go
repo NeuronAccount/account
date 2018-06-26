@@ -19,7 +19,7 @@ func (s *AccountService) retryCreateUserInfo(ctx *rest.Context, tx *wrap.Tx, ret
 		dbUserInfo.UserName = "用户" + rand.NextNumberFixedLength(8)
 		dbUserInfo.UserIcon = ""
 		dbUserInfo.PasswordHash = ""
-		_, err = s.accountDB.UserInfo.Insert(ctx, tx, dbUserInfo, false)
+		_, err = s.accountDB.UserInfo.Query().Insert(ctx, tx, dbUserInfo)
 		if err == nil {
 			return dbUserInfo, nil
 		}

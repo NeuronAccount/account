@@ -64,7 +64,7 @@ func (s *AccountService) BindPhone(ctx *rest.Context, userId string, phone strin
 	dbPhoneAccount := &neuron_account_db.PhoneAccount{}
 	dbPhoneAccount.PhoneEncrypted = phoneEncrypted
 	dbPhoneAccount.UserId = userId
-	_, err = s.accountDB.PhoneAccount.Insert(ctx, nil, dbPhoneAccount, true)
+	_, err = s.accountDB.PhoneAccount.Query().Insert(ctx, nil, dbPhoneAccount)
 	if err != nil {
 		return err
 	}

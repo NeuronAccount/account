@@ -7,35 +7,20 @@ import (
 	"github.com/NeuronFramework/rand"
 	"github.com/NeuronFramework/rest"
 	"github.com/NeuronFramework/sql/wrap"
-	"go.uber.org/zap"
 )
 
-func (s *AccountService) retryCreateUserInfo(ctx *rest.Context, tx *wrap.Tx, retryCount int) (
-	userInfo *neuron_account_db.UserInfo, err error) {
-
-	for i := 0; i < retryCount; i++ {
-		dbUserInfo := &neuron_account_db.UserInfo{}
-		dbUserInfo.UserId = rand.NextHex(16)
-		dbUserInfo.UserName = "用户" + rand.NextNumberFixedLength(8)
-		dbUserInfo.UserIcon = ""
-		dbUserInfo.PasswordHash = ""
-		_, err = s.accountDB.UserInfo.Query().Insert(ctx, tx, dbUserInfo)
-		if err == nil {
-			return dbUserInfo, nil
-		}
-
-		if err == wrap.ErrDuplicated {
-			s.logger.Warn("retryCreateUserInfo",
-				zap.Int("retryCount", i),
-				zap.String("UserId", dbUserInfo.UserId),
-				zap.String("UserName", dbUserInfo.UserName))
-			continue
-		} else {
-			return nil, err
-		}
+func (s *AccountService) createUserInfo(ctx *rest.Context, tx *wrap.Tx) (userInfo *neuron_account_db.UserInfo, err error) {
+	dbUserInfo := &neuron_account_db.UserInfo{}
+	dbUserInfo.UserId = rand.NextHex(16)
+	dbUserInfo.UserName = "用户" + rand.NextNumberFixedLength(8)
+	dbUserInfo.UserIcon = ""
+	dbUserInfo.PasswordHash = ""
+	_, err = s.accountDB.UserInfo.Query().Insert(ctx, tx, dbUserInfo)
+	if err != nil {
+		return nil, err
 	}
 
-	return nil, errors.Unknown("服务器正忙，请稍后再试")
+	return dbUserInfo, nil
 }
 
 func (s *AccountService) GetUserInfo(ctx *rest.Context, userId string) (userInfo *models.UserInfo, err error) {

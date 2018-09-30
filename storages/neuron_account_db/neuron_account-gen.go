@@ -467,7 +467,7 @@ func (q *AccessTokenQuery) SelectGroupBy(ctx context.Context, tx *wrap.Tx, withC
 	query.WriteString("SELECT ")
 	query.WriteString(strings.Join(q.groupByFields, ","))
 	if withCount {
-		query.WriteString(",Count(*) ")
+		query.WriteString(",MachineListCount(*) ")
 	}
 	query.WriteString(" FROM access_token ")
 	query.WriteString(queryString)
@@ -502,21 +502,22 @@ func (q *AccessTokenQuery) SelectRows(ctx context.Context, tx *wrap.Tx) (rows *w
 
 func (q *AccessTokenQuery) Insert(ctx context.Context, tx *wrap.Tx, e *AccessToken) (result *wrap.Result, err error) {
 	query := bytes.NewBufferString("")
-	query.WriteString("INSERT INTO access_token (user_id,access_token) VALUES (?,?)")
-	params := []interface{}{e.UserId, e.AccessToken}
+	query.WriteString("INSERT INTO access_token (user_id,access_token,update_time) VALUES (?,?,?)")
+	params := []interface{}{e.UserId, e.AccessToken, time.Now()}
 	return q.dao.db.Exec(ctx, tx, query.String(), params...)
 }
 
 func (q *AccessTokenQuery) BatchInsert(ctx context.Context, tx *wrap.Tx, list []*AccessToken) (result *wrap.Result, err error) {
 	query := bytes.NewBufferString("")
-	query.WriteString("INSERT INTO access_token (user_id,access_token) VALUES ")
-	query.WriteString(wrap.RepeatWithSeparator("(?,?)", len(list), ","))
-	params := make([]interface{}, len(list)*2)
+	query.WriteString("INSERT INTO access_token (user_id,access_token,update_time) VALUES ")
+	query.WriteString(wrap.RepeatWithSeparator("(?,?,?)", len(list), ","))
+	params := make([]interface{}, len(list)*3)
 	offset := 0
 	for _, e := range list {
 		params[offset+0] = e.UserId
 		params[offset+1] = e.AccessToken
-		offset += 2
+		params[offset+2] = time.Now()
+		offset += 3
 	}
 
 	return q.dao.db.Exec(ctx, tx, query.String(), params...)
@@ -524,33 +525,34 @@ func (q *AccessTokenQuery) BatchInsert(ctx context.Context, tx *wrap.Tx, list []
 
 func (q *AccessTokenQuery) InsertOnDuplicatedKeyUpdate(ctx context.Context, tx *wrap.Tx, e *AccessToken) (result *wrap.Result, err error) {
 	query := bytes.NewBufferString("")
-	query.WriteString("INSERT INTO access_token (user_id,access_token) VALUES (?,?)")
+	query.WriteString("INSERT INTO access_token (user_id,access_token,update_time) VALUES (?,?,?)")
 	query.WriteString(" ON DUPLICATED KEY UPDATE ")
 	if len(q.duplicatedUpdateFields) > 0 {
 		query.WriteString(strings.Join(q.duplicatedUpdateFields, ","))
 		query.WriteString(",")
 	}
 	query.WriteString("update_time=now()")
-	params := []interface{}{e.UserId, e.AccessToken}
+	params := []interface{}{e.UserId, e.AccessToken, time.Now()}
 	return q.dao.db.Exec(ctx, tx, query.String(), params...)
 }
 
 func (q *AccessTokenQuery) BatchInsertOnDuplicatedKeyUpdate(ctx context.Context, tx *wrap.Tx, list []*AccessToken) (result *wrap.Result, err error) {
 	query := bytes.NewBufferString("")
-	query.WriteString("INSERT INTO access_token (user_id,access_token) VALUES ")
-	query.WriteString(wrap.RepeatWithSeparator("(?,?)", len(list), ","))
+	query.WriteString("INSERT INTO access_token (user_id,access_token,update_time) VALUES ")
+	query.WriteString(wrap.RepeatWithSeparator("(?,?,?)", len(list), ","))
 	query.WriteString(" ON DUPLICATED KEY UPDATE")
 	if len(q.duplicatedUpdateFields) > 0 {
 		query.WriteString(strings.Join(q.duplicatedUpdateFields, ","))
 		query.WriteString(",")
 	}
 	query.WriteString("update_time=now()")
-	params := make([]interface{}, len(list)*2)
+	params := make([]interface{}, len(list)*3)
 	offset := 0
 	for _, e := range list {
 		params[offset+0] = e.UserId
 		params[offset+1] = e.AccessToken
-		offset += 2
+		params[offset+2] = time.Now()
+		offset += 3
 	}
 
 	return q.dao.db.Exec(ctx, tx, query.String(), params...)
@@ -1131,7 +1133,7 @@ func (q *AccountOperationQuery) SelectGroupBy(ctx context.Context, tx *wrap.Tx, 
 	query.WriteString("SELECT ")
 	query.WriteString(strings.Join(q.groupByFields, ","))
 	if withCount {
-		query.WriteString(",Count(*) ")
+		query.WriteString(",MachineListCount(*) ")
 	}
 	query.WriteString(" FROM account_operation ")
 	query.WriteString(queryString)
@@ -1166,16 +1168,16 @@ func (q *AccountOperationQuery) SelectRows(ctx context.Context, tx *wrap.Tx) (ro
 
 func (q *AccountOperationQuery) Insert(ctx context.Context, tx *wrap.Tx, e *AccountOperation) (result *wrap.Result, err error) {
 	query := bytes.NewBufferString("")
-	query.WriteString("INSERT INTO account_operation (user_id,operationType,user_agent,phone_encrypted,sms_scene,other_user_id) VALUES (?,?,?,?,?,?)")
-	params := []interface{}{e.UserId, e.OperationType, e.UserAgent, e.PhoneEncrypted, e.SmsScene, e.OtherUserId}
+	query.WriteString("INSERT INTO account_operation (user_id,operationType,user_agent,phone_encrypted,sms_scene,other_user_id,update_time) VALUES (?,?,?,?,?,?,?)")
+	params := []interface{}{e.UserId, e.OperationType, e.UserAgent, e.PhoneEncrypted, e.SmsScene, e.OtherUserId, time.Now()}
 	return q.dao.db.Exec(ctx, tx, query.String(), params...)
 }
 
 func (q *AccountOperationQuery) BatchInsert(ctx context.Context, tx *wrap.Tx, list []*AccountOperation) (result *wrap.Result, err error) {
 	query := bytes.NewBufferString("")
-	query.WriteString("INSERT INTO account_operation (user_id,operationType,user_agent,phone_encrypted,sms_scene,other_user_id) VALUES ")
-	query.WriteString(wrap.RepeatWithSeparator("(?,?,?,?,?,?)", len(list), ","))
-	params := make([]interface{}, len(list)*6)
+	query.WriteString("INSERT INTO account_operation (user_id,operationType,user_agent,phone_encrypted,sms_scene,other_user_id,update_time) VALUES ")
+	query.WriteString(wrap.RepeatWithSeparator("(?,?,?,?,?,?,?)", len(list), ","))
+	params := make([]interface{}, len(list)*7)
 	offset := 0
 	for _, e := range list {
 		params[offset+0] = e.UserId
@@ -1184,7 +1186,8 @@ func (q *AccountOperationQuery) BatchInsert(ctx context.Context, tx *wrap.Tx, li
 		params[offset+3] = e.PhoneEncrypted
 		params[offset+4] = e.SmsScene
 		params[offset+5] = e.OtherUserId
-		offset += 6
+		params[offset+6] = time.Now()
+		offset += 7
 	}
 
 	return q.dao.db.Exec(ctx, tx, query.String(), params...)
@@ -1803,7 +1806,7 @@ func (q *OauthAccountQuery) SelectGroupBy(ctx context.Context, tx *wrap.Tx, with
 	query.WriteString("SELECT ")
 	query.WriteString(strings.Join(q.groupByFields, ","))
 	if withCount {
-		query.WriteString(",Count(*) ")
+		query.WriteString(",MachineListCount(*) ")
 	}
 	query.WriteString(" FROM oauth_account ")
 	query.WriteString(queryString)
@@ -1838,16 +1841,16 @@ func (q *OauthAccountQuery) SelectRows(ctx context.Context, tx *wrap.Tx) (rows *
 
 func (q *OauthAccountQuery) Insert(ctx context.Context, tx *wrap.Tx, e *OauthAccount) (result *wrap.Result, err error) {
 	query := bytes.NewBufferString("")
-	query.WriteString("INSERT INTO oauth_account (user_id,providerId,provider_name,open_id,user_name,user_icon) VALUES (?,?,?,?,?,?)")
-	params := []interface{}{e.UserId, e.ProviderId, e.ProviderName, e.OpenId, e.UserName, e.UserIcon}
+	query.WriteString("INSERT INTO oauth_account (user_id,providerId,provider_name,open_id,user_name,user_icon,update_time) VALUES (?,?,?,?,?,?,?)")
+	params := []interface{}{e.UserId, e.ProviderId, e.ProviderName, e.OpenId, e.UserName, e.UserIcon, time.Now()}
 	return q.dao.db.Exec(ctx, tx, query.String(), params...)
 }
 
 func (q *OauthAccountQuery) BatchInsert(ctx context.Context, tx *wrap.Tx, list []*OauthAccount) (result *wrap.Result, err error) {
 	query := bytes.NewBufferString("")
-	query.WriteString("INSERT INTO oauth_account (user_id,providerId,provider_name,open_id,user_name,user_icon) VALUES ")
-	query.WriteString(wrap.RepeatWithSeparator("(?,?,?,?,?,?)", len(list), ","))
-	params := make([]interface{}, len(list)*6)
+	query.WriteString("INSERT INTO oauth_account (user_id,providerId,provider_name,open_id,user_name,user_icon,update_time) VALUES ")
+	query.WriteString(wrap.RepeatWithSeparator("(?,?,?,?,?,?,?)", len(list), ","))
+	params := make([]interface{}, len(list)*7)
 	offset := 0
 	for _, e := range list {
 		params[offset+0] = e.UserId
@@ -1856,7 +1859,8 @@ func (q *OauthAccountQuery) BatchInsert(ctx context.Context, tx *wrap.Tx, list [
 		params[offset+3] = e.OpenId
 		params[offset+4] = e.UserName
 		params[offset+5] = e.UserIcon
-		offset += 6
+		params[offset+6] = time.Now()
+		offset += 7
 	}
 
 	return q.dao.db.Exec(ctx, tx, query.String(), params...)
@@ -1864,28 +1868,28 @@ func (q *OauthAccountQuery) BatchInsert(ctx context.Context, tx *wrap.Tx, list [
 
 func (q *OauthAccountQuery) InsertOnDuplicatedKeyUpdate(ctx context.Context, tx *wrap.Tx, e *OauthAccount) (result *wrap.Result, err error) {
 	query := bytes.NewBufferString("")
-	query.WriteString("INSERT INTO oauth_account (user_id,providerId,provider_name,open_id,user_name,user_icon) VALUES (?,?,?,?,?,?)")
+	query.WriteString("INSERT INTO oauth_account (user_id,providerId,provider_name,open_id,user_name,user_icon,update_time) VALUES (?,?,?,?,?,?,?)")
 	query.WriteString(" ON DUPLICATED KEY UPDATE ")
 	if len(q.duplicatedUpdateFields) > 0 {
 		query.WriteString(strings.Join(q.duplicatedUpdateFields, ","))
 		query.WriteString(",")
 	}
 	query.WriteString("update_time=now()")
-	params := []interface{}{e.UserId, e.ProviderId, e.ProviderName, e.OpenId, e.UserName, e.UserIcon}
+	params := []interface{}{e.UserId, e.ProviderId, e.ProviderName, e.OpenId, e.UserName, e.UserIcon, time.Now()}
 	return q.dao.db.Exec(ctx, tx, query.String(), params...)
 }
 
 func (q *OauthAccountQuery) BatchInsertOnDuplicatedKeyUpdate(ctx context.Context, tx *wrap.Tx, list []*OauthAccount) (result *wrap.Result, err error) {
 	query := bytes.NewBufferString("")
-	query.WriteString("INSERT INTO oauth_account (user_id,providerId,provider_name,open_id,user_name,user_icon) VALUES ")
-	query.WriteString(wrap.RepeatWithSeparator("(?,?,?,?,?,?)", len(list), ","))
+	query.WriteString("INSERT INTO oauth_account (user_id,providerId,provider_name,open_id,user_name,user_icon,update_time) VALUES ")
+	query.WriteString(wrap.RepeatWithSeparator("(?,?,?,?,?,?,?)", len(list), ","))
 	query.WriteString(" ON DUPLICATED KEY UPDATE")
 	if len(q.duplicatedUpdateFields) > 0 {
 		query.WriteString(strings.Join(q.duplicatedUpdateFields, ","))
 		query.WriteString(",")
 	}
 	query.WriteString("update_time=now()")
-	params := make([]interface{}, len(list)*6)
+	params := make([]interface{}, len(list)*7)
 	offset := 0
 	for _, e := range list {
 		params[offset+0] = e.UserId
@@ -1894,7 +1898,8 @@ func (q *OauthAccountQuery) BatchInsertOnDuplicatedKeyUpdate(ctx context.Context
 		params[offset+3] = e.OpenId
 		params[offset+4] = e.UserName
 		params[offset+5] = e.UserIcon
-		offset += 6
+		params[offset+6] = time.Now()
+		offset += 7
 	}
 
 	return q.dao.db.Exec(ctx, tx, query.String(), params...)
@@ -2389,7 +2394,7 @@ func (q *OauthStateQuery) SelectGroupBy(ctx context.Context, tx *wrap.Tx, withCo
 	query.WriteString("SELECT ")
 	query.WriteString(strings.Join(q.groupByFields, ","))
 	if withCount {
-		query.WriteString(",Count(*) ")
+		query.WriteString(",MachineListCount(*) ")
 	}
 	query.WriteString(" FROM oauth_state ")
 	query.WriteString(queryString)
@@ -2424,22 +2429,23 @@ func (q *OauthStateQuery) SelectRows(ctx context.Context, tx *wrap.Tx) (rows *wr
 
 func (q *OauthStateQuery) Insert(ctx context.Context, tx *wrap.Tx, e *OauthState) (result *wrap.Result, err error) {
 	query := bytes.NewBufferString("")
-	query.WriteString("INSERT INTO oauth_state (oauth_state,is_used,user_agent) VALUES (?,?,?)")
-	params := []interface{}{e.OauthState, e.IsUsed, e.UserAgent}
+	query.WriteString("INSERT INTO oauth_state (oauth_state,is_used,user_agent,update_time) VALUES (?,?,?,?)")
+	params := []interface{}{e.OauthState, e.IsUsed, e.UserAgent, time.Now()}
 	return q.dao.db.Exec(ctx, tx, query.String(), params...)
 }
 
 func (q *OauthStateQuery) BatchInsert(ctx context.Context, tx *wrap.Tx, list []*OauthState) (result *wrap.Result, err error) {
 	query := bytes.NewBufferString("")
-	query.WriteString("INSERT INTO oauth_state (oauth_state,is_used,user_agent) VALUES ")
-	query.WriteString(wrap.RepeatWithSeparator("(?,?,?)", len(list), ","))
-	params := make([]interface{}, len(list)*3)
+	query.WriteString("INSERT INTO oauth_state (oauth_state,is_used,user_agent,update_time) VALUES ")
+	query.WriteString(wrap.RepeatWithSeparator("(?,?,?,?)", len(list), ","))
+	params := make([]interface{}, len(list)*4)
 	offset := 0
 	for _, e := range list {
 		params[offset+0] = e.OauthState
 		params[offset+1] = e.IsUsed
 		params[offset+2] = e.UserAgent
-		offset += 3
+		params[offset+3] = time.Now()
+		offset += 4
 	}
 
 	return q.dao.db.Exec(ctx, tx, query.String(), params...)
@@ -2447,34 +2453,35 @@ func (q *OauthStateQuery) BatchInsert(ctx context.Context, tx *wrap.Tx, list []*
 
 func (q *OauthStateQuery) InsertOnDuplicatedKeyUpdate(ctx context.Context, tx *wrap.Tx, e *OauthState) (result *wrap.Result, err error) {
 	query := bytes.NewBufferString("")
-	query.WriteString("INSERT INTO oauth_state (oauth_state,is_used,user_agent) VALUES (?,?,?)")
+	query.WriteString("INSERT INTO oauth_state (oauth_state,is_used,user_agent,update_time) VALUES (?,?,?,?)")
 	query.WriteString(" ON DUPLICATED KEY UPDATE ")
 	if len(q.duplicatedUpdateFields) > 0 {
 		query.WriteString(strings.Join(q.duplicatedUpdateFields, ","))
 		query.WriteString(",")
 	}
 	query.WriteString("update_time=now()")
-	params := []interface{}{e.OauthState, e.IsUsed, e.UserAgent}
+	params := []interface{}{e.OauthState, e.IsUsed, e.UserAgent, time.Now()}
 	return q.dao.db.Exec(ctx, tx, query.String(), params...)
 }
 
 func (q *OauthStateQuery) BatchInsertOnDuplicatedKeyUpdate(ctx context.Context, tx *wrap.Tx, list []*OauthState) (result *wrap.Result, err error) {
 	query := bytes.NewBufferString("")
-	query.WriteString("INSERT INTO oauth_state (oauth_state,is_used,user_agent) VALUES ")
-	query.WriteString(wrap.RepeatWithSeparator("(?,?,?)", len(list), ","))
+	query.WriteString("INSERT INTO oauth_state (oauth_state,is_used,user_agent,update_time) VALUES ")
+	query.WriteString(wrap.RepeatWithSeparator("(?,?,?,?)", len(list), ","))
 	query.WriteString(" ON DUPLICATED KEY UPDATE")
 	if len(q.duplicatedUpdateFields) > 0 {
 		query.WriteString(strings.Join(q.duplicatedUpdateFields, ","))
 		query.WriteString(",")
 	}
 	query.WriteString("update_time=now()")
-	params := make([]interface{}, len(list)*3)
+	params := make([]interface{}, len(list)*4)
 	offset := 0
 	for _, e := range list {
 		params[offset+0] = e.OauthState
 		params[offset+1] = e.IsUsed
 		params[offset+2] = e.UserAgent
-		offset += 3
+		params[offset+3] = time.Now()
+		offset += 4
 	}
 
 	return q.dao.db.Exec(ctx, tx, query.String(), params...)
@@ -2896,7 +2903,7 @@ func (q *PhoneAccountQuery) SelectGroupBy(ctx context.Context, tx *wrap.Tx, with
 	query.WriteString("SELECT ")
 	query.WriteString(strings.Join(q.groupByFields, ","))
 	if withCount {
-		query.WriteString(",Count(*) ")
+		query.WriteString(",MachineListCount(*) ")
 	}
 	query.WriteString(" FROM phone_account ")
 	query.WriteString(queryString)
@@ -2931,21 +2938,22 @@ func (q *PhoneAccountQuery) SelectRows(ctx context.Context, tx *wrap.Tx) (rows *
 
 func (q *PhoneAccountQuery) Insert(ctx context.Context, tx *wrap.Tx, e *PhoneAccount) (result *wrap.Result, err error) {
 	query := bytes.NewBufferString("")
-	query.WriteString("INSERT INTO phone_account (user_id,phone_encrypted) VALUES (?,?)")
-	params := []interface{}{e.UserId, e.PhoneEncrypted}
+	query.WriteString("INSERT INTO phone_account (user_id,phone_encrypted,update_time) VALUES (?,?,?)")
+	params := []interface{}{e.UserId, e.PhoneEncrypted, time.Now()}
 	return q.dao.db.Exec(ctx, tx, query.String(), params...)
 }
 
 func (q *PhoneAccountQuery) BatchInsert(ctx context.Context, tx *wrap.Tx, list []*PhoneAccount) (result *wrap.Result, err error) {
 	query := bytes.NewBufferString("")
-	query.WriteString("INSERT INTO phone_account (user_id,phone_encrypted) VALUES ")
-	query.WriteString(wrap.RepeatWithSeparator("(?,?)", len(list), ","))
-	params := make([]interface{}, len(list)*2)
+	query.WriteString("INSERT INTO phone_account (user_id,phone_encrypted,update_time) VALUES ")
+	query.WriteString(wrap.RepeatWithSeparator("(?,?,?)", len(list), ","))
+	params := make([]interface{}, len(list)*3)
 	offset := 0
 	for _, e := range list {
 		params[offset+0] = e.UserId
 		params[offset+1] = e.PhoneEncrypted
-		offset += 2
+		params[offset+2] = time.Now()
+		offset += 3
 	}
 
 	return q.dao.db.Exec(ctx, tx, query.String(), params...)
@@ -2953,33 +2961,34 @@ func (q *PhoneAccountQuery) BatchInsert(ctx context.Context, tx *wrap.Tx, list [
 
 func (q *PhoneAccountQuery) InsertOnDuplicatedKeyUpdate(ctx context.Context, tx *wrap.Tx, e *PhoneAccount) (result *wrap.Result, err error) {
 	query := bytes.NewBufferString("")
-	query.WriteString("INSERT INTO phone_account (user_id,phone_encrypted) VALUES (?,?)")
+	query.WriteString("INSERT INTO phone_account (user_id,phone_encrypted,update_time) VALUES (?,?,?)")
 	query.WriteString(" ON DUPLICATED KEY UPDATE ")
 	if len(q.duplicatedUpdateFields) > 0 {
 		query.WriteString(strings.Join(q.duplicatedUpdateFields, ","))
 		query.WriteString(",")
 	}
 	query.WriteString("update_time=now()")
-	params := []interface{}{e.UserId, e.PhoneEncrypted}
+	params := []interface{}{e.UserId, e.PhoneEncrypted, time.Now()}
 	return q.dao.db.Exec(ctx, tx, query.String(), params...)
 }
 
 func (q *PhoneAccountQuery) BatchInsertOnDuplicatedKeyUpdate(ctx context.Context, tx *wrap.Tx, list []*PhoneAccount) (result *wrap.Result, err error) {
 	query := bytes.NewBufferString("")
-	query.WriteString("INSERT INTO phone_account (user_id,phone_encrypted) VALUES ")
-	query.WriteString(wrap.RepeatWithSeparator("(?,?)", len(list), ","))
+	query.WriteString("INSERT INTO phone_account (user_id,phone_encrypted,update_time) VALUES ")
+	query.WriteString(wrap.RepeatWithSeparator("(?,?,?)", len(list), ","))
 	query.WriteString(" ON DUPLICATED KEY UPDATE")
 	if len(q.duplicatedUpdateFields) > 0 {
 		query.WriteString(strings.Join(q.duplicatedUpdateFields, ","))
 		query.WriteString(",")
 	}
 	query.WriteString("update_time=now()")
-	params := make([]interface{}, len(list)*2)
+	params := make([]interface{}, len(list)*3)
 	offset := 0
 	for _, e := range list {
 		params[offset+0] = e.UserId
 		params[offset+1] = e.PhoneEncrypted
-		offset += 2
+		params[offset+2] = time.Now()
+		offset += 3
 	}
 
 	return q.dao.db.Exec(ctx, tx, query.String(), params...)
@@ -3390,7 +3399,7 @@ func (q *RefreshTokenQuery) SelectGroupBy(ctx context.Context, tx *wrap.Tx, with
 	query.WriteString("SELECT ")
 	query.WriteString(strings.Join(q.groupByFields, ","))
 	if withCount {
-		query.WriteString(",Count(*) ")
+		query.WriteString(",MachineListCount(*) ")
 	}
 	query.WriteString(" FROM refresh_token ")
 	query.WriteString(queryString)
@@ -3425,21 +3434,22 @@ func (q *RefreshTokenQuery) SelectRows(ctx context.Context, tx *wrap.Tx) (rows *
 
 func (q *RefreshTokenQuery) Insert(ctx context.Context, tx *wrap.Tx, e *RefreshToken) (result *wrap.Result, err error) {
 	query := bytes.NewBufferString("")
-	query.WriteString("INSERT INTO refresh_token (user_id,refresh_token) VALUES (?,?)")
-	params := []interface{}{e.UserId, e.RefreshToken}
+	query.WriteString("INSERT INTO refresh_token (user_id,refresh_token,update_time) VALUES (?,?,?)")
+	params := []interface{}{e.UserId, e.RefreshToken, time.Now()}
 	return q.dao.db.Exec(ctx, tx, query.String(), params...)
 }
 
 func (q *RefreshTokenQuery) BatchInsert(ctx context.Context, tx *wrap.Tx, list []*RefreshToken) (result *wrap.Result, err error) {
 	query := bytes.NewBufferString("")
-	query.WriteString("INSERT INTO refresh_token (user_id,refresh_token) VALUES ")
-	query.WriteString(wrap.RepeatWithSeparator("(?,?)", len(list), ","))
-	params := make([]interface{}, len(list)*2)
+	query.WriteString("INSERT INTO refresh_token (user_id,refresh_token,update_time) VALUES ")
+	query.WriteString(wrap.RepeatWithSeparator("(?,?,?)", len(list), ","))
+	params := make([]interface{}, len(list)*3)
 	offset := 0
 	for _, e := range list {
 		params[offset+0] = e.UserId
 		params[offset+1] = e.RefreshToken
-		offset += 2
+		params[offset+2] = time.Now()
+		offset += 3
 	}
 
 	return q.dao.db.Exec(ctx, tx, query.String(), params...)
@@ -3447,33 +3457,34 @@ func (q *RefreshTokenQuery) BatchInsert(ctx context.Context, tx *wrap.Tx, list [
 
 func (q *RefreshTokenQuery) InsertOnDuplicatedKeyUpdate(ctx context.Context, tx *wrap.Tx, e *RefreshToken) (result *wrap.Result, err error) {
 	query := bytes.NewBufferString("")
-	query.WriteString("INSERT INTO refresh_token (user_id,refresh_token) VALUES (?,?)")
+	query.WriteString("INSERT INTO refresh_token (user_id,refresh_token,update_time) VALUES (?,?,?)")
 	query.WriteString(" ON DUPLICATED KEY UPDATE ")
 	if len(q.duplicatedUpdateFields) > 0 {
 		query.WriteString(strings.Join(q.duplicatedUpdateFields, ","))
 		query.WriteString(",")
 	}
 	query.WriteString("update_time=now()")
-	params := []interface{}{e.UserId, e.RefreshToken}
+	params := []interface{}{e.UserId, e.RefreshToken, time.Now()}
 	return q.dao.db.Exec(ctx, tx, query.String(), params...)
 }
 
 func (q *RefreshTokenQuery) BatchInsertOnDuplicatedKeyUpdate(ctx context.Context, tx *wrap.Tx, list []*RefreshToken) (result *wrap.Result, err error) {
 	query := bytes.NewBufferString("")
-	query.WriteString("INSERT INTO refresh_token (user_id,refresh_token) VALUES ")
-	query.WriteString(wrap.RepeatWithSeparator("(?,?)", len(list), ","))
+	query.WriteString("INSERT INTO refresh_token (user_id,refresh_token,update_time) VALUES ")
+	query.WriteString(wrap.RepeatWithSeparator("(?,?,?)", len(list), ","))
 	query.WriteString(" ON DUPLICATED KEY UPDATE")
 	if len(q.duplicatedUpdateFields) > 0 {
 		query.WriteString(strings.Join(q.duplicatedUpdateFields, ","))
 		query.WriteString(",")
 	}
 	query.WriteString("update_time=now()")
-	params := make([]interface{}, len(list)*2)
+	params := make([]interface{}, len(list)*3)
 	offset := 0
 	for _, e := range list {
 		params[offset+0] = e.UserId
 		params[offset+1] = e.RefreshToken
-		offset += 2
+		params[offset+2] = time.Now()
+		offset += 3
 	}
 
 	return q.dao.db.Exec(ctx, tx, query.String(), params...)
@@ -4004,7 +4015,7 @@ func (q *SmsCodeQuery) SelectGroupBy(ctx context.Context, tx *wrap.Tx, withCount
 	query.WriteString("SELECT ")
 	query.WriteString(strings.Join(q.groupByFields, ","))
 	if withCount {
-		query.WriteString(",Count(*) ")
+		query.WriteString(",MachineListCount(*) ")
 	}
 	query.WriteString(" FROM sms_code ")
 	query.WriteString(queryString)
@@ -4039,23 +4050,24 @@ func (q *SmsCodeQuery) SelectRows(ctx context.Context, tx *wrap.Tx) (rows *wrap.
 
 func (q *SmsCodeQuery) Insert(ctx context.Context, tx *wrap.Tx, e *SmsCode) (result *wrap.Result, err error) {
 	query := bytes.NewBufferString("")
-	query.WriteString("INSERT INTO sms_code (sms_scene,phone_encrypted,sms_code,user_id) VALUES (?,?,?,?)")
-	params := []interface{}{e.SmsScene, e.PhoneEncrypted, e.SmsCode, e.UserId}
+	query.WriteString("INSERT INTO sms_code (sms_scene,phone_encrypted,sms_code,user_id,update_time) VALUES (?,?,?,?,?)")
+	params := []interface{}{e.SmsScene, e.PhoneEncrypted, e.SmsCode, e.UserId, time.Now()}
 	return q.dao.db.Exec(ctx, tx, query.String(), params...)
 }
 
 func (q *SmsCodeQuery) BatchInsert(ctx context.Context, tx *wrap.Tx, list []*SmsCode) (result *wrap.Result, err error) {
 	query := bytes.NewBufferString("")
-	query.WriteString("INSERT INTO sms_code (sms_scene,phone_encrypted,sms_code,user_id) VALUES ")
-	query.WriteString(wrap.RepeatWithSeparator("(?,?,?,?)", len(list), ","))
-	params := make([]interface{}, len(list)*4)
+	query.WriteString("INSERT INTO sms_code (sms_scene,phone_encrypted,sms_code,user_id,update_time) VALUES ")
+	query.WriteString(wrap.RepeatWithSeparator("(?,?,?,?,?)", len(list), ","))
+	params := make([]interface{}, len(list)*5)
 	offset := 0
 	for _, e := range list {
 		params[offset+0] = e.SmsScene
 		params[offset+1] = e.PhoneEncrypted
 		params[offset+2] = e.SmsCode
 		params[offset+3] = e.UserId
-		offset += 4
+		params[offset+4] = time.Now()
+		offset += 5
 	}
 
 	return q.dao.db.Exec(ctx, tx, query.String(), params...)
@@ -4564,7 +4576,7 @@ func (q *UserInfoQuery) SelectGroupBy(ctx context.Context, tx *wrap.Tx, withCoun
 	query.WriteString("SELECT ")
 	query.WriteString(strings.Join(q.groupByFields, ","))
 	if withCount {
-		query.WriteString(",Count(*) ")
+		query.WriteString(",MachineListCount(*) ")
 	}
 	query.WriteString(" FROM user_info ")
 	query.WriteString(queryString)
@@ -4599,23 +4611,24 @@ func (q *UserInfoQuery) SelectRows(ctx context.Context, tx *wrap.Tx) (rows *wrap
 
 func (q *UserInfoQuery) Insert(ctx context.Context, tx *wrap.Tx, e *UserInfo) (result *wrap.Result, err error) {
 	query := bytes.NewBufferString("")
-	query.WriteString("INSERT INTO user_info (user_id,user_name,user_icon,password_hash) VALUES (?,?,?,?)")
-	params := []interface{}{e.UserId, e.UserName, e.UserIcon, e.PasswordHash}
+	query.WriteString("INSERT INTO user_info (user_id,user_name,user_icon,password_hash,update_time) VALUES (?,?,?,?,?)")
+	params := []interface{}{e.UserId, e.UserName, e.UserIcon, e.PasswordHash, time.Now()}
 	return q.dao.db.Exec(ctx, tx, query.String(), params...)
 }
 
 func (q *UserInfoQuery) BatchInsert(ctx context.Context, tx *wrap.Tx, list []*UserInfo) (result *wrap.Result, err error) {
 	query := bytes.NewBufferString("")
-	query.WriteString("INSERT INTO user_info (user_id,user_name,user_icon,password_hash) VALUES ")
-	query.WriteString(wrap.RepeatWithSeparator("(?,?,?,?)", len(list), ","))
-	params := make([]interface{}, len(list)*4)
+	query.WriteString("INSERT INTO user_info (user_id,user_name,user_icon,password_hash,update_time) VALUES ")
+	query.WriteString(wrap.RepeatWithSeparator("(?,?,?,?,?)", len(list), ","))
+	params := make([]interface{}, len(list)*5)
 	offset := 0
 	for _, e := range list {
 		params[offset+0] = e.UserId
 		params[offset+1] = e.UserName
 		params[offset+2] = e.UserIcon
 		params[offset+3] = e.PasswordHash
-		offset += 4
+		params[offset+4] = time.Now()
+		offset += 5
 	}
 
 	return q.dao.db.Exec(ctx, tx, query.String(), params...)
@@ -4623,35 +4636,36 @@ func (q *UserInfoQuery) BatchInsert(ctx context.Context, tx *wrap.Tx, list []*Us
 
 func (q *UserInfoQuery) InsertOnDuplicatedKeyUpdate(ctx context.Context, tx *wrap.Tx, e *UserInfo) (result *wrap.Result, err error) {
 	query := bytes.NewBufferString("")
-	query.WriteString("INSERT INTO user_info (user_id,user_name,user_icon,password_hash) VALUES (?,?,?,?)")
+	query.WriteString("INSERT INTO user_info (user_id,user_name,user_icon,password_hash,update_time) VALUES (?,?,?,?,?)")
 	query.WriteString(" ON DUPLICATED KEY UPDATE ")
 	if len(q.duplicatedUpdateFields) > 0 {
 		query.WriteString(strings.Join(q.duplicatedUpdateFields, ","))
 		query.WriteString(",")
 	}
 	query.WriteString("update_time=now()")
-	params := []interface{}{e.UserId, e.UserName, e.UserIcon, e.PasswordHash}
+	params := []interface{}{e.UserId, e.UserName, e.UserIcon, e.PasswordHash, time.Now()}
 	return q.dao.db.Exec(ctx, tx, query.String(), params...)
 }
 
 func (q *UserInfoQuery) BatchInsertOnDuplicatedKeyUpdate(ctx context.Context, tx *wrap.Tx, list []*UserInfo) (result *wrap.Result, err error) {
 	query := bytes.NewBufferString("")
-	query.WriteString("INSERT INTO user_info (user_id,user_name,user_icon,password_hash) VALUES ")
-	query.WriteString(wrap.RepeatWithSeparator("(?,?,?,?)", len(list), ","))
+	query.WriteString("INSERT INTO user_info (user_id,user_name,user_icon,password_hash,update_time) VALUES ")
+	query.WriteString(wrap.RepeatWithSeparator("(?,?,?,?,?)", len(list), ","))
 	query.WriteString(" ON DUPLICATED KEY UPDATE")
 	if len(q.duplicatedUpdateFields) > 0 {
 		query.WriteString(strings.Join(q.duplicatedUpdateFields, ","))
 		query.WriteString(",")
 	}
 	query.WriteString("update_time=now()")
-	params := make([]interface{}, len(list)*4)
+	params := make([]interface{}, len(list)*5)
 	offset := 0
 	for _, e := range list {
 		params[offset+0] = e.UserId
 		params[offset+1] = e.UserName
 		params[offset+2] = e.UserIcon
 		params[offset+3] = e.PasswordHash
-		offset += 4
+		params[offset+4] = time.Now()
+		offset += 5
 	}
 
 	return q.dao.db.Exec(ctx, tx, query.String(), params...)

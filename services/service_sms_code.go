@@ -6,6 +6,7 @@ import (
 	"github.com/NeuronFramework/errors"
 	"github.com/NeuronFramework/rand"
 	"github.com/NeuronFramework/rest"
+	"os"
 	"time"
 )
 
@@ -16,9 +17,13 @@ func (s *AccountService) SendSmsCode(ctx *rest.Context, p *models.SendSmsCodePar
 	}
 
 	smsCode := rand.NextNumberFixedLength(models.SmsCodeLength)
-	_, err = s.smsService.SendSms(p.Phone, smsCode, "")
-	if err != nil {
-		return err
+	if os.Getenv("ENV") == "DEV" {
+		smsCode = "1234"
+	} else {
+		_, err = s.smsService.SendSms(p.Phone, smsCode, "")
+		if err != nil {
+			return err
+		}
 	}
 
 	dbSmsCode := &neuron_account_db.SmsCode{}

@@ -6,6 +6,7 @@ import (
 	"github.com/NeuronFramework/errors"
 	"github.com/NeuronFramework/rest"
 	"github.com/NeuronFramework/sql/wrap"
+	"go.uber.org/zap"
 )
 
 const CreateUserInfoMaxRetryCount = 10
@@ -31,26 +32,42 @@ func (s *AccountService) SmsLogin(ctx *rest.Context, phone string, smsCode strin
 		return nil, err
 	}
 	if dbPhoneAccount == nil {
-		err = s.accountDB.TransactionReadCommitted(ctx, false, func(tx *wrap.Tx) (err error) {
-			dbUserInfo, err := s.retryCreateUserInfo(ctx, tx, CreateUserInfoMaxRetryCount)
-			if err != nil {
-				return err
-			}
+		for i := 0; i < CreateUserInfoMaxRetryCount; i++ {
+			err = s.accountDB.TransactionReadCommitted(ctx, false, func(tx *wrap.Tx) (err error) {
+				dbUserInfo, err := s.createUserInfo(ctx, tx)
+				if err != nil {
+					if err == wrap.ErrDuplicated {
+						s.logger.Warn("SmsLogin.createUserInfo",
+							zap.Int("retryCount", i),
+							zap.String("UserId", dbUserInfo.UserId),
+							zap.String("UserName", dbUserInfo.UserName))
+					}
 
-			dbPhoneAccount = &neuron_account_db.PhoneAccount{}
-			dbPhoneAccount.PhoneEncrypted = phoneEncrypted
-			dbPhoneAccount.UserId = dbUserInfo.UserId
-			_, err = s.accountDB.PhoneAccount.Query().Insert(ctx, tx, dbPhoneAccount)
-			if err != nil {
-				//手机号已被注册的情况不需要单独判断
-				//因为其UserID不太可能和新建的UserID相同，故直接返回错误
-				return err
-			}
+					return err
+				}
 
-			return nil
-		})
-		if err != nil {
-			return nil, err
+				dbPhoneAccount = &neuron_account_db.PhoneAccount{}
+				dbPhoneAccount.PhoneEncrypted = phoneEncrypted
+				dbPhoneAccount.UserId = dbUserInfo.UserId
+				_, err = s.accountDB.PhoneAccount.Query().Insert(ctx, tx, dbPhoneAccount)
+				if err != nil {
+					//手机号已被注册的情况不需要单独判断
+					//因为其UserID不太可能和新建的UserID相同，故直接返回错误
+					if err == wrap.ErrDuplicated { //手机号已注册
+						return nil
+					} else {
+						return err
+					}
+				}
+
+				return nil
+			})
+
+			if err == wrap.ErrDuplicated {
+				continue
+			} else {
+				return nil, err
+			}
 		}
 	}
 

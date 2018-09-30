@@ -60,11 +60,12 @@ func (s *AccountService) BindPhone(ctx *rest.Context, userId string, phone strin
 		return err
 	}
 
-	//插入或更新绑定纪录
+	//插入绑定纪录，如果已绑定到其它帐号，直接更新
 	dbPhoneAccount := &neuron_account_db.PhoneAccount{}
 	dbPhoneAccount.PhoneEncrypted = phoneEncrypted
 	dbPhoneAccount.UserId = userId
-	_, err = s.accountDB.PhoneAccount.Query().Insert(ctx, nil, dbPhoneAccount)
+	_, err = s.accountDB.PhoneAccount.Query().DuplicatedUpdateUserId().
+		InsertOnDuplicatedKeyUpdate(ctx, nil, dbPhoneAccount)
 	if err != nil {
 		return err
 	}

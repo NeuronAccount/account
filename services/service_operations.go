@@ -2,7 +2,6 @@ package services
 
 import (
 	"github.com/NeuronAccount/account/models"
-	"github.com/NeuronFramework/errors"
 	"github.com/NeuronFramework/rest"
 	"go.uber.org/zap"
 	"strconv"
@@ -30,7 +29,7 @@ func (s *AccountService) GetOperationList(ctx *rest.Context, userId string, quer
 	if query.PageToken != "" {
 		pageTokenI, err := strconv.Atoi(query.PageToken)
 		if err != nil {
-			return nil, "", errors.InvalidParam("PageToken无效")
+			return nil, "", rest.InvalidParam("PageToken无效")
 		}
 		pageToken = int64(pageTokenI)
 	}

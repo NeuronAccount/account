@@ -11,17 +11,18 @@ import (
 
 func main() {
 	rest.Run(func() (http.Handler, error) {
-		h, err := handler.NewAccountHandler()
-		if err != nil {
-			return nil, err
-		}
-
 		swaggerSpec, err := loads.Analyzed(restapi.SwaggerJSON, "")
 		if err != nil {
 			return nil, err
 		}
 
+		h, err := handler.NewAccountHandler()
+		if err != nil {
+			return nil, err
+		}
+
 		api := operations.NewAccountAPI(swaggerSpec)
+		api.ServeError = rest.ServeError
 		api.BearerAuth = h.BearerAuth
 		api.SendSmsCodeHandler = operations.SendSmsCodeHandlerFunc(h.SendSmsCode)
 		api.SendLoginSmsCodeHandler = operations.SendLoginSmsCodeHandlerFunc(h.SendLoginSmsCode)

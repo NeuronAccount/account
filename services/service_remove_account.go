@@ -2,14 +2,13 @@ package services
 
 import (
 	"github.com/NeuronAccount/account/models"
-	"github.com/NeuronFramework/errors"
 	"github.com/NeuronFramework/rest"
 	"github.com/NeuronFramework/sql/wrap"
 )
 
 func (s *AccountService) RemoveAccount(ctx *rest.Context, userId string) (err error) {
 	if userId == "" {
-		return errors.InvalidParam("userId不能为空")
+		return rest.InvalidParam("userId不能为空")
 	}
 
 	return s.accountDB.TransactionReadCommitted(ctx, false, func(tx *wrap.Tx) (err error) {

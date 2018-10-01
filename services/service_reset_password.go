@@ -3,8 +3,8 @@ package services
 import (
 	"fmt"
 	"github.com/NeuronAccount/account/models"
-	"github.com/NeuronFramework/errors"
 	"github.com/NeuronFramework/rest"
+	"github.com/go-openapi/errors"
 )
 
 func (s *AccountService) ResetPassword(ctx *rest.Context, phone string, smsCode string, newPasswordHash1 string) (err error) {
@@ -47,7 +47,7 @@ func (s *AccountService) ResetPassword(ctx *rest.Context, phone string, smsCode 
 		return err
 	}
 	if affectedRows != 1 {
-		return errors.Unknown(fmt.Sprintf("更新失败，影响行数%d", affectedRows))
+		return rest.Unknown(fmt.Sprintf("更新失败，影响行数%d", affectedRows))
 	}
 
 	//操作纪录

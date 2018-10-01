@@ -6,9 +6,9 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/NeuronFramework/errors"
 	"github.com/NeuronFramework/log"
 	"github.com/NeuronFramework/rand"
+	"github.com/NeuronFramework/rest"
 	"go.uber.org/zap"
 	"net/http"
 	"net/url"
@@ -133,11 +133,11 @@ func (s *Service) wrapError(code string, message string) (err error) {
 	case "OK":
 		return nil
 	case "isv.MOBILE_NUMBER_ILLEGAL":
-		return errors.InvalidParam("手机号格式错误")
+		return rest.InvalidParam("手机号格式错误")
 	case "isv.BUSINESS_LIMIT_CONTROL":
-		return errors.BadRequest("SendLimit", "每天最多发送5次")
+		return rest.BadRequest("SendLimit", "每天最多发送5次")
 	default:
-		return errors.Unknown("短信发送后端服务失败，code＝" + code + ",message=" + message)
+		return rest.Unknown("短信发送后端服务失败，code＝" + code + ",message=" + message)
 	}
 }
 

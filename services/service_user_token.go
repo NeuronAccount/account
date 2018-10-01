@@ -3,7 +3,6 @@ package services
 import (
 	"github.com/NeuronAccount/account/models"
 	"github.com/NeuronAccount/account/storages/neuron_account_db"
-	"github.com/NeuronFramework/errors"
 	"github.com/NeuronFramework/rand"
 	"github.com/NeuronFramework/rest"
 	"github.com/NeuronFramework/sql/wrap"
@@ -88,7 +87,7 @@ func (s *AccountService) createRefreshToken(ctx *rest.Context, userId string) (r
 		return refreshToken, nil
 	}
 
-	return "", errors.Unknown("服务器正忙，请稍后再试")
+	return "", rest.Unknown("服务器正忙，请稍后再试")
 }
 
 func (s *AccountService) createUserToken(ctx *rest.Context, userId string) (userToken *models.UserToken, err error) {

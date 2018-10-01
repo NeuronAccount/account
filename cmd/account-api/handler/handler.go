@@ -1,16 +1,18 @@
 package handler
 
 import (
+	"fmt"
 	api "github.com/NeuronAccount/account/api/gen/models"
 	"github.com/NeuronAccount/account/api/gen/restapi/operations"
 	"github.com/NeuronAccount/account/models"
 	"github.com/NeuronAccount/account/services"
-	"github.com/NeuronFramework/errors"
 	"github.com/NeuronFramework/log"
 	"github.com/NeuronFramework/rest"
 	"github.com/dgrijalva/jwt-go"
+	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/runtime/middleware"
 	"go.uber.org/zap"
+	"net/http"
 )
 
 type AccountHandler struct {
@@ -43,7 +45,7 @@ func (h *AccountHandler) BearerAuth(token string) (userId interface{}, err error
 	}
 
 	if claims.Subject == "" {
-		return nil, errors.Unknown("验证失败： claims.Subject nil")
+		return nil, fmt.Errorf("验证失败： claims.Subject nil")
 	}
 
 	return claims.Subject, nil
@@ -58,7 +60,10 @@ func (h *AccountHandler) SendSmsCode(p operations.SendSmsCodeParams, userId inte
 		CaptchaCode: p.CaptchaCode,
 	})
 	if err != nil {
-		return errors.Wrap(err)
+		return middleware.ResponderFunc(func(http.ResponseWriter, runtime.Producer) {
+
+			return
+		})
 	}
 
 	return operations.NewSendSmsCodeOK()
@@ -73,7 +78,7 @@ func (h *AccountHandler) SendLoginSmsCode(p operations.SendLoginSmsCodeParams) m
 		CaptchaCode: p.CaptchaCode,
 	})
 	if err != nil {
-		return errors.Wrap(err)
+		return rest.Wrap(err)
 	}
 
 	return operations.NewSendSmsCodeOK()
@@ -82,7 +87,7 @@ func (h *AccountHandler) SendLoginSmsCode(p operations.SendLoginSmsCodeParams) m
 func (h *AccountHandler) SmsLogin(p operations.SmsLoginParams) middleware.Responder {
 	userToken, err := h.service.SmsLogin(rest.NewContext(p.HTTPRequest), p.Phone, p.SmsCode)
 	if err != nil {
-		return errors.Wrap(err)
+		return rest.Wrap(err)
 	}
 
 	return operations.NewSmsLoginOK().WithPayload(fromUserToken(userToken))
@@ -91,7 +96,7 @@ func (h *AccountHandler) SmsLogin(p operations.SmsLoginParams) middleware.Respon
 func (h *AccountHandler) PhonePasswordLogin(p operations.PhonePasswordLoginParams) middleware.Responder {
 	userToken, err := h.service.PhonePasswordLogin(rest.NewContext(p.HTTPRequest), p.Phone, p.PasswordHash1)
 	if err != nil {
-		return errors.Wrap(err)
+		return rest.Wrap(err)
 	}
 
 	return operations.NewPhonePasswordLoginOK().WithPayload(fromUserToken(userToken))
@@ -100,7 +105,7 @@ func (h *AccountHandler) PhonePasswordLogin(p operations.PhonePasswordLoginParam
 func (h *AccountHandler) Logout(p operations.LogoutParams, userId interface{}) middleware.Responder {
 	err := h.service.Logout(rest.NewContext(p.HTTPRequest), userId.(string))
 	if err != nil {
-		return errors.Wrap(err)
+		return rest.Wrap(err)
 	}
 
 	return operations.NewLogoutOK()
@@ -109,7 +114,7 @@ func (h *AccountHandler) Logout(p operations.LogoutParams, userId interface{}) m
 func (h *AccountHandler) RefreshToken(p operations.RefreshTokenParams) middleware.Responder {
 	userToken, err := h.service.RefreshToken(rest.NewContext(p.HTTPRequest), p.RefreshToken)
 	if err != nil {
-		return errors.Wrap(err)
+		return rest.Wrap(err)
 	}
 
 	return operations.NewRefreshTokenOK().WithPayload(fromUserToken(userToken))
@@ -118,7 +123,7 @@ func (h *AccountHandler) RefreshToken(p operations.RefreshTokenParams) middlewar
 func (h *AccountHandler) OauthState(p operations.OauthStateParams) middleware.Responder {
 	state, err := h.service.OauthState(rest.NewContext(p.HTTPRequest))
 	if err != nil {
-		return errors.Wrap(err)
+		return rest.Wrap(err)
 	}
 
 	return operations.NewOauthStateOK().WithPayload(state)
@@ -134,7 +139,7 @@ func (h *AccountHandler) OauthJump(p operations.OauthJumpParams) middleware.Resp
 		})
 
 	if err != nil {
-		return errors.Wrap(err)
+		return rest.Wrap(err)
 	}
 
 	return operations.NewOauthJumpOK().WithPayload(fromUserToken(userToken))
@@ -143,7 +148,7 @@ func (h *AccountHandler) OauthJump(p operations.OauthJumpParams) middleware.Resp
 func (h *AccountHandler) ResetPassword(p operations.ResetPasswordParams) middleware.Responder {
 	err := h.service.ResetPassword(rest.NewContext(p.HTTPRequest), p.Phone, p.SmsCode, p.NewPasswordHash1)
 	if err != nil {
-		return errors.Wrap(err)
+		return rest.Wrap(err)
 	}
 
 	return operations.NewResetPasswordOK()
@@ -152,7 +157,7 @@ func (h *AccountHandler) ResetPassword(p operations.ResetPasswordParams) middlew
 func (h *AccountHandler) GetUserInfo(p operations.GetUserInfoParams, userId interface{}) middleware.Responder {
 	userInfo, err := h.service.GetUserInfo(rest.NewContext(p.HTTPRequest), userId.(string))
 	if err != nil {
-		return errors.Wrap(err)
+		return rest.Wrap(err)
 	}
 
 	return operations.NewGetUserInfoOK().WithPayload(fromUserInfo(userInfo))
@@ -161,7 +166,7 @@ func (h *AccountHandler) GetUserInfo(p operations.GetUserInfoParams, userId inte
 func (h *AccountHandler) SetUserName(p operations.SetUserNameParams, userId interface{}) middleware.Responder {
 	err := h.service.SetUserName(rest.NewContext(p.HTTPRequest), userId.(string), p.UserName)
 	if err != nil {
-		return errors.Wrap(err)
+		return rest.Wrap(err)
 	}
 
 	return operations.NewSetUserNameOK()
@@ -170,7 +175,7 @@ func (h *AccountHandler) SetUserName(p operations.SetUserNameParams, userId inte
 func (h *AccountHandler) SetUserIcon(p operations.SetUserIconParams, userId interface{}) middleware.Responder {
 	err := h.service.SetUserIcon(rest.NewContext(p.HTTPRequest), userId.(string), p.UserIcon)
 	if err != nil {
-		return errors.Wrap(err)
+		return rest.Wrap(err)
 	}
 
 	return operations.NewSetUserIconOK()
@@ -179,7 +184,7 @@ func (h *AccountHandler) SetUserIcon(p operations.SetUserIconParams, userId inte
 func (h *AccountHandler) GetAccountInfo(p operations.GetAccountInfoParams, userId interface{}) middleware.Responder {
 	accountInfo, err := h.service.GetAccountInfo(rest.NewContext(p.HTTPRequest), userId.(string))
 	if err != nil {
-		return errors.Wrap(err)
+		return rest.Wrap(err)
 	}
 
 	return operations.NewGetAccountInfoOK().WithPayload(fromAccountInfo(accountInfo))
@@ -188,7 +193,7 @@ func (h *AccountHandler) GetAccountInfo(p operations.GetAccountInfoParams, userI
 func (h *AccountHandler) BindPhone(p operations.BindPhoneParams, userId interface{}) middleware.Responder {
 	err := h.service.BindPhone(rest.NewContext(p.HTTPRequest), userId.(string), p.Phone, p.SmsCode)
 	if err != nil {
-		return errors.Wrap(err)
+		return rest.Wrap(err)
 	}
 
 	return operations.NewBindPhoneOK()
@@ -197,7 +202,7 @@ func (h *AccountHandler) BindPhone(p operations.BindPhoneParams, userId interfac
 func (h *AccountHandler) UnbindPhone(p operations.UnbindPhoneParams, userId interface{}) middleware.Responder {
 	err := h.service.BindPhone(rest.NewContext(p.HTTPRequest), userId.(string), p.Phone, p.SmsCode)
 	if err != nil {
-		return errors.Wrap(err)
+		return rest.Wrap(err)
 	}
 
 	return operations.NewUnbindPhoneOK()
@@ -206,7 +211,7 @@ func (h *AccountHandler) UnbindPhone(p operations.UnbindPhoneParams, userId inte
 func (h *AccountHandler) BindOauthAccount(p operations.BindOauthAccountParams, userId interface{}) middleware.Responder {
 	err := h.service.BindOauthAccount(rest.NewContext(p.HTTPRequest), userId.(string))
 	if err != nil {
-		return errors.Wrap(err)
+		return rest.Wrap(err)
 	}
 
 	return operations.NewBindOauthAccountOK()
@@ -215,7 +220,7 @@ func (h *AccountHandler) BindOauthAccount(p operations.BindOauthAccountParams, u
 func (h *AccountHandler) UnbindOauthAccount(p operations.UnbindOauthAccountParams, userId interface{}) middleware.Responder {
 	err := h.service.UnbindOauthAccount(rest.NewContext(p.HTTPRequest), userId.(string))
 	if err != nil {
-		return errors.Wrap(err)
+		return rest.Wrap(err)
 	}
 
 	return operations.NewUnbindOauthAccountOK()
@@ -235,7 +240,7 @@ func (h *AccountHandler) GetOperationList(p operations.GetOperationListParams, u
 
 	items, nextPageToken, err := h.service.GetOperationList(rest.NewContext(p.HTTPRequest), userId.(string), query)
 	if err != nil {
-		return errors.Wrap(err)
+		return rest.Wrap(err)
 	}
 
 	response := &api.OperationListResponse{

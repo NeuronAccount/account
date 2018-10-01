@@ -3,7 +3,6 @@ package services
 import (
 	"github.com/NeuronAccount/account/models"
 	"github.com/NeuronAccount/account/storages/neuron_account_db"
-	"github.com/NeuronFramework/errors"
 	"github.com/NeuronFramework/rand"
 	"github.com/NeuronFramework/rest"
 	"github.com/NeuronFramework/sql/wrap"
@@ -30,7 +29,7 @@ func (s *AccountService) GetUserInfo(ctx *rest.Context, userId string) (userInfo
 		return nil, err
 	}
 	if dbUserInfo == nil {
-		return nil, errors.NotFound("用户不存在")
+		return nil, rest.NotFound("用户不存在")
 	}
 
 	return fromUserInfo(dbUserInfo), nil
@@ -44,7 +43,7 @@ func (s *AccountService) SetUserName(ctx *rest.Context, userId string, userName 
 		return err
 	}
 	if dbOtherUserInfo != nil && dbOtherUserInfo.UserId != userId {
-		return errors.NotFound("该名称已被使用")
+		return rest.NotFound("该名称已被使用")
 	}
 
 	//更新
@@ -54,7 +53,7 @@ func (s *AccountService) SetUserName(ctx *rest.Context, userId string, userName 
 		return err
 	}
 	if dbUserInfo == nil {
-		return errors.NotFound("用户不存在")
+		return rest.NotFound("用户不存在")
 	}
 
 	_, err = s.accountDB.UserInfo.Query().IdEqual(dbUserInfo.Id).
@@ -72,7 +71,7 @@ func (s *AccountService) SetUserIcon(ctx *rest.Context, userId string, userIcon 
 		return err
 	}
 	if dbUserInfo == nil {
-		return errors.NotFound("用户不存在")
+		return rest.NotFound("用户不存在")
 	}
 
 	_, err = s.accountDB.UserInfo.Query().IdEqual(dbUserInfo.Id).

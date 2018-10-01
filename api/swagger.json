@@ -495,7 +495,7 @@
           {
             "in": "query",
             "name": "pageSize",
-            "type": "string",
+            "type": "integer",
             "format": "int32"
           }
         ],

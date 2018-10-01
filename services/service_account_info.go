@@ -2,7 +2,6 @@ package services
 
 import (
 	"github.com/NeuronAccount/account/models"
-	"github.com/NeuronFramework/errors"
 	"github.com/NeuronFramework/rest"
 )
 
@@ -16,7 +15,7 @@ func (s *AccountService) GetAccountInfo(ctx *rest.Context, userId string) (accou
 		return nil, err
 	}
 	if dbUserInfo == nil {
-		return nil, errors.NotFound("用户不存在")
+		return nil, rest.NotFound("用户不存在")
 	}
 	accountInfo.UserName = dbUserInfo.UserName
 	accountInfo.UserIcon = dbUserInfo.UserIcon

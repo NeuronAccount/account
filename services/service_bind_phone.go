@@ -3,7 +3,6 @@ package services
 import (
 	"github.com/NeuronAccount/account/models"
 	"github.com/NeuronAccount/account/storages/neuron_account_db"
-	"github.com/NeuronFramework/errors"
 	"github.com/NeuronFramework/rest"
 	"go.uber.org/zap"
 )
@@ -27,7 +26,7 @@ func (s *AccountService) ValidateBindPhone(ctx *rest.Context, userId string, pho
 
 	//手机号已与当前帐号绑定
 	if dbPhoneAccount.UserId == userId {
-		return errors.Unknown("当前用户已绑定该手机号")
+		return rest.Unknown("当前用户已绑定该手机号")
 	}
 
 	//手机号已绑定到其它用户，获取绑定到的用户信息
@@ -40,10 +39,10 @@ func (s *AccountService) ValidateBindPhone(ctx *rest.Context, userId string, pho
 		s.logger.Error("ValidateBindPhone",
 			zap.String("phone", phone),
 			zap.String("userId", dbPhoneAccount.UserId))
-		return errors.Unknown("该手机已绑定到其它帐号")
+		return rest.Unknown("该手机已绑定到其它帐号")
 	}
 
-	return errors.BadRequest(
+	return rest.BadRequest(
 		"AlreadyBinded",
 		"该手机号已绑定到帐号"+s.maskString(dbUserInfo.UserName, 2, 2))
 }

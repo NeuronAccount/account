@@ -3,9 +3,9 @@ package services
 import (
 	"github.com/NeuronAccount/account/models"
 	"github.com/NeuronAccount/account/storages/neuron_account_db"
-	"github.com/NeuronFramework/errors"
 	"github.com/NeuronFramework/rest"
 	"github.com/NeuronFramework/sql/wrap"
+	"github.com/go-openapi/errors"
 	"go.uber.org/zap"
 )
 
@@ -107,7 +107,7 @@ func (s *AccountService) PhonePasswordLogin(ctx *rest.Context, phone string, pas
 		return nil, err
 	}
 	if dbPhoneAccount == nil {
-		return nil, errors.NotFound("手机号尚未注册")
+		return nil, rest.NotFound("手机号尚未注册")
 	}
 
 	//获取帐号信息
@@ -120,7 +120,7 @@ func (s *AccountService) PhonePasswordLogin(ctx *rest.Context, phone string, pas
 	}
 
 	if dbUserInfo.PasswordHash != passwordHash2 {
-		return nil, errors.BadRequest("AuthorizationFailed", "密码不正确")
+		return nil, rest.BadRequest("AuthorizationFailed", "密码不正确")
 	}
 
 	//创建token

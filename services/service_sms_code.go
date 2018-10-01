@@ -3,7 +3,6 @@ package services
 import (
 	"github.com/NeuronAccount/account/models"
 	"github.com/NeuronAccount/account/storages/neuron_account_db"
-	"github.com/NeuronFramework/errors"
 	"github.com/NeuronFramework/rand"
 	"github.com/NeuronFramework/rest"
 	"os"
@@ -52,8 +51,9 @@ func (s *AccountService) validateSmsCode(
 	smsCode string,
 	userId string) (
 	err error) {
+
 	dbSmsCode, err := s.accountDB.SmsCode.Query().
-		SmsSceneEqual(string(scene)).
+		SmsSceneEqual(scene).
 		And().PhoneEncryptedEqual(phoneEncrypted).
 		And().UserIdEqual(userId).
 		OrderById(false).Select(ctx, nil)
@@ -62,11 +62,11 @@ func (s *AccountService) validateSmsCode(
 	}
 
 	if dbSmsCode == nil || dbSmsCode.SmsCode != smsCode {
-		return errors.BadRequest("InvalidSmsCode", "验证码错误")
+		return rest.BadRequest("InvalidSmsCode", "验证码错误")
 	}
 
 	if time.Now().Sub(dbSmsCode.CreateTime).Seconds() > models.SmsCodeValidSeconds {
-		return errors.BadRequest("InvalidSmsCode", "验证码已过期")
+		return rest.BadRequest("InvalidSmsCode", "验证码已过期")
 	}
 
 	return nil
